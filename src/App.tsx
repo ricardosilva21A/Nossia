@@ -1,12 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { FormEvent } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
+import { CalendarView, LocationSearch } from "./CalendarMap";
+import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, Mood } from "./types";
 
-type Category = "Romantic" | "Adventure" | "Food & drink" | "Creative" | "Relaxing" | "Culture";
-type Status = "idea" | "planned" | "completed";
-type View = "discover" | "favorites" | "planned" | "memories";
+type View = "discover" | "favorites" | "planned" | "memories" | "calendar" | "map";
 type AuthMode = "sign-in" | "sign-up";
+type DiscoveryMode = "random" | "feeling";
+const LazyMapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
+type DatePhoto = {
+  id: string;
+  couple_id: string;
+  date_idea_id: string;
+  storage_path: string;
+  created_at: string;
+  signed_url: string | null;
+};
 type Couple = {
   id: string;
   partner_one_name: string;
@@ -18,35 +28,19 @@ type Couple = {
   first_message_date: string | null;
   first_date_date: string | null;
 };
-type DateIdea = {
-  id: string;
-  couple_id: string;
-  title: string;
-  description: string;
-  category: Category;
-  duration: string;
-  budget: string;
-  emoji: string;
-  status: Status;
-  favorite: boolean;
-  planned_for: string | null;
-  completed_at: string | null;
-  memory: string | null;
-  rating: number | null;
-  location_name: string | null;
-};
-type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name">;
+type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name" | "latitude" | "longitude">;
+const moodOptions: Mood[] = ["Romantic", "Fun", "Relaxing", "Adventure", "Creative", "Surprise me"];
 
 const categories: Array<Category | "All"> = ["All", "Romantic", "Adventure", "Food & drink", "Creative", "Relaxing", "Culture"];
 const seedIdeas: SeedIdea[] = [
-  { title: "Sunset picnic", description: "Pack a basket with your favourite treats and find a little spot to call your own.", category: "Romantic", duration: "2–3 hours", budget: "€€", emoji: "🧺", status: "idea", favorite: true },
-  { title: "Cook something new", description: "Choose a cuisine, put on some music and make dinner together, no rush.", category: "Food & drink", duration: "1–2 hours", budget: "€", emoji: "🍝", status: "idea", favorite: false },
-  { title: "Wander without a plan", description: "Pick a direction, put your phones away and discover somewhere new.", category: "Adventure", duration: "2 hours", budget: "Free", emoji: "🚲", status: "idea", favorite: false },
-  { title: "A games night for two", description: "A little friendly competition, snacks and the winner picks the next film.", category: "Relaxing", duration: "2 hours", budget: "€", emoji: "🎲", status: "idea", favorite: false },
-  { title: "Visit a museum", description: "Choose an exhibition and share the pieces that make you feel something.", category: "Culture", duration: "2–3 hours", budget: "€€", emoji: "🖼️", status: "idea", favorite: false },
-  { title: "Try a pottery class", description: "Make something with your hands. Wonky little creations tell stories too.", category: "Creative", duration: "2 hours", budget: "€€€", emoji: "🏺", status: "idea", favorite: true },
-  { title: "Breakfast in bed", description: "Start the day slowly with coffee, fruit and a morning just for the two of you.", category: "Romantic", duration: "1 hour", budget: "€", emoji: "🥐", status: "idea", favorite: false },
-  { title: "Find a scenic trail", description: "Bring some water, wear comfy shoes and find a beautiful path to explore.", category: "Adventure", duration: "3–4 hours", budget: "Free", emoji: "🥾", status: "idea", favorite: false },
+  { title: "Sunset picnic", description: "Pack a basket with your favourite treats and find a little spot to call your own.", category: "Romantic", mood: "Romantic", duration: "2–3 hours", duration_minutes: 150, budget: "€€", budget_eur: 30, travel_minutes: null, at_home: false, emoji: "🧺", status: "idea", favorite: true },
+  { title: "Cook something new", description: "Choose a cuisine, put on some music and make dinner together, no rush.", category: "Food & drink", mood: "Fun", duration: "1–2 hours", duration_minutes: 90, budget: "€", budget_eur: 10, travel_minutes: 0, at_home: true, emoji: "🍝", status: "idea", favorite: false },
+  { title: "Wander without a plan", description: "Pick a direction, put your phones away and discover somewhere new.", category: "Adventure", mood: "Adventure", duration: "2 hours", duration_minutes: 120, budget: "Free", budget_eur: 0, travel_minutes: 15, at_home: false, emoji: "🚲", status: "idea", favorite: false },
+  { title: "A games night for two", description: "A little friendly competition, snacks and the winner picks the next film.", category: "Relaxing", mood: "Relaxing", duration: "2 hours", duration_minutes: 120, budget: "€", budget_eur: 10, travel_minutes: 0, at_home: true, emoji: "🎲", status: "idea", favorite: false },
+  { title: "Visit a museum", description: "Choose an exhibition and share the pieces that make you feel something.", category: "Culture", mood: "Fun", duration: "2–3 hours", duration_minutes: 150, budget: "€€", budget_eur: 30, travel_minutes: null, at_home: false, emoji: "🖼️", status: "idea", favorite: false },
+  { title: "Try a pottery class", description: "Make something with your hands. Wonky little creations tell stories too.", category: "Creative", mood: "Creative", duration: "2 hours", duration_minutes: 120, budget: "€€€", budget_eur: 60, travel_minutes: null, at_home: false, emoji: "🏺", status: "idea", favorite: true },
+  { title: "Breakfast in bed", description: "Start the day slowly with coffee, fruit and a morning just for the two of you.", category: "Romantic", mood: "Romantic", duration: "1 hour", duration_minutes: 60, budget: "€", budget_eur: 10, travel_minutes: 0, at_home: true, emoji: "🥐", status: "idea", favorite: false },
+  { title: "Find a scenic trail", description: "Bring some water, wear comfy shoes and find a beautiful path to explore.", category: "Adventure", mood: "Adventure", duration: "3–4 hours", duration_minutes: 210, budget: "Free", budget_eur: 0, travel_minutes: null, at_home: false, emoji: "🥾", status: "idea", favorite: false },
 ];
 
 const navItems: Array<{ view: View; label: string; icon: string }> = [
@@ -54,10 +48,24 @@ const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "favorites", label: "Our favourites", icon: "♡" },
   { view: "planned", label: "Planned dates", icon: "▦" },
   { view: "memories", label: "Our memories", icon: "⌁" },
+  { view: "calendar", label: "Calendar", icon: "▦" },
+  { view: "map", label: "Date map", icon: "⌖" },
 ];
 
 function formatDate(date: string, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) {
   return new Intl.DateTimeFormat("en-GB", options).format(new Date(`${date.slice(0, 10)}T12:00:00`));
+}
+
+function localDateString(date = new Date()) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function categoryForMood(mood: Mood): Category {
+  if (mood === "Romantic") return "Romantic";
+  if (mood === "Relaxing") return "Relaxing";
+  if (mood === "Adventure") return "Adventure";
+  if (mood === "Creative") return "Creative";
+  return "Food & drink";
 }
 
 function AuthScreen() {
@@ -107,7 +115,7 @@ function AuthScreen() {
         if (!data.session) {
           setMessage("Your couple account is ready. Check your inbox to confirm your email, then sign in together.");
         } else {
-          setMessage("Your couple account is ready. Welcome to TwoGether!");
+          setMessage("Your couple account is ready. Welcome to Nossia!");
         }
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
@@ -125,8 +133,8 @@ function AuthScreen() {
   return (
     <div className="auth-shell">
       <aside className="auth-side">
-        <a className="brand" href="#"><span className="brand-mark">t<span>♡</span></span><span className="brand-name">two<span>gether</span></span></a>
-        <div className="auth-quote"><span>✦ A LITTLE MORE US</span><h1>Make room for<br />your story.</h1><p>Plan the dates. Keep the memories. Celebrate all the little things that make you, you.</p><span className="auth-heart">♡</span></div>
+        <a className="brand" href="#"><span className="brand-mark">n<span>♡</span></span><span className="brand-name">nossia</span></a>
+        <div className="auth-quote"><span>✦ A LITTLE MORE US</span><h1>Make time for<br />us.</h1><p>Plan the dates. Keep the memories. Celebrate all the little things that make you, you.</p><span className="auth-heart">♡</span></div>
         <span className="auth-footer">MADE WITH LOVE, FOR THE TWO OF YOU</span>
       </aside>
       <main className="auth-main">
@@ -171,20 +179,35 @@ function App() {
   const [authReady, setAuthReady] = useState(false);
   const [couple, setCouple] = useState<Couple | null>(null);
   const [ideas, setIdeas] = useState<DateIdea[]>([]);
+  const [photos, setPhotos] = useState<DatePhoto[]>([]);
   const [view, setView] = useState<View>("discover");
   const [category, setCategory] = useState<Category | "All">("All");
   const [search, setSearch] = useState("");
-  const [modal, setModal] = useState<"new" | "plan" | "memory" | "draw" | null>(null);
+  const [modal, setModal] = useState<"new" | "plan" | "memory" | "draw" | "feeling" | "album" | "location" | null>(null);
   const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
   const [drawnIdeaIds, setDrawnIdeaIds] = useState<string[]>([]);
+  const [randomDrawCount, setRandomDrawCount] = useState(0);
   const [drawMessage, setDrawMessage] = useState("");
+  const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("random");
+  const [feelingAnswers, setFeelingAnswers] = useState<FeelingAnswers>({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+  const [newMood, setNewMood] = useState<Mood>("Romantic");
+  const [newDuration, setNewDuration] = useState("120");
+  const [newBudget, setNewBudget] = useState("30");
+  const [newTravel, setNewTravel] = useState("");
+  const [newAtHome, setNewAtHome] = useState(false);
   const [plannedDate, setPlannedDate] = useState("");
+  const [plannedLocation, setPlannedLocation] = useState("");
+  const [plannedLatitude, setPlannedLatitude] = useState<number | null>(null);
+  const [plannedLongitude, setPlannedLongitude] = useState<number | null>(null);
   const [repeatIdea, setRepeatIdea] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newCategory, setNewCategory] = useState<Category>("Romantic");
   const [memoryNote, setMemoryNote] = useState("");
   const [rating, setRating] = useState(0);
   const [locationName, setLocationName] = useState("");
+  const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
+  const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [photoError, setPhotoError] = useState("");
   const [dataError, setDataError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -212,6 +235,29 @@ function App() {
       setIdeas(insertedIdeas as DateIdea[]);
     } else {
       setIdeas(savedIdeas as DateIdea[]);
+    }
+    const { data: savedPhotos, error: photosError } = await supabase.from("date_photos").select("*").order("created_at", { ascending: true });
+    if (photosError) {
+      setPhotos([]);
+      setDataError(`We couldn't load your photo albums: ${photosError.message}`);
+    } else if (savedPhotos.length === 0) {
+      setPhotos([]);
+    } else {
+      const { data: signedPhotos, error: signedPhotosError } = await supabase.storage
+        .from("date-photos")
+        .createSignedUrls(savedPhotos.map((photo) => photo.storage_path), 3600);
+      if (signedPhotosError) {
+        setPhotos(savedPhotos.map((photo) => ({ ...photo, signed_url: null })) as DatePhoto[]);
+        setDataError(`We couldn't open your private photo albums: ${signedPhotosError.message}`);
+      } else {
+        if (signedPhotos.some((photo) => !photo.signedUrl)) {
+          setDataError("We couldn't create a view link for one or more private album photos.");
+        }
+        setPhotos(savedPhotos.map((photo, index) => ({
+          ...photo,
+          signed_url: signedPhotos[index]?.signedUrl ?? null,
+        })) as DatePhoto[]);
+      }
     }
     setSession(currentSession);
   }, []);
@@ -242,6 +288,7 @@ function App() {
         setSession(null);
         setCouple(null);
         setIdeas([]);
+        setPhotos([]);
         setAuthReady(true);
       }
     });
@@ -264,9 +311,10 @@ function App() {
         view === "favorites" ? idea.favorite
           : view === "planned" ? idea.status === "planned"
             : view === "memories" ? idea.status === "completed"
+              : view === "calendar" || view === "map" ? idea.status === "planned" || idea.status === "completed"
               : idea.status !== "completed";
       const inCategory = category === "All" || idea.category === category;
-      const inSearch = !query || `${idea.title} ${idea.description} ${idea.category}`.toLocaleLowerCase("en-GB").includes(query);
+      const inSearch = !query || `${idea.title} ${idea.description} ${idea.category} ${idea.location_name ?? ""}`.toLocaleLowerCase("en-GB").includes(query);
       return inView && inCategory && inSearch;
     });
   }, [category, ideas, search, view]);
@@ -275,20 +323,74 @@ function App() {
 
   function drawRandomIdea(startNewRound = false) {
     const availableIdeas = ideas.filter((idea) => idea.status === "idea" && (category === "All" || idea.category === category));
+    const previousDraws = startNewRound ? [] : drawnIdeaIds;
+    const drawCount = startNewRound ? 0 : randomDrawCount;
+    if (drawCount >= 3) {
+      setDrawMessage("You've used your three draws. Choose one of the ideas above or try Feeling.");
+      return;
+    }
     if (availableIdeas.length === 0) {
       setActiveIdeaId(null);
       setDrawMessage(category === "All" ? "There are no new ideas left to draw. Add a new idea or choose one of your past dates to repeat." : `There are no ${category.toLocaleLowerCase("en-GB")} ideas available to draw right now.`);
+      setDiscoveryMode("random");
+      setDrawnIdeaIds([]);
+      setRandomDrawCount(0);
       setModal("draw");
       return;
     }
 
-    const alreadyDrawn = startNewRound ? [] : drawnIdeaIds;
-    const unseenIdeas = availableIdeas.filter((idea) => !alreadyDrawn.includes(idea.id));
+    const unseenIdeas = availableIdeas.filter((idea) => !previousDraws.includes(idea.id));
     const pool = unseenIdeas.length > 0 ? unseenIdeas : availableIdeas;
     const pickedIdea = pool[Math.floor(Math.random() * pool.length)];
     setActiveIdeaId(pickedIdea.id);
-    setDrawnIdeaIds(unseenIdeas.length > 0 ? [...alreadyDrawn, pickedIdea.id] : [pickedIdea.id]);
-    setDrawMessage(unseenIdeas.length === 0 && alreadyDrawn.length > 0 ? "You've seen every available idea. Here's a fresh spin!" : "");
+    setDrawnIdeaIds(unseenIdeas.length > 0 || previousDraws.length === 0 ? [...previousDraws, pickedIdea.id] : previousDraws);
+    setRandomDrawCount(drawCount + 1);
+    setDiscoveryMode("random");
+    setDrawMessage(unseenIdeas.length === 0 && previousDraws.length > 0 ? "You've seen every different idea available. Here's another spin!" : "");
+    setModal("draw");
+  }
+
+  function beginFeeling() {
+    setDiscoveryMode("feeling");
+    setDrawMessage("");
+    setModal("feeling");
+  }
+
+  function chooseFeelingSuggestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const avoidTerms = feelingAnswers.avoid.split(",").map((term) => term.trim().toLocaleLowerCase("pt-PT")).filter(Boolean);
+    const eligibleIdeas = ideas.filter((idea) => {
+      if (idea.status !== "idea") return false;
+      if (feelingAnswers.mood !== "Surprise me" && idea.mood !== feelingAnswers.mood) return false;
+      const duration = idea.duration_minutes;
+      if (duration === null) return false;
+      if (feelingAnswers.duration === "1" && duration > 60) return false;
+      if (feelingAnswers.duration === "2" && (duration <= 60 || duration > 120)) return false;
+      if (feelingAnswers.duration === "3" && (duration <= 120 || duration > 240)) return false;
+      if (feelingAnswers.duration === "4" && duration <= 240) return false;
+      const budget = idea.budget_eur;
+      if (feelingAnswers.budget !== "4" && budget === null) return false;
+      if (budget !== null && feelingAnswers.budget === "1" && budget > 10) return false;
+      if (budget !== null && feelingAnswers.budget === "2" && (budget <= 10 || budget > 30)) return false;
+      if (budget !== null && feelingAnswers.budget === "3" && (budget <= 30 || budget > 60)) return false;
+      if (feelingAnswers.distance === "1" && !idea.at_home) return false;
+      if (feelingAnswers.distance === "2" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 30)) return false;
+      if (feelingAnswers.distance === "3" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 60)) return false;
+      const searchable = `${idea.title} ${idea.description} ${idea.category} ${idea.mood}`.toLocaleLowerCase("pt-PT");
+      return !avoidTerms.some((term) => searchable.includes(term));
+    });
+
+    if (eligibleIdeas.length === 0) {
+      setActiveIdeaId(null);
+      setDrawMessage("No ideas match every answer yet. Try changing one or two answers, or add more detail to your date ideas.");
+      setModal("feeling");
+      return;
+    }
+
+    const pickedIdea = eligibleIdeas[Math.floor(Math.random() * eligibleIdeas.length)];
+    setActiveIdeaId(pickedIdea.id);
+    setDrawMessage("");
+    setDiscoveryMode("feeling");
     setModal("draw");
   }
 
@@ -312,7 +414,16 @@ function App() {
     setActiveIdeaId(idea.id);
     setRepeatIdea(idea.status === "completed");
     setPlannedDate("");
+    setPlannedLocation(idea.status === "completed" ? idea.location_name ?? "" : "");
+    setPlannedLatitude(idea.status === "completed" ? idea.latitude : null);
+    setPlannedLongitude(idea.status === "completed" ? idea.longitude : null);
     setModal("plan");
+  }
+
+  async function planForToday(idea: DateIdea) {
+    if (idea.status !== "idea") return;
+    const saved = await updateIdea(idea.id, { status: "planned", planned_for: localDateString() });
+    if (saved) setView("planned");
   }
 
   async function savePlan() {
@@ -328,10 +439,18 @@ function App() {
         category: currentIdea.category,
         duration: currentIdea.duration,
         budget: currentIdea.budget,
+        mood: currentIdea.mood,
+        duration_minutes: currentIdea.duration_minutes,
+        budget_eur: currentIdea.budget_eur,
+        travel_minutes: currentIdea.travel_minutes,
+        at_home: currentIdea.at_home,
         emoji: currentIdea.emoji,
         status: "planned",
         favorite: currentIdea.favorite,
-        planned_for: plannedDate || null,
+        planned_for: plannedDate,
+        location_name: plannedLocation.trim() || null,
+        latitude: plannedLatitude,
+        longitude: plannedLongitude,
       }).select("*").single();
       if (error) {
         setDataError(`We couldn't plan another date: ${error.message}`);
@@ -341,7 +460,13 @@ function App() {
       setIdeas((current) => [...current, data as DateIdea]);
       setBusy(false);
     } else {
-      const saved = await updateIdea(activeIdeaId, { status: "planned", planned_for: plannedDate || null });
+      const saved = await updateIdea(activeIdeaId, {
+        status: "planned",
+        planned_for: plannedDate,
+        location_name: plannedLocation.trim() || null,
+        latitude: plannedLatitude,
+        longitude: plannedLongitude,
+      });
       if (!saved) return;
     }
     setModal(null);
@@ -355,6 +480,8 @@ function App() {
     setMemoryNote("");
     setRating(0);
     setLocationName("");
+    setLocationLatitude(null);
+    setLocationLongitude(null);
     setModal("memory");
   }
 
@@ -363,16 +490,111 @@ function App() {
     if (!activeIdeaId) return;
     const saved = await updateIdea(activeIdeaId, {
       status: "completed",
-      completed_at: new Date().toISOString().slice(0, 10),
+      completed_at: localDateString(),
       planned_for: null,
       memory: memoryNote.trim() || null,
       rating: rating || null,
       location_name: locationName.trim() || null,
+      latitude: locationLatitude,
+      longitude: locationLongitude,
     });
     if (!saved) return;
     setModal(null);
     setActiveIdeaId(null);
     setView("memories");
+  }
+
+  async function openAlbum(idea: DateIdea) {
+    setActiveIdeaId(idea.id);
+    setPhotoError("");
+    setModal("album");
+    const ideaPhotos = photos.filter((photo) => photo.date_idea_id === idea.id);
+    if (ideaPhotos.length === 0 || !supabase) return;
+    setBusy(true);
+    const { data, error } = await supabase.storage.from("date-photos")
+      .createSignedUrls(ideaPhotos.map((photo) => photo.storage_path), 3600);
+    if (error) {
+      setPhotoError(`We couldn't open the photos: ${error.message}`);
+    } else {
+      if (data.some((photo) => !photo.signedUrl)) {
+        setPhotoError("We couldn't create a view link for one or more album photos.");
+      }
+      setPhotos((current) => current.map((photo) => {
+        const photoIndex = ideaPhotos.findIndex((candidate) => candidate.id === photo.id);
+        return photoIndex < 0 ? photo : { ...photo, signed_url: data[photoIndex]?.signedUrl ?? null };
+      }));
+    }
+    setBusy(false);
+  }
+
+  async function uploadPhotos(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.currentTarget.files ?? []);
+    event.currentTarget.value = "";
+    if (!files.length || !activeIdeaId || !couple || !supabase) return;
+    setBusy(true);
+    setPhotoError("");
+    const supportedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const uploadedPhotos: DatePhoto[] = [];
+
+    for (const file of files) {
+      if (!supportedTypes.includes(file.type)) {
+        setPhotoError(`${file.name} isn't a supported image. Choose JPG, PNG, WEBP or GIF files.`);
+        continue;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        setPhotoError(`${file.name} is larger than the 10 MB limit.`);
+        continue;
+      }
+      const extension = file.type.split("/")[1];
+      const storagePath = `${couple.id}/${activeIdeaId}/${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage.from("date-photos").upload(storagePath, file, {
+        cacheControl: "3600",
+        contentType: file.type,
+        upsert: false,
+      });
+      if (uploadError) {
+        setPhotoError(`We couldn't upload ${file.name}: ${uploadError.message}`);
+        continue;
+      }
+
+      const { data: photo, error: photoError } = await supabase.from("date_photos").insert({
+        couple_id: couple.id,
+        date_idea_id: activeIdeaId,
+        storage_path: storagePath,
+      }).select("*").single();
+      if (photoError) {
+        const { error: cleanupError } = await supabase.storage.from("date-photos").remove([storagePath]);
+        setPhotoError(cleanupError
+          ? `We couldn't save ${file.name} to the album (${photoError.message}) or remove its uploaded file (${cleanupError.message}).`
+          : `We couldn't save ${file.name} to the album: ${photoError.message}`);
+        continue;
+      }
+
+      const { data: signedPhoto, error: signedPhotoError } = await supabase.storage.from("date-photos").createSignedUrl(storagePath, 3600);
+      if (signedPhotoError) {
+        setPhotoError(`The photo was uploaded, but we couldn't display it: ${signedPhotoError.message}`);
+      }
+      uploadedPhotos.push({ ...photo, signed_url: signedPhoto?.signedUrl ?? null } as DatePhoto);
+    }
+
+    if (uploadedPhotos.length) setPhotos((current) => [...current, ...uploadedPhotos]);
+    setBusy(false);
+  }
+
+  async function savePinnedLocation() {
+    if (!activeIdeaId || !locationName.trim() || locationLatitude === null || locationLongitude === null) {
+      setDataError("Search for a place and choose a result before saving its map pin.");
+      return;
+    }
+    const saved = await updateIdea(activeIdeaId, {
+      location_name: locationName.trim(),
+      latitude: locationLatitude,
+      longitude: locationLongitude,
+    });
+    if (saved) {
+      setModal(null);
+      setActiveIdeaId(null);
+    }
   }
 
   async function addIdea(event: FormEvent<HTMLFormElement>) {
@@ -387,8 +609,13 @@ function App() {
       title,
       description: "A little idea to add to your list of shared moments.",
       category: newCategory,
-      duration: "To decide",
-      budget: "To decide",
+      mood: newMood,
+      duration: `${Number(newDuration) >= 240 ? "4+" : Number(newDuration) / 60} hour${Number(newDuration) === 60 ? "" : "s"}`,
+      duration_minutes: Number(newDuration),
+      budget: Number(newBudget) === 0 ? "Free" : `€${Number(newBudget) > 10 ? "€" : ""}${Number(newBudget) > 30 ? "€" : ""}`,
+      budget_eur: Number(newBudget),
+      travel_minutes: newTravel ? Number(newTravel) : newAtHome ? 0 : null,
+      at_home: newAtHome,
       emoji: "💌",
       status: "idea",
       favorite: false,
@@ -417,15 +644,17 @@ function App() {
     favorites: ["Little things, lovely moments", "The ideas you saved to enjoy together."],
     planned: ["Something lovely is on the calendar", "Your upcoming moments, all in one place."],
     memories: ["It's part of your story now", "Every date you've shared is another memory to keep."],
+    calendar: ["Our dates, day by day", "See what you've planned and the memories you've made."],
+    map: ["All the places we've been", "Explore the places tied to your dates and memories."],
   };
 
-  if (!authReady) return <div className="loading-screen"><span className="brand-mark">t<span>♡</span></span><p>Opening your little corner…</p></div>;
+  if (!authReady) return <div className="loading-screen"><span className="brand-mark">n<span>♡</span></span><p>Opening your little corner…</p></div>;
   if (!session || !couple) return <><AuthScreen />{dataError && <p className="auth-global-error" role="alert">{dataError}</p>}</>;
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#" onClick={(event) => { event.preventDefault(); setView("discover"); }} aria-label="TwoGether home"><span className="brand-mark">t<span>♡</span></span><span className="brand-name">two<span>gether</span></span></a>
+        <a className="brand" href="#" onClick={(event) => { event.preventDefault(); setView("discover"); }} aria-label="Nossia home"><span className="brand-mark">n<span>♡</span></span><span className="brand-name">nossia</span></a>
         <div className="couple-chip"><span className="avatar-pair">{couple.partner_one_name.slice(0, 1)}<span>+</span>{couple.partner_two_name.slice(0, 1)}</span><span>{couple.partner_one_name} & {couple.partner_two_name}</span><span className="online-dot" /></div>
         <p className="nav-caption">YOUR SHARED SPACE</p>
         <nav className="side-nav" aria-label="Main navigation">
@@ -449,8 +678,16 @@ function App() {
 
           {view === "discover" && <>
             <section className="feature-banner">
-              <div className="banner-copy"><span className="banner-kicker">AN INVITATION TO BE PRESENT</span><h2>You don't need a special occasion.<br />You already have each other.</h2><p>Pick an idea, save the date and let the rest unfold.</p><button className="banner-button" onClick={() => drawRandomIdea(true)}>Surprise us <span>✳</span></button></div>
+              <div className="banner-copy"><span className="banner-kicker">NOSSIA · MAKE TIME FOR US</span><h2>Make time for us.</h2><p>O que vos apetece hoje?</p></div>
               <div className="banner-art" aria-hidden="true"><span className="art-sun" /><span className="art-orbit orbit-one" /><span className="art-orbit orbit-two" /><span className="art-heart">♥</span><span className="art-caption">better, together</span></div><span className="banner-decoration">♡</span>
+            </section>
+            <section className="discovery-options" aria-label="Choose how to find a date">
+              <button className="discovery-option random-option" onClick={() => drawRandomIdea(true)}>
+                <span className="discovery-option-icon">✳</span><span className="discovery-option-copy"><strong>Surpreendam-nos</strong><small>Sortear um date aleatório</small></span><span className="discovery-option-arrow">→</span>
+              </button>
+              <button className="discovery-option feeling-option" onClick={beginFeeling}>
+                <span className="discovery-option-icon">♡</span><span className="discovery-option-copy"><strong>Escolher pelo feeling</strong><small>Responder a algumas perguntas rápidas</small></span><span className="discovery-option-arrow">→</span>
+              </button>
             </section>
             <section className="proposal-card">
               <span className="proposal-icon">💌</span>
@@ -472,7 +709,24 @@ function App() {
 
           <section className="stats-row" aria-label="Your date summary"><div className="stat-card"><span className="stat-icon lavender">✳</span><div><strong>{counts.ideas}</strong><span>ideas to try</span></div><span className="stat-arrow">↗</span></div><div className="stat-card"><span className="stat-icon peach">▦</span><div><strong>{counts.planned}</strong><span>dates planned</span></div><span className="stat-arrow">↗</span></div><div className="stat-card"><span className="stat-icon green">♡</span><div><strong>{counts.completed}</strong><span>moments lived</span></div><span className="stat-arrow">↗</span></div></section>
 
-          <section className="ideas-section">
+          {(view === "calendar" || view === "map") && <div className="date-view-filters">
+            <label className="search-box"><span aria-hidden="true">⌕</span><input aria-label="Search dates" placeholder="Find a date or place..." value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            <div className="filters" aria-label="Filter dates by category">{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" && <span className="filter-sparkle">✳</span>}{item}</button>)}</div>
+          </div>}
+
+          {view === "calendar" && <CalendarView ideas={visibleIdeas} />}
+          {view === "map" && <Suspense fallback={<div className="map-loading">Opening the map…</div>}><LazyMapView
+            ideas={visibleIdeas}
+            onPinLocation={(idea) => {
+              setActiveIdeaId(idea.id);
+              setLocationName(idea.location_name ?? "");
+              setLocationLatitude(idea.latitude);
+              setLocationLongitude(idea.longitude);
+              setModal("location");
+            }}
+          /></Suspense>}
+
+          {view !== "calendar" && view !== "map" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "COMING UP" : view === "memories" ? "YOUR LITTLE ALBUM" : "PICKED WITH THE TWO OF YOU IN MIND"}</p><h2>{view === "planned" ? "Your upcoming dates" : view === "memories" ? "Moments you've shared" : view === "favorites" ? "Saved with love" : "Ideas to enjoy together"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><span aria-hidden="true">⌕</span><input aria-label="Search date ideas" placeholder="Find an idea..." value={search} onChange={(event) => setSearch(event.target.value)} /><kbd>⌘ K</kbd></label></div>
             <div className="filters" aria-label="Filter by category">{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" && <span className="filter-sparkle">✳</span>}{item}</button>)}</div>
 
@@ -481,22 +735,34 @@ function App() {
                 <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{idea.category}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remove from favourites" : "Add to favourites"} onClick={() => void toggleFavorite(idea.id)}>{idea.favorite ? "♥" : "♡"}</button>{idea.status === "planned" && <span className="planned-label">PLANNED</span>}{idea.status === "completed" && <span className="completed-label">LIVED ✓</span>}</div>
                 <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3><span className="card-arrow">↗</span></div><p className="idea-description">{idea.description}</p>{idea.planned_for && <p className="planned-date">▦ {formatDate(idea.planned_for)}</p>}
                   {view === "memories" && (idea.memory || idea.location_name || idea.rating) && <div className="memory-details">{idea.rating && <span aria-label={`${idea.rating} out of 5 stars`}>{"★".repeat(idea.rating)}{"☆".repeat(5 - idea.rating)}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
-                  <div className="idea-footer"><div className="idea-meta"><span>◷ {idea.duration}</span><i /><span>{idea.budget}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Plan this date <span>＋</span></button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}>We did it <span>✓</span></button> : <button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Plan again <span>↗</span></button>}</div>
+                  <div className="idea-footer"><div className="idea-meta"><span>◷ {idea.duration}</span><i /><span>{idea.budget}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => void planForToday(idea)}>Plan for today <span>＋</span></button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}>We did it <span>✓</span></button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>Album ({photos.filter((photo) => photo.date_idea_id === idea.id).length})</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Plan again <span>↗</span></button></div>}</div>
                 </div>
               </article>)}
             </div> : <div className="empty-state"><span>♡</span><h3>No dates here just yet</h3><p>{view === "favorites" ? "Save your favourite ideas and they'll be waiting here." : "Try another category or add an idea of your own."}</p><button className="add-button" onClick={() => setModal("new")}>＋ Add an idea</button></div>}
-          </section>
+          </section>}
           <footer className="page-footer"><span>Made with love, for the two of you <span className="tiny-heart">♥</span></span><span>ONE DAY AT A TIME · ALWAYS TOGETHER</span></footer>
         </div>
       </main>
 
-      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModal(null); }}><section className={`modal-card ${modal === "draw" ? "draw-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label="Close" onClick={() => setModal(null)}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : "✳"}</span>
-        <p className="section-kicker">{modal === "plan" ? "A PLAN JUST FOR THE TWO OF YOU" : modal === "memory" ? "SAVE THIS LITTLE MOMENT" : modal === "draw" ? "YOUR DATE NIGHT, DECIDED" : "ANOTHER LOVELY IDEA"}</p>
-        <h2 id="modal-title">{modal === "plan" ? `Shall we make a date of it${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "How was your date?" : modal === "draw" ? activeIdea ? "Tonight's little adventure" : "Let's find an idea" : "What would you love to do?"}</h2>
-        {modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{activeIdea.category}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>◷ {activeIdea.duration}</span><i /><span>{activeIdea.budget}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}{activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={() => drawRandomIdea()}>Draw again <span>⟳</span></button><button className="modal-submit" onClick={() => openPlan(activeIdea)}>Plan this date <span>→</span></button></div>}{!activeIdea && <button className="modal-submit" onClick={() => { setModal(null); setNewTitle(""); setModal("new"); }}>Add a new idea <span>→</span></button>}</>
-          : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? "This will add a new date to your plans and keep the original memory safe." : "Pick a date if you know it already. You can decide later, too."}</p><label className="form-label" htmlFor="planned-date">Date (optional)<input className="form-input" id="planned-date" type="date" value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><button className="modal-submit" disabled={busy} onClick={() => void savePlan()}>{busy ? "Saving…" : "Save to planned dates"} <span>→</span></button></>
-          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Add a little note, a rating or where you went. Every detail is optional.</p><label className="form-label">Your memory <textarea className="form-input memory-input" maxLength={1000} placeholder="What was your favourite part?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><label className="form-label">Where did you go? <input className="form-input" maxLength={160} placeholder="A place, a city, or home" value={locationName} onChange={(event) => setLocationName(event.target.value)} /></label><label className="form-label">How would you rate it?</label><div className="rating-picker" aria-label="Choose a rating from one to five">{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><button className="modal-submit" type="submit" disabled={busy}>{busy ? "Saving…" : "Save to our memories"} <span>→</span></button></form>
-            : <form onSubmit={(event) => void addIdea(event)}><label className="form-label" htmlFor="idea-title">Your idea<input className="form-input" id="idea-title" autoFocus placeholder="e.g. Stargazing on a summer night" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-category">Category<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item}>{item}</option>)}</select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? "Saving…" : "Save this idea"} <span>→</span></button></form>}
+      {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setModal(null); }}><section className={`modal-card ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label="Close" disabled={busy} onClick={() => setModal(null)}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>
+        <p className="section-kicker">{modal === "plan" ? "A PLAN JUST FOR THE TWO OF YOU" : modal === "memory" ? "SAVE THIS LITTLE MOMENT" : modal === "draw" ? discoveryMode === "feeling" ? "YOUR FEELING MATCH" : "YOUR DATE NIGHT, DECIDED" : modal === "feeling" ? "ESCOLHER PELO FEELING" : modal === "album" ? "YOUR PRIVATE PHOTO ALBUM" : modal === "location" ? "ADD THIS PLACE TO YOUR MAP" : "ANOTHER LOVELY IDEA"}</p>
+        <h2 id="modal-title">{modal === "plan" ? `Shall we make a date of it${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "How was your date?" : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "Uma sugestão à vossa medida" : "A vossa próxima aventura" : "Vamos encontrar uma ideia" : modal === "feeling" ? "O que vos apetece hoje?" : modal === "album" ? activeIdea ? `${activeIdea.title} album` : "Date album" : modal === "location" ? "Where did it happen?" : "What would you love to do?"}</h2>
+        {modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{activeIdea.category}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>◷ {activeIdea.duration}</span><i /><span>{activeIdea.budget}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
+          {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>SUGESTÕES DESTE SORTEIO</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`Choose suggestion ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
+          {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>Sortear outra vez ({3 - randomDrawCount} restantes) <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>Começar modo Feeling <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>Alterar respostas <span>↻</span></button>}<button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>Este date é para hoje <span>✓</span></button><button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>Planear para outro dia</button></div>}
+          {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>Experimentar modo Feeling <span>→</span></button><button className="modal-submit" onClick={() => { setModal(null); setNewTitle(""); setModal("new"); }}>Adicionar ideia <span>→</span></button></div>}</>
+          : modal === "feeling" ? <form onSubmit={chooseFeelingSuggestion}><p className="modal-copy">Quatro respostas rápidas para encontrar uma ideia que combine com o vosso momento.</p>{drawMessage && <p className="form-alert config-alert" role="status">{drawMessage}</p>}
+            <label className="form-label" htmlFor="feeling-mood">1. Qual é o mood de hoje?<select className="form-input" id="feeling-mood" value={feelingAnswers.mood} onChange={(event) => setFeelingAnswers((current) => ({ ...current, mood: event.target.value as Mood }))}>{moodOptions.map((mood) => <option key={mood} value={mood}>{mood === "Surprise me" ? "Surpreendam-nos" : mood === "Fun" ? "Divertido" : mood === "Relaxing" ? "Relaxante" : mood === "Adventure" ? "Aventura" : mood === "Creative" ? "Criativo" : "Romântico"}</option>)}</select></label>
+            <label className="form-label" htmlFor="feeling-duration">2. Quanto tempo têm?<select className="form-input" id="feeling-duration" value={feelingAnswers.duration} onChange={(event) => setFeelingAnswers((current) => ({ ...current, duration: event.target.value as FeelingAnswers["duration"] }))}><option value="1">Até 1 hora</option><option value="2">1–2 horas</option><option value="3">2–4 horas</option><option value="4">Meio dia ou mais</option></select></label>
+            <label className="form-label" htmlFor="feeling-budget">3. Qual é o orçamento para os dois?<select className="form-input" id="feeling-budget" value={feelingAnswers.budget} onChange={(event) => setFeelingAnswers((current) => ({ ...current, budget: event.target.value as FeelingAnswers["budget"] }))}><option value="1">Gratuito ou até 10 €</option><option value="2">10–30 €</option><option value="3">30–60 €</option><option value="4">Sem limite definido</option></select></label>
+            <label className="form-label" htmlFor="feeling-distance">4. Até onde querem ir?<select className="form-input" id="feeling-distance" value={feelingAnswers.distance} onChange={(event) => setFeelingAnswers((current) => ({ ...current, distance: event.target.value as FeelingAnswers["distance"] }))}><option value="1">Em casa</option><option value="2">Perto de nós (até 30 min)</option><option value="3">Até 1 hora de viagem</option><option value="4">Sem limite</option></select></label>
+            <label className="form-label" htmlFor="feeling-avoid">Há alguma coisa que queiram evitar? <span>(opcional; separe por vírgulas)</span><input className="form-input" id="feeling-avoid" value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder="Ex.: multidões, caminhadas" maxLength={120} /></label>
+            <p className="feeling-note">A meteorologia ainda não está ligada. As sugestões usam os dados preenchidos para cada ideia.</p><button className="modal-submit" type="submit">Encontrar o nosso date <span>→</span></button></form>
+          : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "Escolha aqui o dia alternativo para este date."}</p><label className="form-label" htmlFor="planned-date">Dia do date<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><label className="form-label">Where will you go? <LocationSearch value={plannedLocation} onChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onSelect={(place: GeocodedPlace) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /></label><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? "Saving…" : "Save to planned dates"} <span>→</span></button></>
+          : modal === "album" ? <><p className="modal-copy">Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each).</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">Loading your album…</p>}<div className="album-grid">{photos.filter((photo) => photo.date_idea_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>Photo preview unavailable</div>)}</div><label className="photo-upload-button">＋ Add photos<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
+          : modal === "location" ? <><p className="modal-copy">Search for the place, then select the right result to pin it on your map.</p><LocationSearch value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? "Saving…" : "Save map pin"} <span>→</span></button></>
+          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Add a little note, a rating or where you went. Every detail is optional. You can add photos now or later from the album.</p><label className="form-label">Your memory <textarea className="form-input memory-input" maxLength={1000} placeholder="What was your favourite part?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><label className="form-label">Where did you go? <LocationSearch value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /></label><label className="form-label">How would you rate it?</label><div className="rating-picker" aria-label="Choose a rating from one to five">{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><label className="photo-upload-button memory-photo-upload">＋ Add photos<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_idea_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_idea_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt="Uploaded date memory" />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? "Saving…" : "Save to our memories"} <span>→</span></button></form>
+            : <form onSubmit={(event) => void addIdea(event)}><p className="modal-copy">Add a date idea with the details Nossia uses to find a good match.</p><label className="form-label" htmlFor="idea-title">Your idea<input className="form-input" id="idea-title" autoFocus placeholder="e.g. Stargazing on a summer night" value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-mood">Mood<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{mood === "Surprise me" ? "Surpreendam-nos" : mood === "Fun" ? "Divertido" : mood === "Relaxing" ? "Relaxante" : mood === "Adventure" ? "Aventura" : mood === "Creative" ? "Criativo" : "Romântico"}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">Duration<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">Até 1 hora</option><option value="90">1–2 horas</option><option value="180">2–4 horas</option><option value="300">Meio dia ou mais</option></select></label><label className="form-label" htmlFor="idea-budget">Budget for two<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">Gratuito</option><option value="10">Até 10 €</option><option value="30">Até 30 €</option><option value="60">Até 60 €</option></select></label></div><label className="form-label" htmlFor="idea-travel">Travel time (one way)<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">Unknown / no limit</option><option value="15">Up to 15 min</option><option value="30">Up to 30 min</option><option value="60">Up to 1 hour</option><option value="120">Over 1 hour</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) setNewTravel("0"); else if (newTravel === "0") setNewTravel(""); }} />This idea can be done at home</label><button className="modal-submit" type="submit" disabled={busy}>{busy ? "Saving…" : "Save this idea"} <span>→</span></button></form>}
       </section></div>}
     </div>
   );
