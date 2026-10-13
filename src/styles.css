@@ -26,7 +26,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .main-area{margin-left:252px;min-height:100vh}
 .topbar{height:66px;border-bottom:1px solid #eee8e2;display:flex;align-items:center;justify-content:space-between;padding:0 5.25%;background:rgba(255,253,250,.8)}
 .breadcrumb{font-size:9px;letter-spacing:1.1px;color:#aaa09a;font-weight:600}.breadcrumb span{padding:0 9px;color:#d0c8c2}.breadcrumb strong{color:#726962;font-size:9px}
-.topbar-right{display:flex;align-items:center;gap:17px}.today-label{text-transform:capitalize;font-size:10px;color:#928983}.top-avatar{width:29px;height:29px;border-radius:50%;background:#e7d4d0;color:#93555b;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:9px;letter-spacing:-2px;padding-right:2px}.top-avatar span{color:#b08279}
+.topbar-right{display:flex;align-items:center;gap:13px}.today-label{text-transform:capitalize;font-size:10px;color:#928983}.top-avatar{width:29px;height:29px;border-radius:50%;background:#e7d4d0;color:#93555b;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:9px;letter-spacing:-2px;padding-right:2px}.top-avatar span{color:#b08279}
+.language-switch{display:flex;padding:3px;border:1px solid #eee5df;border-radius:9px;background:#fffdfa;gap:2px}
+.language-switch button{border:0;background:transparent;border-radius:6px;padding:5px 7px;color:#928983;font-size:9px;font-weight:700;cursor:pointer}
+.language-switch button.selected{background:#f7eeee;color:#9b535e}
 .content{max-width:1320px;margin:0 auto;padding:37px 5.25% 24px}
 .welcome-row{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:25px}
 .eyebrow{margin:0 0 12px;display:flex;align-items:center;gap:8px}.eyebrow span{width:6px;height:6px;border-radius:50%;background:#ae6670}
@@ -130,6 +133,7 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .auth-main{display:grid;place-items:center;padding:45px 7%}
 .auth-card{width:min(100%,520px);background:#fffdfa;border:1px solid #f0eae5;border-radius:17px;padding:35px 39px;box-shadow:0 15px 45px #59443b0b}
 .auth-card>.section-kicker{color:#a26c69}
+.auth-language-switch{width:max-content;margin:0 0 12px auto}
 .auth-card>h2{font:500 29px/1.25 "Playfair Display",Georgia,serif;color:#403936;margin:9px 0}
 .auth-intro{font-size:11px;color:#928983;line-height:1.6;margin-bottom:23px}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
@@ -164,6 +168,16 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .proposal-card p{font-size:9px;color:#92817a;margin:0}
 .proposal-button{display:inline-flex;align-items:center;gap:12px;background:#9d5960;border-radius:7px;padding:10px 13px;color:#fff;text-decoration:none;font-size:9px;font-weight:600;white-space:nowrap;transition:background .2s}
 .proposal-button:hover{background:#834750}
+.milestones-card{margin:0 0 33px;padding:21px;background:#fffdfa;border:1px solid #efe7e1;border-radius:15px;box-shadow:0 8px 24px #5f453208}
+.milestones-heading{margin-bottom:15px}.milestones-heading .section-kicker{color:#a26c69}.milestones-heading h2{font-size:23px;color:#403936;margin:0}
+.anniversary-feature{display:grid;grid-template-columns:48px minmax(0,1fr) auto;align-items:center;gap:14px;padding:17px 18px;border-radius:12px;background:linear-gradient(105deg,#f8efeb,#fbf5f0);border:1px solid #f1e2dc;margin-bottom:12px}
+.anniversary-heart{width:44px;height:44px;border-radius:14px;background:#f0dedb;display:grid;place-items:center;color:#a95862;font-size:20px}
+.anniversary-copy{min-width:0}.anniversary-label{font-size:8px;font-weight:700;letter-spacing:1.2px;color:#a26c69}.anniversary-copy h3{font:500 19px "Playfair Display",serif;color:#563d3a;margin:5px 0 4px}.anniversary-copy p{font-size:10px;color:#8e7069;margin:0}
+.anniversary-plan-button{border:0;border-radius:8px;background:#9d5960;color:#fff;padding:10px 13px;font-size:10px;font-weight:600;white-space:nowrap;cursor:pointer;transition:background .2s}.anniversary-plan-button:hover{background:#834750}.anniversary-plan-button span{margin-left:10px}
+.milestones-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:9px}
+.milestone-card{min-width:0;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:center;column-gap:8px;row-gap:4px;padding:11px 12px;border:1px solid #f0eae5;border-radius:10px;background:#fffdfa}
+.milestone-card i{grid-row:span 2;width:26px;height:26px;display:grid;place-items:center;border-radius:8px;background:#f8f0ed;color:#a95862;font-size:12px;font-style:normal}
+.milestone-card span{font-size:9px;color:#928983;overflow-wrap:anywhere}.milestone-card strong{font-size:10px;color:#554b45;font-weight:600}
 .memory-input{height:75px!important;padding:10px!important;resize:vertical}
 .rating-picker{display:flex;gap:7px}
 .rating-picker button{border:0;background:transparent;color:#ded5cd;font-size:24px;padding:2px;cursor:pointer}
@@ -288,5 +302,6 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .insights-progress{height:7px;width:100%;border-radius:8px;background:#f1eae5;overflow:hidden}.insights-progress span{display:block;height:100%;border-radius:inherit;background:#a95862;transition:width .25s}
 .insights-progress-label{display:block;margin-top:6px;text-align:right;font-size:9px;color:#9a9089}
 .insights-moods{display:grid;gap:11px}.insights-mood>div:first-child{display:flex;justify-content:space-between;gap:10px;margin-bottom:5px}.insights-mood strong{font-size:10px;font-weight:600;color:#514944}.insights-mood>div:first-child span{font-size:9px;color:#978d86}
-@media(max-width:760px){.discovery-options{grid-template-columns:1fr;gap:8px}.discovery-option{min-height:70px}.discovery-option-copy strong{font-size:14px}.side-nav{grid-template-columns:repeat(7,minmax(0,1fr))}.nav-link{font-size:7px}.nav-icon{font-size:15px}.calendar-panel,.map-panel{padding:14px}.calendar-day{height:58px;padding:6px}.calendar-weekday{font-size:8px}.map-heading{align-items:flex-start;flex-direction:column}.map-heading>p{text-align:left}.date-map{height:340px}.date-view-filters>.search-box{max-width:none}.album-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-panel{grid-template-columns:1fr}.insights-empty,.insights-profile{grid-column:1}.insights-total{min-height:68px}}
+@media(max-width:760px){.discovery-options{grid-template-columns:1fr;gap:8px}.discovery-option{min-height:70px}.discovery-option-copy strong{font-size:14px}.side-nav{grid-template-columns:repeat(7,minmax(0,1fr))}.nav-link{font-size:7px}.nav-icon{font-size:15px}.calendar-panel,.map-panel{padding:14px}.calendar-day{height:58px;padding:6px}.calendar-weekday{font-size:8px}.map-heading{align-items:flex-start;flex-direction:column}.map-heading>p{text-align:left}.date-map{height:340px}.date-view-filters>.search-box{max-width:none}.album-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-panel{grid-template-columns:1fr}.insights-empty,.insights-profile{grid-column:1}.insights-total{min-height:68px}.milestones-card{padding:16px}.anniversary-feature{grid-template-columns:40px minmax(0,1fr);gap:11px;padding:14px}.anniversary-heart{width:38px;height:38px}.anniversary-plan-button{grid-column:2;justify-self:start}.anniversary-copy h3{font-size:17px}}
+@media(max-width:430px){.breadcrumb{max-width:43%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar-right{gap:7px}.today-label{display:none}.top-avatar{display:none}.language-switch{padding:2px}.language-switch button{padding:5px;font-size:8px}.milestones-list{grid-template-columns:1fr 1fr}.milestone-card{grid-template-columns:22px minmax(0,1fr);padding:9px 8px;column-gap:6px}.milestone-card i{width:22px;height:22px}.milestone-card span{font-size:8px}.milestone-card strong{font-size:9px}}
 @media(max-width:430px){.calendar-day{height:47px;padding:4px}.calendar-day>span:first-child{font-size:9px}.calendar-event-dots i{width:5px;height:5px}.calendar-event-dots{gap:2px}.calendar-controls button{min-width:30px}.calendar-toolbar h2,.map-heading h2{font-size:19px}.unscheduled-dates p{font-size:9px}.date-map{height:290px}.memory-card-actions{gap:6px}.album-grid{gap:6px}}

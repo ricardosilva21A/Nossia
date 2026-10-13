@@ -42,6 +42,8 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 
 - One shared account per couple, with both names and optional birthdays.
 - Required relationship anniversary and optional first-met, first-message, and first-date dates.
+- A prominent anniversary countdown with a shortcut to draw and plan an idea for the next anniversary.
+- An English/European Portuguese language switch in the app header; the selected language is remembered on the current device.
 - Shared date ideas, categories, favourites, and planned dates.
 - A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
 - Two recommendation modes: an instant random draw (up to three results per draw session) or a Feeling questionnaire matching mood, duration, budget, distance, and optional things to avoid.
