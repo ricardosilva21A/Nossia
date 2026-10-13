@@ -50,11 +50,14 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Completed-date memories with optional notes, ratings, and location.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
+- An English-language interface and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
 - Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
 - Replanning a completed date creates a separate planned entry and keeps the original memory.
 - A proposal prompt linking to the supplied interactive page.
 
 Weather recommendations and push notifications are not included in this release.
+
+The couple profile is calculated from the mood tags on completed date ideas; it is not a psychological assessment. “Surprise me” dates are excluded from mood rankings.
 
 ### Date idea fields and Feeling matching
 
@@ -134,7 +137,7 @@ Copy `.env.example` to `.env.local` and add the Supabase project URL and publish
 
 ### Database setup
 
-Apply both SQL migrations, in filename order, from the [`supabase/migrations`](./supabase/migrations) directory to your Supabase project using the Supabase SQL Editor or Supabase CLI:
+Apply the SQL migrations, in filename order, from the [`supabase/migrations`](./supabase/migrations) directory to your Supabase project using the Supabase SQL Editor or Supabase CLI:
 
 1. [`20261013000000_initial_couple_app.sql`](./supabase/migrations/20261013000000_initial_couple_app.sql)
 2. [`20261013230000_calendar_map_photo_albums.sql`](./supabase/migrations/20261013230000_calendar_map_photo_albums.sql)
