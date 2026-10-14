@@ -139,6 +139,15 @@ function nextAnniversary(relationshipDate: string, today = new Date()) {
   return { date: localDateString(target), days, years: target.getFullYear() - Number(relationshipDate.slice(0, 4)) };
 }
 
+function nextPersonalBirthday(birthDate: string, today = new Date()) {
+  const [, month, day] = birthDate.slice(0, 10).split("-").map(Number);
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let target = new Date(today.getFullYear(), month - 1, day);
+  if (target < startOfToday) target = new Date(today.getFullYear() + 1, month - 1, day);
+  const days = Math.round((Date.UTC(target.getFullYear(), target.getMonth(), target.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86_400_000);
+  return { date: localDateString(target), days };
+}
+
 function relationshipDuration(relationshipDate: string, today = new Date()) {
   const [startYear, startMonth, startDay] = relationshipDate.slice(0, 10).split("-").map(Number);
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -608,6 +617,28 @@ function App() {
     return { total: completedIdeas.length, moods: moodCounts, top: moodCounts.slice(0, 2) };
   }, [ideas]);
 
+  const completedStats = useMemo(() => {
+    const completedIdeas = ideas.filter((idea) => idea.status === "completed");
+    const uniqueActivities = new Set(completedIdeas.map((idea) => `${idea.title.trim().toLocaleLowerCase("en-GB")}|${idea.description.trim().toLocaleLowerCase("en-GB")}`));
+    const categoryCounts = new Map<Category, number>();
+    completedIdeas.forEach((idea) => categoryCounts.set(idea.category, (categoryCounts.get(idea.category) ?? 0) + 1));
+    const topCategory = [...categoryCounts.entries()].sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
+    const ratedIdeas = completedIdeas.filter((idea) => idea.rating !== null);
+    const locatedIdeas = completedIdeas.flatMap((idea) => idea.location_name?.trim() ? [idea.location_name.trim().toLocaleLowerCase("en-GB")] : []);
+    const today = localDateString();
+    const thisMonth = completedIdeas.filter((idea) => idea.completed_at?.slice(0, 7) === today.slice(0, 7)).length;
+    return {
+      total: completedIdeas.length,
+      uniqueActivities: uniqueActivities.size,
+      topCategory,
+      averageRating: ratedIdeas.length ? ratedIdeas.reduce((total, idea) => total + (idea.rating ?? 0), 0) / ratedIdeas.length : null,
+      uniquePlaces: new Set(locatedIdeas).size,
+      estimatedSpend: completedIdeas.reduce((total, idea) => total + (idea.budget_eur ?? 0), 0),
+      ratedCount: ratedIdeas.length,
+      thisMonth,
+    };
+  }, [ideas]);
+
   const visibleIdeas = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("en-GB");
     return ideas.filter((idea) => {
@@ -630,7 +661,12 @@ function App() {
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId);
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
   const anniversary = couple ? nextAnniversary(couple.relationship_date) : null;
+  const anniversaryGiftReminder = anniversary !== null && anniversary.days <= 30;
   const relationshipTime = couple ? relationshipDuration(couple.relationship_date) : null;
+  const personalBirthdays = couple ? [
+    couple.partner_one_birth_date ? { name: couple.partner_one_name, ...nextPersonalBirthday(couple.partner_one_birth_date) } : null,
+    couple.partner_two_birth_date ? { name: couple.partner_two_name, ...nextPersonalBirthday(couple.partner_two_birth_date) } : null,
+  ].filter((birthday): birthday is { name: string; date: string; days: number } => birthday !== null).sort((first, second) => first.days - second.days) : [];
 
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
@@ -1241,18 +1277,25 @@ function App() {
                 <div className="relationship-duration-copy"><strong>{new Intl.NumberFormat(language === "pt" ? "pt-PT" : "en-GB", { maximumFractionDigits: 1 }).format(relationshipMetric === "days" ? relationshipTime.days : relationshipMetric === "months" ? relationshipTime.months : relationshipTime.years)}</strong><span>{language === "pt" ? relationshipMetric === "days" ? "dias juntos" : relationshipMetric === "months" ? "meses juntos" : "anos juntos" : relationshipMetric === "days" ? "days together" : relationshipMetric === "months" ? "months together" : "years together"}</span></div>
                 <div className="relationship-metric-switch" role="group" aria-label={language === "pt" ? "Métrica do tempo juntos" : "Time together metric"}>{(["days", "months", "years"] as const).map((metric) => <button key={metric} type="button" className={relationshipMetric === metric ? "selected" : ""} aria-pressed={relationshipMetric === metric} onClick={() => changeRelationshipMetric(metric)}>{language === "pt" ? ({ days: "Dias", months: "Meses", years: "Anos" } as Record<RelationshipMetric, string>)[metric] : metric[0].toLocaleUpperCase() + metric.slice(1)}</button>)}</div>
               </div>}
-              {anniversary && <article className="anniversary-feature">
+              {anniversary && <article className={`anniversary-feature${anniversaryGiftReminder ? " anniversary-gift-due" : ""}`}>
                 <div className="anniversary-heart" aria-hidden="true">♥</div>
-                <div className="anniversary-copy"><span className="anniversary-label">{language === "pt" ? "ANIVERSÁRIO DE NAMORO" : "YOUR ANNIVERSARY"}</span><h3>{anniversary.days === 0 ? (language === "pt" ? "Feliz aniversário de namoro!" : "Happy anniversary!") : anniversary.days === 1 ? (language === "pt" ? "É já amanhã!" : "It’s tomorrow!") : language === "pt" ? `Faltam ${anniversary.days} dias` : `${anniversary.days} days to go`}</h3><p>{formatDate(anniversary.date, language)}{anniversary.days === 0 ? "" : ` · ${anniversary.years} ${language === "pt" ? "anos juntos" : anniversary.years === 1 ? "year together" : "years together"}`}</p></div>
+                <div className="anniversary-copy"><span className="anniversary-label">{language === "pt" ? "ANIVERSÁRIO DE NAMORO · DATA DO CASAL" : "RELATIONSHIP ANNIVERSARY · COUPLE DATE"}</span><h3>{anniversary.days === 0 ? (language === "pt" ? "Feliz aniversário de namoro!" : "Happy anniversary!") : anniversary.days === 1 ? (language === "pt" ? "É já amanhã!" : "It’s tomorrow!") : language === "pt" ? `Faltam ${anniversary.days} dias` : `${anniversary.days} days to go`}</h3><p>{formatDate(anniversary.date, language)}{anniversary.days === 0 ? "" : ` · ${anniversary.years} ${language === "pt" ? "anos juntos" : anniversary.years === 1 ? "year together" : "years together"}`}</p>
+                  {anniversaryGiftReminder && <div className="anniversary-gift-reminder"><strong>{language === "pt" ? "Está quase a chegar — já pensaram numa prenda?" : "It’s coming up — have you thought about a gift?"}</strong><span>{language === "pt" ? "Ideia: ofereçam uma experiência a dois, como um jantar especial ou uma escapadinha." : "Gift idea: plan an experience together, like a special dinner or a little getaway."}</span></div>}
+                </div>
                 <button type="button" className="anniversary-plan-button" onClick={startAnniversaryPlanning}>{language === "pt" ? "Planear date" : "Plan our date"} <span>→</span></button>
               </article>}
-              <div className="milestones-list">
-                {couple.first_met_date && <article className="milestone-card"><i>✦</i><span>{language === "pt" ? "Conheceram-se" : "First met"}</span><strong>{formatDate(couple.first_met_date, language)}</strong></article>}
-                {couple.first_message_date && <article className="milestone-card"><i>✉</i><span>{language === "pt" ? "Primeira mensagem" : "First message"}</span><strong>{formatDate(couple.first_message_date, language)}</strong></article>}
-                {couple.first_date_date && <article className="milestone-card"><i>♡</i><span>{language === "pt" ? "Primeiro date" : "First date"}</span><strong>{formatDate(couple.first_date_date, language)}</strong></article>}
-                {couple.partner_one_birth_date && <article className="milestone-card"><i>✿</i><span>{language === "pt" ? `Aniversário de ${couple.partner_one_name}` : `${couple.partner_one_name}'s birthday`}</span><strong>{formatDate(couple.partner_one_birth_date, language, { day: "numeric", month: "long" })}</strong></article>}
-                {couple.partner_two_birth_date && <article className="milestone-card"><i>✿</i><span>{language === "pt" ? `Aniversário de ${couple.partner_two_name}` : `${couple.partner_two_name}'s birthday`}</span><strong>{formatDate(couple.partner_two_birth_date, language, { day: "numeric", month: "long" })}</strong></article>}
-              </div>
+              {(couple.first_met_date || couple.first_message_date || couple.first_date_date) && <section className="milestone-group">
+                <div className="milestone-group-heading"><span className="section-kicker">{language === "pt" ? "DATAS DO CASAL" : "COUPLE MILESTONES"}</span><span>{language === "pt" ? "Momentos importantes da vossa história" : "Important moments in your story together"}</span></div>
+                <div className="milestones-list">
+                  {couple.first_met_date && <article className="milestone-card"><i>✦</i><span>{language === "pt" ? "Conheceram-se" : "First met"}</span><strong>{formatDate(couple.first_met_date, language)}</strong></article>}
+                  {couple.first_message_date && <article className="milestone-card"><i>✉</i><span>{language === "pt" ? "Primeira mensagem" : "First message"}</span><strong>{formatDate(couple.first_message_date, language)}</strong></article>}
+                  {couple.first_date_date && <article className="milestone-card"><i>♡</i><span>{language === "pt" ? "Primeiro date" : "First date"}</span><strong>{formatDate(couple.first_date_date, language)}</strong></article>}
+                </div>
+              </section>}
+              {personalBirthdays.length > 0 && <section className="milestone-group personal-milestones">
+                <div className="milestone-group-heading"><span className="section-kicker">{language === "pt" ? "DATAS PESSOAIS" : "PERSONAL DATES"}</span><span>{language === "pt" ? "Aniversários de cada pessoa" : "Each person's birthday"}</span></div>
+                <div className="milestones-list">{personalBirthdays.map((birthday) => <article className="milestone-card personal-milestone-card" key={birthday.name}><i>✿</i><span>{language === "pt" ? `Aniversário de ${birthday.name}` : `${birthday.name}'s birthday`}</span><strong>{formatDate(birthday.date, language, { day: "numeric", month: "long" })}{birthday.days === 0 ? language === "pt" ? " · Hoje" : " · Today" : birthday.days <= 30 ? language === "pt" ? ` · daqui a ${birthday.days} dias` : ` · in ${birthday.days} days` : ""}</strong></article>)}</div>
+              </section>}
             </section>
           </>}
 
@@ -1278,6 +1321,15 @@ function App() {
 
           {view === "insights" && <section className="insights-panel" aria-label={language === "pt" ? "Estatísticas dos dates" : "Couple date statistics"}>
             <div className="insights-total"><span className="stat-icon green">♡</span><div><strong>{completedMoodStats.total}</strong><span>{language === "pt" ? "dates feitos juntos" : "dates completed together"}</span></div></div>
+            <div className="insights-metrics">
+              <article className="insight-metric"><span>✳</span><div><strong>{completedStats.uniqueActivities}</strong><small>{language === "pt" ? "atividades diferentes" : "different activities"}</small></div></article>
+              <article className="insight-metric"><span>⌖</span><div><strong>{completedStats.uniquePlaces}</strong><small>{language === "pt" ? "locais visitados" : "places visited"}</small></div></article>
+              <article className="insight-metric"><span>★</span><div><strong>{completedStats.averageRating === null ? "—" : `${completedStats.averageRating.toFixed(1)} / 5`}</strong><small>{language === "pt" ? `avaliação média · ${completedStats.ratedCount} avaliações` : `average rating · ${completedStats.ratedCount} ratings`}</small></div></article>
+              <article className="insight-metric"><span>€</span><div><strong>{new Intl.NumberFormat(language === "pt" ? "pt-PT" : "en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(completedStats.estimatedSpend)}</strong><small>{language === "pt" ? "despesa estimada" : "estimated spend"}</small></div></article>
+              <article className="insight-metric"><span>♡</span><div><strong>{completedStats.thisMonth}</strong><small>{language === "pt" ? "dates este mês" : "dates this month"}</small></div></article>
+              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? categoryLabel(completedStats.topCategory, language) : "—"}</strong><small>{language === "pt" ? "categoria favorita" : "favourite category"}</small></div></article>
+            </div>
+            <p className="insights-estimate-note">{language === "pt" ? "A despesa é estimada a partir do orçamento definido em cada ideia; não representa valores reais registados." : "Spend is estimated from the budget set for each idea; it is not based on actual expenses recorded."}</p>
             {completedMoodStats.total < 5
               ? <div className="insights-empty"><span className="section-kicker">{language === "pt" ? "O VOSSO PERFIL DE CASAL" : "YOUR COUPLE PROFILE"}</span><h2>{language === "pt" ? "A vossa história está a começar" : "Your story is just getting started"}</h2><p>{language === "pt" ? `Façam mais ${5 - completedMoodStats.total} ${5 - completedMoodStats.total === 1 ? "date" : "dates"} para desbloquear o perfil de casal. Vamos mostrar os dois moods mais frequentes.` : `Complete ${5 - completedMoodStats.total} more ${5 - completedMoodStats.total === 1 ? "date" : "dates"} to unlock your couple profile. We’ll look at the moods of your completed dates and show your top two.`}</p><div className="insights-progress" role="progressbar" aria-label={language === "pt" ? "Dates até desbloquear o perfil de casal" : "Dates until your couple profile is available"} aria-valuenow={completedMoodStats.total} aria-valuemin={0} aria-valuemax={5}><span style={{ width: `${Math.min(completedMoodStats.total / 5 * 100, 100)}%` }} /></div><span className="insights-progress-label">{completedMoodStats.total} {language === "pt" ? "de" : "of"} 5 {language === "pt" ? "dates" : "dates"}</span></div>
               : <div className="insights-profile"><span className="section-kicker">{language === "pt" ? "O VOSSO PERFIL DE CASAL" : "YOUR COUPLE PROFILE"}</span><h2>{language === "pt" ? `São um casal ${completedMoodStats.top.map((stat) => ({ Romantic: "romântico", Fun: "divertido", Relaxing: "tranquilo", Adventure: "aventureiro", Creative: "criativo" })[stat.mood as Exclude<Mood, "Surprise me">]).join(" e ")}` : `You’re a ${completedMoodStats.top.map((stat) => stat.mood).join(" & ")} couple`}</h2><p>{language === "pt" ? `Com base nos vossos ${completedMoodStats.total} dates concluídos, estes são os vossos moods mais frequentes:` : `Based on your ${completedMoodStats.total} completed dates, you’ve shared these kinds of moments the most:`}</p><div className="insights-moods">{completedMoodStats.moods.map((stat) => <div className="insights-mood" key={stat.mood}><div><strong>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[stat.mood] : stat.mood}</strong><span>{stat.count} {language === "pt" ? stat.count === 1 ? "date" : "dates" : stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}

@@ -57,7 +57,8 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
 - A weather panel with a seven-day forecast for a manually selected city or GPS location. On first use, the app asks before requesting GPS; the choice is saved to the couple's shared profile.
 - Weather-aware random and Feeling recommendations that prefer indoor ideas in rain, extreme heat, or cold, and outdoor ideas in mild conditions. Matching falls back to all available ideas when none fit; a planned date shows its forecast when available.
-- English and European Portuguese interfaces and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
+- English and European Portuguese interfaces and an “Our stats” view with completed dates, distinct activities, unique places, average rating, estimated spend, dates this month, and favourite category. After five completed dates, the couple profile highlights the two most common moods.
+- Couple milestones and the relationship anniversary are visually separated from each partner's personal birthday. Within 30 days of the anniversary, the home page shows a reminder and a shared-experience gift idea.
 - Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
 - Password reset by email, followed by a secure password update through the recovery link.
 - Replanning a completed date creates a separate planned entry and keeps the original memory.
@@ -241,8 +242,8 @@ The implementation must enforce:
 
 ## Remaining roadmap
 
-1. Expand couple statistics beyond completed dates by mood.
-2. Add notifications and reminders.
-3. Add couple-profile editing and plan cancellation.
+1. Add persistent notifications and reminders.
+2. Add couple-profile editing and plan cancellation.
+3. Explore a named AI companion that grows with shared experiences, uses both partners' interests, and recommends timely events and getaways. A weekly date streak could encourage consistency without making the avatar's wellbeing depend on never missing a week.
 
 The app is intended to deploy as a Vercel web app connected to a Supabase project, with its source hosted on GitHub.
