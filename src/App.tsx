@@ -6,7 +6,7 @@ import { CalendarView, LocationSearch } from "./CalendarMap";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
-import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, Mood, WeatherSetting } from "./types";
+import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Mood, WeatherSetting } from "./types";
 import { weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
@@ -40,7 +40,7 @@ type Couple = {
   weather_latitude: number | null;
   weather_longitude: number | null;
 };
-type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name" | "latitude" | "longitude" | "source_template_id" | "weather_setting">;
+type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name" | "latitude" | "longitude" | "source_template_id" | "weather_setting" | "home_partner">;
 type DateIdeaTemplate = ImportPreview["valid"][number] & { id: string; created_at: string };
 const moodOptions: Mood[] = ["Romantic", "Fun", "Relaxing", "Adventure", "Creative", "Surprise me"];
 
@@ -123,6 +123,46 @@ function translateImportMessage(language: Language, message: string) {
 
 function formatDate(date: string, language: Language, options: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" }) {
   return new Intl.DateTimeFormat(language === "pt" ? "pt-PT" : "en-GB", options).format(new Date(`${date.slice(0, 10)}T12:00:00`));
+}
+
+function HomeLocationPicker({
+  id,
+  language,
+  partnerOneName,
+  partnerTwoName,
+  homePartner,
+  value,
+  onHomePartnerChange,
+  onLocationChange,
+  onPlaceSelect,
+}: {
+  id: string;
+  language: Language;
+  partnerOneName: string;
+  partnerTwoName: string;
+  homePartner: HomePartner | null;
+  value: string;
+  onHomePartnerChange: (partner: HomePartner | null) => void;
+  onLocationChange: (value: string) => void;
+  onPlaceSelect: (place: GeocodedPlace) => void;
+}) {
+  return (
+    <>
+      <label className="form-label" htmlFor={id}>{language === "pt" ? "Onde vão?" : "Where will you meet?"}
+        <select className="form-input" id={id} value={homePartner ?? "other"} onChange={(event) => {
+          const value = event.target.value;
+          onHomePartnerChange(value === "partner_one" || value === "partner_two" ? value : null);
+        }}>
+          <option value="other">{language === "pt" ? "Outro local" : "Another place"}</option>
+          <option value="partner_one">{language === "pt" ? `Casa de ${partnerOneName}` : `${partnerOneName}'s home`}</option>
+          <option value="partner_two">{language === "pt" ? `Casa de ${partnerTwoName}` : `${partnerTwoName}'s home`}</option>
+        </select>
+      </label>
+      {!homePartner && <label className="form-label">{language === "pt" ? "Pesquisar local" : "Search for a place"}
+        <LocationSearch language={language} value={value} onChange={onLocationChange} onSelect={onPlaceSelect} />
+      </label>}
+    </>
+  );
 }
 
 function localDateString(date = new Date()) {
@@ -414,6 +454,7 @@ function App() {
   const [plannedLocation, setPlannedLocation] = useState("");
   const [plannedLatitude, setPlannedLatitude] = useState<number | null>(null);
   const [plannedLongitude, setPlannedLongitude] = useState<number | null>(null);
+  const [plannedHomePartner, setPlannedHomePartner] = useState<HomePartner | null>(null);
   const [repeatIdea, setRepeatIdea] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -429,6 +470,7 @@ function App() {
   const [locationName, setLocationName] = useState("");
   const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
   const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
+  const [memoryHomePartner, setMemoryHomePartner] = useState<HomePartner | null>(null);
   const [photoError, setPhotoError] = useState("");
   const [dataError, setDataError] = useState("");
   const [catalogAvailable, setCatalogAvailable] = useState(false);
@@ -636,6 +678,11 @@ function App() {
       estimatedSpend: completedIdeas.reduce((total, idea) => total + (idea.budget_eur ?? 0), 0),
       ratedCount: ratedIdeas.length,
       thisMonth,
+      homeDates: completedIdeas.filter((idea) => idea.home_partner !== null).length,
+      homeByPartner: (["partner_one", "partner_two"] as const).map((partner) => ({
+        partner,
+        count: completedIdeas.filter((idea) => idea.home_partner === partner).length,
+      })),
     };
   }, [ideas]);
 
@@ -667,6 +714,10 @@ function App() {
     couple.partner_one_birth_date ? { name: couple.partner_one_name, ...nextPersonalBirthday(couple.partner_one_birth_date) } : null,
     couple.partner_two_birth_date ? { name: couple.partner_two_name, ...nextPersonalBirthday(couple.partner_two_birth_date) } : null,
   ].filter((birthday): birthday is { name: string; date: string; days: number } => birthday !== null).sort((first, second) => first.days - second.days) : [];
+  const mostFrequentHome = completedStats.homeByPartner.reduce<(typeof completedStats.homeByPartner)[number] | null>(
+    (most, current) => current.count > (most?.count ?? 0) ? current : most,
+    null,
+  );
 
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
@@ -888,9 +939,12 @@ function App() {
     setActiveIdeaId(idea.id);
     setRepeatIdea(idea.status === "completed");
     setPlannedDate("");
-    setPlannedLocation(idea.status === "completed" ? idea.location_name ?? "" : "");
+    const homePartner = idea.status === "completed" ? idea.home_partner : null;
+    const partnerName = homePartner === "partner_one" ? couple?.partner_one_name : homePartner === "partner_two" ? couple?.partner_two_name : null;
+    setPlannedLocation(homePartner && partnerName ? language === "pt" ? `Casa de ${partnerName}` : `${partnerName}'s home` : idea.status === "completed" ? idea.location_name ?? "" : "");
     setPlannedLatitude(idea.status === "completed" ? idea.latitude : null);
     setPlannedLongitude(idea.status === "completed" ? idea.longitude : null);
+    setPlannedHomePartner(homePartner);
     setModal("plan");
   }
 
@@ -988,6 +1042,7 @@ function App() {
         location_name: plannedLocation.trim() || null,
         latitude: plannedLatitude,
         longitude: plannedLongitude,
+        home_partner: plannedHomePartner,
       }).select("*").single();
       if (error) {
         setDataError(language === "pt" ? `Não foi possível planear outro date: ${error.message}` : `We couldn't plan another date: ${error.message}`);
@@ -1003,6 +1058,7 @@ function App() {
         location_name: plannedLocation.trim() || null,
         latitude: plannedLatitude,
         longitude: plannedLongitude,
+        home_partner: plannedHomePartner,
       });
       if (!saved) return;
     }
@@ -1013,12 +1069,18 @@ function App() {
   }
 
   async function markCompleted(id: string) {
+    const idea = ideas.find((item) => item.id === id);
     setActiveIdeaId(id);
     setMemoryNote("");
     setRating(0);
-    setLocationName("");
-    setLocationLatitude(null);
-    setLocationLongitude(null);
+    setMemoryHomePartner(idea?.home_partner ?? null);
+    setLocationName(idea?.home_partner
+      ? language === "pt"
+        ? `Casa de ${idea.home_partner === "partner_one" ? couple?.partner_one_name : couple?.partner_two_name}`
+        : `${idea.home_partner === "partner_one" ? couple?.partner_one_name : couple?.partner_two_name}'s home`
+      : idea?.location_name ?? "");
+    setLocationLatitude(idea?.latitude ?? null);
+    setLocationLongitude(idea?.longitude ?? null);
     setModal("memory");
   }
 
@@ -1034,6 +1096,7 @@ function App() {
       location_name: locationName.trim() || null,
       latitude: locationLatitude,
       longitude: locationLongitude,
+      home_partner: memoryHomePartner,
     });
     if (!saved) return;
     setModal(null);
@@ -1127,6 +1190,7 @@ function App() {
       location_name: locationName.trim(),
       latitude: locationLatitude,
       longitude: locationLongitude,
+      home_partner: null,
     });
     if (saved) {
       setModal(null);
@@ -1328,6 +1392,8 @@ function App() {
               <article className="insight-metric"><span>€</span><div><strong>{new Intl.NumberFormat(language === "pt" ? "pt-PT" : "en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(completedStats.estimatedSpend)}</strong><small>{language === "pt" ? "despesa estimada" : "estimated spend"}</small></div></article>
               <article className="insight-metric"><span>♡</span><div><strong>{completedStats.thisMonth}</strong><small>{language === "pt" ? "dates este mês" : "dates this month"}</small></div></article>
               <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? categoryLabel(completedStats.topCategory, language) : "—"}</strong><small>{language === "pt" ? "categoria favorita" : "favourite category"}</small></div></article>
+              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.homeDates}</strong><small>{language === "pt" ? "dates em casa" : "dates at home"}</small></div></article>
+              <article className="insight-metric"><span>♡</span><div><strong>{mostFrequentHome && mostFrequentHome.count > 0 ? language === "pt" ? `Casa de ${mostFrequentHome.partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${mostFrequentHome.partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : "—"}</strong><small>{mostFrequentHome && mostFrequentHome.count > 0 ? language === "pt" ? `${mostFrequentHome.count} dates · local mais frequente` : `${mostFrequentHome.count} dates · most frequent home` : language === "pt" ? "local mais frequente" : "most frequent home"}</small></div></article>
             </div>
             <p className="insights-estimate-note">{language === "pt" ? "A despesa é estimada a partir do orçamento definido em cada ideia; não representa valores reais registados." : "Spend is estimated from the budget set for each idea; it is not based on actual expenses recorded."}</p>
             {completedMoodStats.total < 5
@@ -1392,10 +1458,10 @@ function App() {
               {feelingSuggestions.length > 12 && <p className="feeling-more-suggestions">{language === "pt" ? `Mais ${feelingSuggestions.length - 12} ideias disponíveis. Continuem a responder para filtrar.` : `${feelingSuggestions.length - 12} more ideas available. Keep answering to narrow them down.`}</p>}
             </aside>
           </div>
-          : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? language === "pt" ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "This creates a new plan and keeps the original memory. To plan for today, choose “This date is for today” on the suggestion." : language === "pt" ? "Escolham uma data diferente para este date." : "Choose a different day for this date."}</p><label className="form-label" htmlFor="planned-date">{language === "pt" ? "Data" : "Date"}<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><label className="form-label">{language === "pt" ? "Onde vão?" : "Where will you go?"} <LocationSearch language={language} value={plannedLocation} onChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onSelect={(place: GeocodedPlace) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /></label><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nos dates planeados" : "Save to planned dates"} <span>→</span></button></>
+          : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? language === "pt" ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "This creates a new plan and keeps the original memory. To plan for today, choose “This date is for today” on the suggestion." : language === "pt" ? "Escolham uma data diferente para este date." : "Choose a different day for this date."}</p><label className="form-label" htmlFor="planned-date">{language === "pt" ? "Data" : "Date"}<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><HomeLocationPicker id="planned-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={plannedHomePartner} value={plannedLocation} onHomePartnerChange={(partner) => { setPlannedHomePartner(partner); setPlannedLatitude(null); setPlannedLongitude(null); setPlannedLocation(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onPlaceSelect={(place) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nos dates planeados" : "Save to planned dates"} <span>→</span></button></>
           : modal === "album" ? <><p className="modal-copy">{language === "pt" ? "As fotografias são privadas e só estão disponíveis na vossa conta. Adicionem imagens JPG, PNG, WEBP ou GIF (até 10 MB cada)." : "Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each)."}</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">{language === "pt" ? "A carregar o álbum…" : "Loading your album…"}</p>}<div className="album-grid">{photos.filter((photo) => photo.date_idea_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>{language === "pt" ? "Pré-visualização indisponível" : "Photo preview unavailable"}</div>)}</div><label className="photo-upload-button">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
           : modal === "location" ? <><p className="modal-copy">{language === "pt" ? "Pesquisem o local e escolham o resultado correto para o adicionar ao mapa." : "Search for the place, then select the right result to pin it on your map."}</p><LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar no mapa" : "Save map pin"} <span>→</span></button></>
-          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">{language === "pt" ? "Adicionem uma nota, uma avaliação ou o local que visitaram. Tudo é opcional. Podem adicionar fotografias agora ou mais tarde no álbum." : "Add a little note, a rating or where you went. Every detail is optional. You can add photos now or later from the album."}</p><label className="form-label">{language === "pt" ? "A vossa memória" : "Your memory"} <textarea className="form-input memory-input" maxLength={1000} placeholder={language === "pt" ? "Qual foi a vossa parte favorita?" : "What was your favourite part?"} value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><label className="form-label">{language === "pt" ? "Onde foram?" : "Where did you go?"} <LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /></label><label className="form-label">{language === "pt" ? "Como avaliam o date?" : "How would you rate it?"}</label><div className="rating-picker" aria-label={language === "pt" ? "Escolher uma classificação de um a cinco" : "Choose a rating from one to five"}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_idea_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_idea_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nas memórias" : "Save to our memories"} <span>→</span></button></form>
+          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">{language === "pt" ? "Adicionem uma nota, uma avaliação ou o local que visitaram. Tudo é opcional. Podem adicionar fotografias agora ou mais tarde no álbum." : "Add a little note, a rating or where you went. Every detail is optional. You can add photos now or later from the album."}</p><label className="form-label">{language === "pt" ? "A vossa memória" : "Your memory"} <textarea className="form-input memory-input" maxLength={1000} placeholder={language === "pt" ? "Qual foi a vossa parte favorita?" : "What was your favourite part?"} value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><label className="form-label">{language === "pt" ? "Como avaliam o date?" : "How would you rate it?"}</label><div className="rating-picker" aria-label={language === "pt" ? "Escolher uma classificação de um a cinco" : "Choose a rating from one to five"}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_idea_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_idea_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nas memórias" : "Save to our memories"} <span>→</span></button></form>
             : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{language === "pt" ? modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões." : modal === "edit" ? "Update the details for this date idea." : "Add a date idea with the details Nossia uses to find a good match."}</p><label className="form-label" htmlFor="idea-title">{language === "pt" ? "A vossa ideia" : "Your idea"}<input className="form-input" id="idea-title" autoFocus placeholder={language === "pt" ? "ex.: Ver as estrelas numa noite de verão" : "e.g. Stargazing on a summer night"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">{language === "pt" ? "Descrição" : "Description"}<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} required maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">{language === "pt" ? "Estado de espírito" : "Mood"}<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label><label className="form-label" htmlFor="idea-category">{language === "pt" ? "Categoria" : "Category"}<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item, language)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">{language === "pt" ? "Duração" : "Duration"}<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="90">1–2 {language === "pt" ? "horas" : "hours"}</option><option value="180">2–4 {language === "pt" ? "horas" : "hours"}</option><option value="300">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label><label className="form-label" htmlFor="idea-budget">{language === "pt" ? "Orçamento para dois" : "Budget for two"}<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">{language === "pt" ? "Gratuito" : "Free"}</option><option value="10">{language === "pt" ? "Até 10 €" : "Up to €10"}</option><option value="30">{language === "pt" ? "Até 30 €" : "Up to €30"}</option><option value="60">{language === "pt" ? "Até 60 €" : "Up to €60"}</option></select></label></div><label className="form-label" htmlFor="idea-travel">{language === "pt" ? "Tempo de viagem (ida)" : "Travel time (one way)"}<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">{language === "pt" ? "Desconhecido / sem limite" : "Unknown / no limit"}</option><option value="15">{language === "pt" ? "Até 15 min" : "Up to 15 min"}</option><option value="30">{language === "pt" ? "Até 30 min" : "Up to 30 min"}</option><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="120">{language === "pt" ? "Mais de 1 hora" : "Over 1 hour"}</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />{language === "pt" ? "Esta ideia pode ser feita em casa" : "This idea can be done at home"}</label><label className="form-label" htmlFor="idea-weather-setting">{language === "pt" ? "Adequação ao tempo" : "Weather suitability"}<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">{language === "pt" ? "Adequada a qualquer tempo" : "Suitable in any weather"}</option><option value="indoor">{language === "pt" ? "Interior" : "Indoor"}</option><option value="outdoor">{language === "pt" ? "Exterior" : "Outdoor"}</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? modal === "edit" ? "Guardar alterações" : "Guardar esta ideia" : modal === "edit" ? "Save changes" : "Save this idea"} <span>→</span></button></form>}
       </section></div>}
     </div>

@@ -53,6 +53,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
 - Choosing a suggested date plans it for today; choosing another day is a separate action.
 - Completed-date memories with optional notes, ratings, and location.
+- Choose either partner's home as a planned or completed date location; statistics show the number of dates at home and which partner's home is most frequent.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
 - A weather panel with a seven-day forecast for a manually selected city or GPS location. On first use, the app asks before requesting GPS; the choice is saved to the couple's shared profile.
@@ -157,8 +158,9 @@ Apply the SQL migrations, in filename order, from the [`supabase/migrations`](./
 3. [`20261013233000_nossia_feeling_recommendations.sql`](./supabase/migrations/20261013233000_nossia_feeling_recommendations.sql)
 4. [`20261014000000_shared_date_idea_catalog.sql`](./supabase/migrations/20261014000000_shared_date_idea_catalog.sql)
 5. [`20261014010000_weather_preferences.sql`](./supabase/migrations/20261014010000_weather_preferences.sql)
+6. [`20261014020000_saved_home_locations.sql`](./supabase/migrations/20261014020000_saved_home_locations.sql)
 
-The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. The fifth adds saved weather coordinates and indoor/outdoor metadata. If the first four migrations have already been applied, apply only the new fifth migration.
+The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. The fifth adds saved weather coordinates and indoor/outdoor metadata. The sixth adds a private per-date marker for either partner's home. If migrations one through five have already been applied, apply only the new sixth migration.
 
 To enable global catalog uploads for the app owner, set the `catalog_admin` flag in that owner's Supabase **app metadata**. Run this in the Supabase SQL Editor after replacing the email with the account's sign-in email:
 

@@ -2,6 +2,7 @@ export type Category = "Romantic" | "Adventure" | "Food & drink" | "Creative" | 
 export type Status = "idea" | "planned" | "completed";
 export type Mood = "Romantic" | "Fun" | "Relaxing" | "Adventure" | "Creative" | "Surprise me";
 export type WeatherSetting = "any" | "indoor" | "outdoor";
+export type HomePartner = "partner_one" | "partner_two";
 export type FeelingAnswers = {
   mood: Mood;
   duration: "1" | "2" | "3" | "4";
@@ -34,6 +35,7 @@ export type DateIdea = {
   travel_minutes: number | null;
   at_home: boolean;
   weather_setting: WeatherSetting;
+  home_partner: HomePartner | null;
   source_template_id: string | null;
 };
 
