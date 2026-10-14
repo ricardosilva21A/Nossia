@@ -305,3 +305,53 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 @media(max-width:760px){.discovery-options{grid-template-columns:1fr;gap:8px}.discovery-option{min-height:70px}.discovery-option-copy strong{font-size:14px}.side-nav{grid-template-columns:repeat(7,minmax(0,1fr))}.nav-link{font-size:7px}.nav-icon{font-size:15px}.calendar-panel,.map-panel{padding:14px}.calendar-day{height:58px;padding:6px}.calendar-weekday{font-size:8px}.map-heading{align-items:flex-start;flex-direction:column}.map-heading>p{text-align:left}.date-map{height:340px}.date-view-filters>.search-box{max-width:none}.album-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.insights-panel{grid-template-columns:1fr}.insights-empty,.insights-profile{grid-column:1}.insights-total{min-height:68px}.milestones-card{padding:16px}.anniversary-feature{grid-template-columns:40px minmax(0,1fr);gap:11px;padding:14px}.anniversary-heart{width:38px;height:38px}.anniversary-plan-button{grid-column:2;justify-self:start}.anniversary-copy h3{font-size:17px}}
 @media(max-width:430px){.breadcrumb{max-width:43%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.topbar-right{gap:7px}.today-label{display:none}.top-avatar{display:none}.language-switch{padding:2px}.language-switch button{padding:5px;font-size:8px}.milestones-list{grid-template-columns:1fr 1fr}.milestone-card{grid-template-columns:22px minmax(0,1fr);padding:9px 8px;column-gap:6px}.milestone-card i{width:22px;height:22px}.milestone-card span{font-size:8px}.milestone-card strong{font-size:9px}}
 @media(max-width:430px){.calendar-day{height:47px;padding:4px}.calendar-day>span:first-child{font-size:9px}.calendar-event-dots i{width:5px;height:5px}.calendar-event-dots{gap:2px}.calendar-controls button{min-width:30px}.calendar-toolbar h2,.map-heading h2{font-size:19px}.unscheduled-dates p{font-size:9px}.date-map{height:290px}.memory-card-actions{gap:6px}.album-grid{gap:6px}}
+
+.welcome-actions{display:flex;align-items:center;gap:9px;flex-shrink:0}
+.import-button,.import-template-button{border:1px solid #e8d8d4;background:#fffdfa;border-radius:8px;padding:11px 13px;color:#91525a;font-size:10px;font-weight:600;cursor:pointer}
+.import-button:hover,.import-template-button:hover{background:#faf1ee}
+.idea-title-row{gap:8px}
+.idea-management{display:flex;gap:3px;flex-shrink:0}
+.idea-management button{width:27px;height:27px;border:1px solid #eee8e2;border-radius:7px;background:#fffdfa;color:#8f7771;font-size:14px;cursor:pointer}
+.idea-management button:hover{border-color:#d5aaa8;color:#98515a}
+.idea-management button:last-child:hover{color:#a53b43}
+.idea-description-input{height:auto;min-height:78px;padding:10px 11px;resize:vertical;line-height:1.5}
+.import-content h3,.delete-content h3{font:600 18px "Playfair Display",Georgia,serif;margin:0 0 8px}
+.import-limits,.import-summary{font-size:10px;color:#8c7770}
+.import-template-button{margin:0 8px 12px 0}
+.import-file-button{display:inline-flex;align-items:center;border-radius:8px;padding:11px 13px;background:#a95862;color:white;font-size:10px;font-weight:600;cursor:pointer}
+.import-file-button input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
+.import-preview-list{display:grid;gap:6px;max-height:220px;overflow:auto;padding:9px;border:1px solid #eee8e2;border-radius:8px}
+.import-preview-list>div{display:grid;gap:3px;padding:6px 0;border-bottom:1px solid #f1ece8}
+.import-preview-list>div strong{font-size:10px}
+.import-preview-list>div span,.import-preview-list>p{font-size:9px;color:#8e837d}
+.import-invalid-row{font-size:9px;color:#a95862;margin:3px 0}
+.delete-confirm-button{background:#a33f48}
+.delete-confirm-button:hover{background:#852d35}
+.modal-card:has(.import-content)>.section-kicker,.modal-card:has(.import-content)>h2,.modal-card:has(.delete-content)>.section-kicker,.modal-card:has(.delete-content)>h2{display:none}
+.modal-card:has(.import-content),.modal-card:has(.delete-content){max-height:90vh;overflow:auto}
+.mobile-more-button,.mobile-more-menu{display:none}
+@media(max-width:760px){
+  .sidebar{z-index:10}
+  .side-nav{position:static;grid-template-columns:repeat(5,minmax(0,1fr))}
+  .side-nav>.nav-link:nth-child(n+5){display:none}
+  .mobile-more-button{height:55px;padding:5px 2px;border:0;border-radius:8px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;color:#7e7771;font-size:8px;cursor:pointer}
+  .mobile-more-button.active{background:#f7eeee;color:#9b535e}
+  .mobile-more-button .nav-icon{font-size:17px;line-height:17px}
+  .mobile-more-menu{position:absolute;display:grid;right:9px;bottom:68px;width:min(240px,calc(100vw - 18px));padding:7px;background:#fffdfa;border:1px solid #eee8e2;border-radius:12px;box-shadow:0 8px 30px #4c37301c}
+  .mobile-more-menu button{min-height:43px;display:flex;align-items:center;gap:12px;padding:8px 11px;border:0;border-radius:8px;background:transparent;text-align:left;color:#716964;font-size:11px}
+  .mobile-more-menu button.active,.mobile-more-menu button:hover{background:#f7eeee;color:#9b535e}
+  .mobile-more-menu button span{width:20px;text-align:center;font-size:17px}
+  .welcome-actions{gap:7px}
+  .import-button,.welcome-actions .add-button{padding:9px;font-size:9px}
+  .idea-management button{width:30px;height:30px}
+  .card-action{font-size:9px;padding:7px 0}
+}
+@media(max-width:430px){
+  .welcome-actions{margin-top:12px}
+  .welcome-row .add-button{margin-top:0}
+  .idea-card{min-width:0}
+  .idea-title-row h3{overflow-wrap:anywhere}
+  .modal-card{width:min(100%,480px);max-height:calc(100dvh - 24px);overflow-y:auto;padding:24px 20px}
+  .modal-backdrop{padding:12px}
+  .import-template-button,.import-file-button{font-size:9px;padding:10px}
+}

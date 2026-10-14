@@ -45,6 +45,8 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - A prominent anniversary countdown with a shortcut to draw and plan an idea for the next anniversary.
 - An English/European Portuguese language switch in the app header; the selected language is remembered on the current device.
 - Shared date ideas, categories, favourites, and planned dates.
+- Add and edit date ideas, or permanently delete an idea and its attached stored photos.
+- Import date ideas from an `.xlsx` workbook or `.csv` file after reviewing valid ideas and rejected rows. Imports are limited to 2 MB and 200 data rows at a time.
 - A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
 - Two recommendation modes: an instant random draw (up to three results per draw session) or a Feeling questionnaire matching mood, duration, budget, distance, and optional things to avoid.
 - Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
@@ -52,8 +54,9 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Completed-date memories with optional notes, ratings, and location.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
-- An English-language interface and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
+- English and European Portuguese interfaces and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
 - Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
+- Password reset by email, followed by a secure password update through the recovery link.
 - Replanning a completed date creates a separate planned entry and keeps the original memory.
 - A proposal prompt linking to the supplied interactive page.
 
@@ -63,7 +66,7 @@ The couple profile is calculated from the mood tags on completed date ideas; it 
 
 ### Date idea fields and Feeling matching
 
-The Excel import/upload workflow is not implemented yet. For preparing an existing list, use one row per idea and these columns:
+Use one row per idea when importing an existing list. The app accepts `.xlsx` and `.csv` files (comma- or semicolon-delimited CSV); download the CSV template from the import dialog. Header names are case-insensitive. Common Portuguese equivalents are also accepted for title, description, mood, duration, budget, at-home, travel time, and category.
 
 | Column | Required | Meaning / allowed values |
 |---|---:|---|
@@ -74,7 +77,10 @@ The Excel import/upload workflow is not implemented yet. For preparing an existi
 | `budget_eur` | Yes | Estimated total cost for both people in euros (for example, `30`). |
 | `at_home` | Yes | `true` or `false`. |
 | `travel_minutes` | No | Estimated one-way travel time in minutes; leave blank if unknown. Use `0` for at-home activities. |
+| `category` | No | `Romantic`, `Adventure`, `Food & drink`, `Creative`, `Relaxing`, or `Culture`. When blank, it is derived from the mood. |
 | `emoji` | No | Optional display emoji. |
+
+Each row must include a title, description, supported mood, positive whole-number duration in minutes, non-negative budget in euros, and `true`/`false` value for `at_home`. The preview shows validation errors by row; only valid rows can be imported.
 
 Example:
 
