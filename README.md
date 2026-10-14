@@ -165,7 +165,9 @@ where email = 'YOUR_LOGIN_EMAIL';
 
 The SQL policy checks this signed app-metadata claim, so changing browser-side data cannot grant catalog access. Sign out and back in after setting the flag so the new claim is included in the session. Only mark the app owner's account as an administrator.
 
-In Supabase Auth, configure the site URL and allowed redirect URLs for your local app and deployed domain. If the Vercel domain changes, add `https://nossia.vercel.app/**` to the allowed redirects and set the Site URL to `https://nossia.vercel.app`. The Supabase project and credentials do not need to change. Email confirmation can be enabled in the Supabase Auth settings.
+In Supabase Auth, configure the site URL and allowed redirect URLs for your local app and deployed domain. Password recovery returns to `/recover`, so allow `https://nossia.vercel.app/recover` (or `https://nossia.vercel.app/**`) in the redirect URLs. If the Vercel domain changes, update the allowed redirects and Site URL accordingly. The Supabase project and credentials do not need to change. Email confirmation can be enabled in the Supabase Auth settings.
+
+The app uses browser routes for `/signin`, `/signup`, `/recover`, and `/update-password`, plus `/dates`, `/planned`, `/memories`, `/calendar`, `/favorites`, `/map`, and `/insights` after sign-in. The Vercel rewrite serves the SPA entry point for direct links and page refreshes.
 
 ### Deploying to Vercel
 

@@ -39,6 +39,12 @@ type DateIdeaTemplate = ImportPreview["valid"][number] & { id: string; created_a
 const moodOptions: Mood[] = ["Romantic", "Fun", "Relaxing", "Adventure", "Creative", "Surprise me"];
 
 const categories: Array<Category | "All"> = ["All", "Romantic", "Adventure", "Food & drink", "Creative", "Relaxing", "Culture"];
+const authPaths: Record<AuthFlow, string> = {
+  "sign-in": "/signin",
+  "sign-up": "/signup",
+  "reset-request": "/recover",
+  "password-update": "/update-password",
+};
 const fallbackIdeas: SeedIdea[] = [
   { title: "Sunset picnic", description: "Pack a basket with your favourite treats and find a little spot to call your own.", category: "Romantic", mood: "Romantic", duration: "2–3 hours", duration_minutes: 150, budget: "€€", budget_eur: 30, travel_minutes: null, at_home: false, emoji: "🧺", status: "idea", favorite: true },
   { title: "Cook something new", description: "Choose a cuisine, put on some music and make dinner together, no rush.", category: "Food & drink", mood: "Fun", duration: "1–2 hours", duration_minutes: 90, budget: "€", budget_eur: 10, travel_minutes: 0, at_home: true, emoji: "🍝", status: "idea", favorite: false },
@@ -59,6 +65,32 @@ const navItems: Array<{ view: View; label: string; icon: string }> = [
   { view: "map", label: "Date map", icon: "⌖" },
   { view: "insights", label: "Our stats", icon: "◷" },
 ];
+
+function authFlowFromPath(pathname: string): AuthFlow {
+  if (pathname === "/recover") return "reset-request";
+  if (pathname === "/signup" || pathname === "/register") return "sign-up";
+  if (pathname === "/update-password") return "password-update";
+  return "sign-in";
+}
+
+function viewFromPath(pathname: string): View {
+  const route = pathname.replace(/^\/+|\/+$/g, "");
+  const routes: Record<string, View> = {
+    dates: "discover",
+    discover: "discover",
+    planned: "planned",
+    memories: "memories",
+    calendar: "calendar",
+    favorites: "favorites",
+    map: "map",
+    insights: "insights",
+  };
+  return routes[route] ?? "discover";
+}
+
+function pathForView(view: View) {
+  return `/${view === "discover" ? "dates" : view}`;
+}
 
 function translateImportMessage(language: Language, message: string) {
   if (language === "en") return message;
@@ -185,8 +217,8 @@ async function syncDefaultIdeas(client: NonNullable<typeof supabase>, coupleId: 
   return { added, error: null };
 }
 
-function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryComplete }: { language: Language; onLanguageChange: (language: Language) => void; recovery?: boolean; onRecoveryComplete?: () => void }) {
-  const [mode, setMode] = useState<AuthFlow>(recovery ? "password-update" : "sign-in");
+function AuthScreen({ language, onLanguageChange, initialMode, onModeChange, recovery = false, onRecoveryComplete }: { language: Language; onLanguageChange: (language: Language) => void; initialMode: AuthFlow; onModeChange: (mode: AuthFlow) => void; recovery?: boolean; onRecoveryComplete?: () => void }) {
+  const [mode, setMode] = useState<AuthFlow>(recovery ? "password-update" : initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -200,6 +232,23 @@ function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryCo
   const [firstMetDate, setFirstMetDate] = useState("");
   const [firstMessageDate, setFirstMessageDate] = useState("");
   const [firstDateDate, setFirstDateDate] = useState("");
+
+  useEffect(() => {
+    setMode(recovery ? "password-update" : initialMode);
+  }, [initialMode, recovery]);
+
+  useEffect(() => {
+    const handlePopState = () => setMode(authFlowFromPath(window.location.pathname));
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function changeMode(nextMode: AuthFlow) {
+    setMode(nextMode);
+    onModeChange(nextMode);
+    setError("");
+    setMessage("");
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -217,7 +266,7 @@ function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryCo
         setMessage(language === "pt" ? "Palavra-passe atualizada. Já podem continuar a usar a Nossia." : "Password updated. You can continue using Nossia.");
         onRecoveryComplete?.();
       } else if (mode === "reset-request") {
-        const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin });
+        const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}${authPaths["reset-request"]}` });
         if (recoveryError) throw recoveryError;
         setMessage(language === "pt" ? "Se existir uma conta com esse email, receberão uma ligação para definir uma nova palavra-passe." : "If an account exists for that email, you’ll receive a link to set a new password.");
       } else if (mode === "sign-up") {
@@ -289,14 +338,14 @@ function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryCo
             </>}
             {mode !== "password-update" && <label className="form-label">{language === "pt" ? "Email" : "Email address"}<input className="form-input" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" /></label>}
             {mode !== "reset-request" && <label className="form-label">{language === "pt" ? "Palavra-passe" : "Password"}<input className="form-input" type="password" autoComplete={mode === "sign-up" || mode === "password-update" ? "new-password" : "current-password"} required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={language === "pt" ? "Pelo menos 8 caracteres" : "At least 8 characters"} /></label>}
-            {mode === "sign-in" && <button className="auth-forgot-button" type="button" onClick={() => { setMode("reset-request"); setError(""); setMessage(""); }}>{language === "pt" ? "Esqueci-me da palavra-passe" : "Forgot password?"}</button>}
+            {mode === "sign-in" && <button className="auth-forgot-button" type="button" onClick={() => changeMode("reset-request")}>{language === "pt" ? "Esqueci-me da palavra-passe" : "Forgot password?"}</button>}
             {error && <p className="form-alert error-alert" role="alert">{error}</p>}
             {message && <p className="form-alert success-alert" role="status">{message}</p>}
             {!isSupabaseConfigured && <p className="form-alert config-alert">{language === "pt" ? "Ligue um projeto Supabase para ativar contas privadas e sincronizar dates. Consulte os passos de configuração no README." : "Connect a Supabase project to enable private accounts and cloud-synced dates. See the setup steps in the README."}</p>}
             <button className="modal-submit auth-submit" type="submit" disabled={loading || !isSupabaseConfigured}>{loading ? language === "pt" ? "Um momento…" : "One moment…" : mode === "sign-up" ? language === "pt" ? "Criar conta de casal" : "Create your couple account" : mode === "reset-request" ? language === "pt" ? "Enviar ligação de recuperação" : "Send recovery link" : mode === "password-update" ? language === "pt" ? "Atualizar palavra-passe" : "Update password" : language === "pt" ? "Iniciar sessão" : "Sign in"} <span>→</span></button>
           </form>
-          {mode !== "password-update" && <p className="auth-switch">{mode === "sign-up" ? language === "pt" ? "Já têm uma conta?" : "Already have an account?" : language === "pt" ? "Ainda não têm conta?" : "New around here?"} <button onClick={() => { setMode(mode === "sign-up" || mode === "reset-request" ? "sign-in" : "sign-up"); setError(""); setMessage(""); }}>{mode === "sign-up" || mode === "reset-request" ? language === "pt" ? "Iniciar sessão" : "Sign in" : language === "pt" ? "Criar conta" : "Create your account"}</button></p>}
-          {mode === "password-update" && <p className="auth-switch"><button onClick={() => { setMode("sign-in"); setError(""); setMessage(""); }}>{language === "pt" ? "Voltar ao início de sessão" : "Back to sign in"}</button></p>}
+          {mode !== "password-update" && <p className="auth-switch">{mode === "sign-up" ? language === "pt" ? "Já têm uma conta?" : "Already have an account?" : language === "pt" ? "Ainda não têm conta?" : "New around here?"} <button onClick={() => changeMode(mode === "sign-up" || mode === "reset-request" ? "sign-in" : "sign-up")}>{mode === "sign-up" || mode === "reset-request" ? language === "pt" ? "Iniciar sessão" : "Sign in" : language === "pt" ? "Criar conta" : "Create your account"}</button></p>}
+          {mode === "password-update" && <p className="auth-switch"><button onClick={() => changeMode("sign-in")}>{language === "pt" ? "Voltar ao início de sessão" : "Back to sign in"}</button></p>}
         </div>
       </main>
     </div>
@@ -305,6 +354,7 @@ function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryCo
 
 function App() {
   const [language, setLanguage] = useState<Language>(() => window.localStorage.getItem("nossia-language") === "pt" ? "pt" : "en");
+  const [authFlow, setAuthFlow] = useState<AuthFlow>(() => authFlowFromPath(window.location.pathname));
   const [relationshipMetric, setRelationshipMetric] = useState<RelationshipMetric>(() => {
     const savedMetric = window.localStorage.getItem("nossia-relationship-metric");
     return savedMetric === "months" || savedMetric === "years" ? savedMetric : "days";
@@ -315,7 +365,7 @@ function App() {
   const [couple, setCouple] = useState<Couple | null>(null);
   const [ideas, setIdeas] = useState<DateIdea[]>([]);
   const [photos, setPhotos] = useState<DatePhoto[]>([]);
-  const [view, setView] = useState<View>("discover");
+  const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
   const [visibleIdeaLimit, setVisibleIdeaLimit] = useState(60);
   const [category, setCategory] = useState<Category | "All">("All");
   const [search, setSearch] = useState("");
@@ -357,6 +407,22 @@ function App() {
   const [catalogAvailable, setCatalogAvailable] = useState(false);
   const [busy, setBusy] = useState(false);
   const isCatalogAdmin = session?.user.app_metadata.catalog_admin === true;
+
+  function navigateAuth(nextMode: AuthFlow, replace = false) {
+    const path = authPaths[nextMode];
+    if (window.location.pathname !== path) {
+      window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+    }
+    setAuthFlow(nextMode);
+  }
+
+  function navigateView(nextView: View, replace = false) {
+    const path = pathForView(nextView);
+    if (window.location.pathname !== path) {
+      window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+    }
+    setView(nextView);
+  }
 
   const loadCoupleData = useCallback(async (currentSession: Session) => {
     if (!supabase) return;
@@ -457,6 +523,8 @@ function App() {
       if (!active) return;
       if (event === "PASSWORD_RECOVERY") {
         setPasswordRecovery(true);
+        setAuthFlow("password-update");
+        navigateAuth("password-update", true);
         setSession(updatedSession);
         setAuthReady(true);
         if (updatedSession) void loadCoupleData(updatedSession);
@@ -479,6 +547,26 @@ function App() {
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, [loadCoupleData]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setAuthFlow(authFlowFromPath(window.location.pathname));
+      setView(viewFromPath(window.location.pathname));
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!authReady) return;
+    if (passwordRecovery && session) {
+      navigateAuth("password-update", true);
+    } else if (session && couple) {
+      navigateView(view, true);
+    } else {
+      navigateAuth(authFlow === "password-update" ? "sign-in" : authFlow, true);
+    }
+  }, [authFlow, authReady, couple, passwordRecovery, session, view]);
 
   const counts = useMemo(
     () => ({
@@ -640,7 +728,7 @@ function App() {
     setFeelingAnswers({ mood: completedMoodStats.top[0]?.mood ?? "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
     setFeelingStep(0);
     setCategory("All");
-    setView("discover");
+    navigateView("discover");
     setDiscoveryMode("feeling");
     setDrawMessage("");
     setModal("feeling");
@@ -776,7 +864,7 @@ function App() {
     const saved = await updateIdea(idea.id, { status: "planned", planned_for: localDateString() });
     if (saved) {
       setAnniversaryPlanDate(null);
-      setView("planned");
+      navigateView("planned");
     }
   }
 
@@ -786,7 +874,7 @@ function App() {
     if (saved) {
       setAnniversaryPlanDate(null);
       setModal(null);
-      setView("planned");
+      navigateView("planned");
     }
   }
 
@@ -836,7 +924,7 @@ function App() {
     setModal(null);
     setActiveIdeaId(null);
     setRepeatIdea(false);
-    setView("planned");
+    navigateView("planned");
   }
 
   async function markCompleted(id: string) {
@@ -865,7 +953,7 @@ function App() {
     if (!saved) return;
     setModal(null);
     setActiveIdeaId(null);
-    setView("memories");
+    navigateView("memories");
   }
 
   async function openAlbum(idea: DateIdea) {
@@ -1004,7 +1092,7 @@ function App() {
     }
     setModal(null);
     setEditingIdeaId(null);
-    setView("discover");
+    navigateView("discover");
     setCategory("All");
     setBusy(false);
   }
@@ -1038,19 +1126,19 @@ function App() {
   const isGlobalImport = modal === "global-import";
 
   if (!authReady) return <div className="loading-screen"><span className="brand-mark">n<span>♡</span></span><p>{language === "pt" ? "A abrir o vosso cantinho…" : "Opening your little corner…"}</p></div>;
-  if (passwordRecovery && session) return <AuthScreen language={language} recovery onRecoveryComplete={() => setPasswordRecovery(false)} onLanguageChange={changeLanguage} />;
-  if (!session || !couple) return <><AuthScreen language={language} onLanguageChange={changeLanguage} />{dataError && <p className="auth-global-error" role="alert">{dataError}</p>}</>;
+  if (passwordRecovery && session) return <AuthScreen language={language} initialMode="password-update" onModeChange={navigateAuth} recovery onRecoveryComplete={() => setPasswordRecovery(false)} onLanguageChange={changeLanguage} />;
+  if (!session || !couple) return <><AuthScreen language={language} initialMode={authFlow} onModeChange={navigateAuth} onLanguageChange={changeLanguage} />{dataError && <p className="auth-global-error" role="alert">{dataError}</p>}</>;
 
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <a className="brand" href="#" onClick={(event) => { event.preventDefault(); setView("discover"); }} aria-label="Nossia home"><span className="brand-mark">n<span>♡</span></span><span className="brand-name">nossia</span></a>
+        <a className="brand" href="/dates" onClick={(event) => { event.preventDefault(); navigateView("discover"); }} aria-label="Nossia home"><span className="brand-mark">n<span>♡</span></span><span className="brand-name">nossia</span></a>
         <div className="couple-chip"><span className="avatar-pair">{couple.partner_one_name.slice(0, 1)}<span>+</span>{couple.partner_two_name.slice(0, 1)}</span><span>{couple.partner_one_name} & {couple.partner_two_name}</span><span className="online-dot" /></div>
         <p className="nav-caption">{language === "pt" ? "O VOSSO ESPAÇO" : "YOUR SHARED SPACE"}</p>
         <nav className="side-nav" aria-label={language === "pt" ? "Navegação principal" : "Main navigation"}>
-          {navItems.map((item) => <button className={`nav-link ${view === item.view ? "active" : ""}`} key={item.view} onClick={() => { setView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><span className="nav-icon">{item.icon}</span>{navLabels[item.view]}{item.view === "planned" && counts.planned > 0 && <span className="nav-count">{counts.planned}</span>}</button>)}
+          {navItems.map((item) => <button className={`nav-link ${view === item.view ? "active" : ""}`} key={item.view} onClick={() => { navigateView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><span className="nav-icon">{item.icon}</span>{navLabels[item.view]}{item.view === "planned" && counts.planned > 0 && <span className="nav-count">{counts.planned}</span>}</button>)}
           <button type="button" className={`mobile-more-button ${mobileMoreOpen ? "active" : ""}`} aria-expanded={mobileMoreOpen} onClick={() => setMobileMoreOpen((open) => !open)}><span className="nav-icon">···</span>{language === "pt" ? "Mais" : "More"}</button>
-          {mobileMoreOpen && <div className="mobile-more-menu">{navItems.slice(4).map((item) => <button type="button" key={item.view} className={view === item.view ? "active" : ""} onClick={() => { setView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><span>{item.icon}</span>{navLabels[item.view]}</button>)}</div>}
+          {mobileMoreOpen && <div className="mobile-more-menu">{navItems.slice(4).map((item) => <button type="button" key={item.view} className={view === item.view ? "active" : ""} onClick={() => { navigateView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><span>{item.icon}</span>{navLabels[item.view]}</button>)}</div>}
         </nav>
         <div className="sidebar-note"><span className="note-sparkle">✦</span><p>{language === "pt" ? "Os melhores planos são aqueles que fazem juntos." : "The best plans are the ones you make together."}</p><span>{language === "pt" ? "— um lembrete para hoje" : "— a little reminder for today"}</span></div>
         <button className="sign-out-button" onClick={() => void signOut()}>{language === "pt" ? "Terminar sessão" : "Sign out"} <span>↗</span></button>
