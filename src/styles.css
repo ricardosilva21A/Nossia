@@ -196,6 +196,7 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .memory-details{display:grid;gap:4px;margin:-2px 0 9px;font-size:9px;color:#98724e}
 .memory-details p{font-size:9px;color:#857a73;line-height:1.5;margin:0}
 .weather-panel{background:#fffdfa;border:1px solid #f0e8e1;border-radius:13px;padding:18px 20px;margin:-2px 0 16px}
+.weather-location-prompt{margin-top:13px;padding:13px;background:#faf5f0;border-radius:9px}.weather-location-prompt p{font-size:10px;line-height:1.55;color:#786e68;margin:0 0 11px}.weather-location-prompt>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.weather-share-button{border:0;border-radius:7px;background:#a95862;color:#fff;padding:8px 11px;font-size:9px;font-weight:600;cursor:pointer}.weather-share-button:disabled{opacity:.6;cursor:wait}.weather-set-location{margin-top:12px}
 .weather-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .weather-panel-heading h2{font:500 19px "Playfair Display",Georgia,serif;color:#403936;margin:5px 0 0}
 .weather-edit-button{border:1px solid #eee3dc;background:#fffdfa;border-radius:7px;padding:7px 9px;color:#916166;font-size:9px;cursor:pointer}

@@ -55,7 +55,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Completed-date memories with optional notes, ratings, and location.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
-- A weather panel with a seven-day forecast for a manually selected city or GPS location, requested only after the couple chooses to share it.
+- A weather panel with a seven-day forecast for a manually selected city or GPS location. On first use, the app asks before requesting GPS; the choice is saved to the couple's shared profile.
 - Weather-aware random and Feeling recommendations that prefer indoor ideas in rain, extreme heat, or cold, and outdoor ideas in mild conditions. Matching falls back to all available ideas when none fit; a planned date shows its forecast when available.
 - English and European Portuguese interfaces and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
 - Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
@@ -94,7 +94,7 @@ title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,emoji
 
 Feeling first considers unplanned ideas, then progressively applies the selected mood, duration, budget, distance, and optional exclusions. Matching suggestions are shown alongside the current question and can be chosen at any point. “At home” matches ideas marked `at_home`; the 30-minute and one-hour choices match ideas marked at home or with a known travel time within that limit. “No limit” does not filter by travel or budget. The anniversary shortcut starts with the couple's most common completed-date mood, if one exists, and the same Feeling flow can refine that recommendation. The days/months/years relationship counter remembers its selected metric on the current device. Random mode makes at most three draws in its current draw session and favours ideas not already shown.
 
-Weather suggestions use the saved forecast location and remain optional. GPS access is requested only after the user chooses “Use my location”; a city can also be searched manually. The seven-day Open-Meteo forecast is used to prefer ideas marked `indoor` or `outdoor`; `any` ideas always remain eligible, and all available ideas are shown if no preferred matches exist. The optional “things to avoid” answer is still available for immediate restrictions.
+Weather suggestions use the saved forecast location and remain optional. On first use, a consent prompt appears before requesting GPS; choosing “Not now” dismisses the prompt on that device, while a city can be searched manually or the location can be set later. The selected location is saved to the couple's shared profile. The seven-day Open-Meteo forecast is used to prefer ideas marked `indoor` or `outdoor`; `any` ideas always remain eligible, and all available ideas are shown if no preferred matches exist. The optional “things to avoid” answer is still available for immediate restrictions.
 
 ## Technology Stack
 
@@ -236,7 +236,7 @@ The implementation must enforce:
 - Restricted access to stored photographs through both database and Storage policies.
 - Secure handling of credentials and environment variables.
 - Explicit permission before accessing device location.
-- Place searches are sent to OpenStreetMap's Nominatim service only when a user chooses to search. GPS is requested only after the user chooses “Use my location”; the selected weather location is saved to the couple's private profile, and its coordinates are sent to Open-Meteo to retrieve the forecast.
+- Place searches are sent to OpenStreetMap's Nominatim service only when a user chooses to search. The app asks before requesting GPS; coordinates are stored in the couple's shared profile and sent to Open-Meteo to retrieve the forecast.
 - Appropriate error handling without exposing sensitive information.
 
 ## Remaining roadmap
