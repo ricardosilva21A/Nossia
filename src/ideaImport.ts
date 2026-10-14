@@ -1,9 +1,9 @@
 import { readSheet } from "read-excel-file/browser";
-import type { Category, DateIdea, Mood } from "./types";
+import type { Category, DateIdea, Mood, WeatherSetting } from "./types";
 
 export type ImportedIdea = Pick<
   DateIdea,
-  "title" | "description" | "category" | "mood" | "duration" | "duration_minutes" | "budget" | "budget_eur" | "travel_minutes" | "at_home" | "emoji"
+  "title" | "description" | "category" | "mood" | "duration" | "duration_minutes" | "budget" | "budget_eur" | "travel_minutes" | "at_home" | "weather_setting" | "emoji"
 >;
 
 export type ImportPreview = {
@@ -45,6 +45,16 @@ const categoryByLabel: Record<string, Category> = {
   relaxante: "Relaxing",
   culture: "Culture",
   cultura: "Culture",
+};
+
+const weatherSettingByLabel: Record<string, WeatherSetting> = {
+  any: "any",
+  flexible: "any",
+  "all weather": "any",
+  interior: "indoor",
+  indoor: "indoor",
+  exterior: "outdoor",
+  outdoor: "outdoor",
 };
 
 function normalizeHeader(value: unknown) {
@@ -165,6 +175,8 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
     const duration = parseNumber(field(row, headers, "duration_minutes", "duration", "duracao_minutos", "duracao"));
     const budget = parseNumber(field(row, headers, "budget_eur", "budget", "orcamento_eur", "orcamento"));
     const atHome = parseBoolean(field(row, headers, "at_home", "at_home?", "em_casa", "em_casa?"));
+    const weatherSettingText = cellText(field(row, headers, "weather_setting", "weather", "ambiente", "interior_exterior")).toLocaleLowerCase();
+    const weatherSetting = weatherSettingText ? weatherSettingByLabel[weatherSettingText] : atHome ? "indoor" : "any";
     const travelValue = field(row, headers, "travel_minutes", "travel_time_minutes", "tempo_viagem_minutos", "tempo_de_viagem");
     const travel = parseNumber(travelValue);
     const categoryText = cellText(field(row, headers, "category", "categoria")).toLocaleLowerCase();
@@ -179,6 +191,7 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
     if (atHome === null) problems.push("at_home must be true or false");
     if (travelValue !== null && cellText(travelValue) !== "" && (travel === null || Number.isNaN(travel) || !Number.isInteger(travel) || travel < 0)) problems.push("travel_minutes must be a non-negative whole number or blank");
     if (categoryText && !category) problems.push("category is invalid");
+    if (weatherSettingText && !weatherSetting) problems.push("weather_setting must be any, indoor, or outdoor");
 
     if (problems.length || !mood || duration === null || budget === null || atHome === null) {
       invalid.push({ row: rowNumber, reason: problems.join("; ") });
@@ -199,6 +212,7 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
       budget_eur: budgetEuros,
       travel_minutes: atHome ? 0 : travelMinutes,
       at_home: atHome,
+      weather_setting: weatherSetting ?? "any",
       emoji: cellText(field(row, headers, "emoji", "icon")) || "💌",
     });
   });

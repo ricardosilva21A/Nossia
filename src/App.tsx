@@ -3,9 +3,12 @@ import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import { CalendarView, LocationSearch } from "./CalendarMap";
+import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
-import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, Mood } from "./types";
+import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, Mood, WeatherSetting } from "./types";
+import { weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
+import type { DailyWeather, WeatherCondition } from "./weather";
 
 type View = "discover" | "favorites" | "planned" | "memories" | "calendar" | "map" | "insights";
 type AuthMode = "sign-in" | "sign-up";
@@ -33,8 +36,11 @@ type Couple = {
   first_met_date: string | null;
   first_message_date: string | null;
   first_date_date: string | null;
+  weather_location_name: string | null;
+  weather_latitude: number | null;
+  weather_longitude: number | null;
 };
-type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name" | "latitude" | "longitude" | "source_template_id">;
+type SeedIdea = Omit<DateIdea, "id" | "couple_id" | "planned_for" | "completed_at" | "memory" | "rating" | "location_name" | "latitude" | "longitude" | "source_template_id" | "weather_setting">;
 type DateIdeaTemplate = ImportPreview["valid"][number] & { id: string; created_at: string };
 const moodOptions: Mood[] = ["Romantic", "Fun", "Relaxing", "Adventure", "Creative", "Surprise me"];
 
@@ -109,6 +115,7 @@ function translateImportMessage(language: Language, message: string) {
     "budget_eur must be zero or greater": "budget_eur tem de ser zero ou superior",
     "at_home must be true or false": "at_home tem de ser true ou false",
     "travel_minutes must be a non-negative whole number or blank": "travel_minutes tem de ser um inteiro não negativo ou ficar vazio",
+    "weather_setting must be any, indoor, or outdoor": "weather_setting tem de ser any, indoor ou outdoor",
     "category is invalid": "a categoria é inválida",
   };
   return message.split("; ").map((part) => translations[part] ?? "Não foi possível ler o ficheiro.").join("; ");
@@ -174,6 +181,13 @@ function filterFeelingIdeas(ideas: DateIdea[], answers: FeelingAnswers, answered
   });
 }
 
+function filterWeatherIdeas(ideas: DateIdea[], condition: WeatherCondition) {
+  if (condition === "unknown") return ideas;
+  const preferredSetting: WeatherSetting = condition === "clear" ? "outdoor" : "indoor";
+  const preferredIdeas = ideas.filter((idea) => idea.weather_setting === preferredSetting || idea.weather_setting === "any");
+  return preferredIdeas.length ? preferredIdeas : ideas;
+}
+
 function categoryForMood(mood: Mood): Category {
   if (mood === "Romantic") return "Romantic";
   if (mood === "Relaxing") return "Relaxing";
@@ -207,6 +221,7 @@ async function syncDefaultIdeas(client: NonNullable<typeof supabase>, coupleId: 
       budget_eur: template.budget_eur,
       travel_minutes: template.travel_minutes,
       at_home: template.at_home,
+      weather_setting: template.weather_setting,
       status: "idea" as const,
       favorite: false,
     }));
@@ -378,11 +393,14 @@ function App() {
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("random");
   const [feelingAnswers, setFeelingAnswers] = useState<FeelingAnswers>({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
   const [feelingStep, setFeelingStep] = useState(0);
+  const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>("unknown");
+  const [weatherForecast, setWeatherForecast] = useState<DailyWeather[]>([]);
   const [newMood, setNewMood] = useState<Mood>("Romantic");
   const [newDuration, setNewDuration] = useState("120");
   const [newBudget, setNewBudget] = useState("30");
   const [newTravel, setNewTravel] = useState("");
   const [newAtHome, setNewAtHome] = useState(false);
+  const [newWeatherSetting, setNewWeatherSetting] = useState<WeatherSetting>("any");
   const [plannedDate, setPlannedDate] = useState("");
   const [plannedLocation, setPlannedLocation] = useState("");
   const [plannedLatitude, setPlannedLatitude] = useState<number | null>(null);
@@ -464,7 +482,7 @@ function App() {
       setDataError(language === "pt" ? `Não foi possível carregar as ideias predefinidas. Aplique a migration do catálogo no Supabase: ${templatesError}` : `The default idea catalog is unavailable. Apply the catalog migration in Supabase: ${templatesError}`);
       if (coupleIdeas.length === 0) {
         const { data: seededIdeas, error: seedError } = await supabase.from("date_ideas")
-          .insert(fallbackIdeas.map((idea) => ({ ...idea, couple_id: profile.id }))).select("*");
+          .insert(fallbackIdeas.map((idea) => ({ ...idea, couple_id: profile.id, weather_setting: idea.at_home ? "indoor" : "any" }))).select("*");
         if (seedError) {
           setDataError(language === "pt" ? `Não foi possível carregar as ideias predefinidas nem criar as sugestões iniciais: ${seedError.message}` : `We couldn't load the default ideas or create the starter ideas: ${seedError.message}`);
         } else {
@@ -606,10 +624,11 @@ function App() {
   }, [category, ideas, search, view]);
 
   const feelingSuggestions = useMemo(
-    () => filterFeelingIdeas(ideas, feelingAnswers, feelingStep),
-    [feelingAnswers, feelingStep, ideas],
+    () => filterWeatherIdeas(filterFeelingIdeas(ideas, feelingAnswers, feelingStep), weatherCondition),
+    [feelingAnswers, feelingStep, ideas, weatherCondition],
   );
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId);
+  const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
   const anniversary = couple ? nextAnniversary(couple.relationship_date) : null;
   const relationshipTime = couple ? relationshipDuration(couple.relationship_date) : null;
 
@@ -647,7 +666,7 @@ function App() {
   }
 
   function downloadImportTemplate() {
-    const csv = "title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,category,emoji\r\nPicnic in the park,Pack a simple picnic and enjoy the afternoon outdoors,Relaxing,120,20,false,20,Relaxing,🧺\r\n";
+    const csv = "title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,category,weather_setting,emoji\r\nPicnic in the park,Pack a simple picnic and enjoy the afternoon outdoors,Relaxing,120,20,false,20,Relaxing,outdoor,🧺\r\n";
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
@@ -735,7 +754,8 @@ function App() {
   }
 
   function drawRandomIdea(startNewRound = false, selectedCategory: Category | "All" = category) {
-    const availableIdeas = ideas.filter((idea) => idea.status === "idea" && (selectedCategory === "All" || idea.category === selectedCategory));
+    const categoryIdeas = ideas.filter((idea) => idea.status === "idea" && (selectedCategory === "All" || idea.category === selectedCategory));
+    const availableIdeas = filterWeatherIdeas(categoryIdeas, weatherCondition);
     const previousDraws = startNewRound ? [] : drawnIdeaIds;
     const drawCount = startNewRound ? 0 : randomDrawCount;
     if (drawCount >= 3) {
@@ -795,6 +815,33 @@ function App() {
     return !error;
   }
 
+  const saveWeatherLocation = useCallback(async (name: string, latitude: number, longitude: number) => {
+    if (!supabase || !couple) return false;
+    setBusy(true);
+    setDataError("");
+    const { data, error } = await supabase.from("couples")
+      .update({ weather_location_name: name, weather_latitude: latitude, weather_longitude: longitude })
+      .eq("id", couple.id)
+      .select("*")
+      .single();
+    if (error) {
+      setDataError(language === "pt" ? `Não foi possível guardar a localização meteorológica: ${error.message}` : `We couldn't save the weather location: ${error.message}`);
+      setBusy(false);
+      return false;
+    }
+    setCouple(data as Couple);
+    setBusy(false);
+    return true;
+  }, [couple, language]);
+
+  const onWeatherConditionChange = useCallback((condition: WeatherCondition) => {
+    setWeatherCondition(condition);
+  }, []);
+
+  const onWeatherForecastChange = useCallback((forecast: DailyWeather[]) => {
+    setWeatherForecast(forecast);
+  }, []);
+
   async function toggleFavorite(id: string) {
     const idea = ideas.find((item) => item.id === id);
     if (idea) await updateIdea(id, { favorite: !idea.favorite });
@@ -821,6 +868,7 @@ function App() {
     setNewBudget(String(idea.budget_eur ?? 0));
     setNewTravel(idea.travel_minutes === null ? "" : String(idea.travel_minutes));
     setNewAtHome(idea.at_home);
+    setNewWeatherSetting(idea.weather_setting);
     setModal("edit");
   }
 
@@ -834,6 +882,7 @@ function App() {
     setNewBudget("30");
     setNewTravel("");
     setNewAtHome(false);
+    setNewWeatherSetting("any");
     setModal("new");
   }
 
@@ -1069,6 +1118,7 @@ function App() {
       budget_eur: budgetEuros,
       travel_minutes: travelMinutes,
       at_home: newAtHome,
+      weather_setting: newAtHome ? "indoor" : newWeatherSetting,
     };
     setBusy(true);
     setDataError("");
@@ -1169,6 +1219,17 @@ function App() {
                 <span className="discovery-option-icon">♡</span><span className="discovery-option-copy"><strong>{language === "pt" ? "Escolher pelo feeling" : "Choose by feeling"}</strong><small>{language === "pt" ? "Respondam a algumas perguntas" : "Answer a few quick questions"}</small></span><span className="discovery-option-arrow">→</span>
               </button>
             </section>
+            <WeatherPanel
+              language={language}
+              location={{
+                name: couple.weather_location_name,
+                latitude: couple.weather_latitude,
+                longitude: couple.weather_longitude,
+              }}
+              onSaveLocation={saveWeatherLocation}
+              onConditionChange={onWeatherConditionChange}
+              onForecastChange={onWeatherForecastChange}
+            />
             <section className="proposal-card">
               <span className="proposal-icon">💌</span>
               <div><span className="banner-kicker">{language === "pt" ? "UMA PERGUNTA PEQUENA, UM GRANDE SIM" : "A LITTLE QUESTION, A BIG YES"}</span><h2>{language === "pt" ? "Ainda não lhe perguntaste?" : "Haven't asked them to be yours yet?"}</h2><p>{language === "pt" ? "Hoje pode ser o dia. Preparámos algo especial para ajudar." : "Make today the day. We made a little something to help you ask."}</p></div>
@@ -1243,6 +1304,7 @@ function App() {
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setModal(null); setAnniversaryPlanDate(null); } }}><section className={`modal-card ${modal === "new" || modal === "edit" ? "idea-editor-modal" : ""} ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label={language === "pt" ? "Fechar" : "Close"} disabled={busy} onClick={() => { setModal(null); setAnniversaryPlanDate(null); }}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>
         <p className="section-kicker">{language === "pt" ? modal === "global-import" ? "CATÁLOGO GLOBAL DE IDEIAS" : modal === "import" ? "IMPORTAR IDEIAS" : modal === "plan" ? "UM PLANO SÓ PARA VOCÊS" : modal === "memory" ? "GUARDAR ESTE MOMENTO" : modal === "draw" ? discoveryMode === "feeling" ? "A VOSSA SUGESTÃO PERSONALIZADA" : "O DATE DE HOJE ESTÁ DECIDIDO" : modal === "feeling" ? "ESCOLHER PELO FEELING" : modal === "album" ? "O VOSSO ÁLBUM PRIVADO" : modal === "location" ? "ADICIONAR ESTE LOCAL AO MAPA" : "MAIS UMA IDEIA ESPECIAL" : modal === "global-import" ? "GLOBAL DATE IDEA CATALOG" : modal === "import" ? "IMPORT DATE IDEAS" : modal === "plan" ? "A PLAN JUST FOR THE TWO OF YOU" : modal === "memory" ? "SAVE THIS LITTLE MOMENT" : modal === "draw" ? discoveryMode === "feeling" ? "YOUR FEELING MATCH" : "YOUR DATE NIGHT, DECIDED" : modal === "feeling" ? "CHOOSE BY FEELING" : modal === "album" ? "YOUR PRIVATE PHOTO ALBUM" : modal === "location" ? "ADD THIS PLACE TO YOUR MAP" : "ANOTHER LOVELY IDEA"}</p>
         <h2 id="modal-title">{language === "pt" ? modal === "global-import" ? "Adicionar ideias para todos os casais" : modal === "import" ? "Importar ideias para o vosso casal" : modal === "plan" ? `Vamos combinar um date${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "Como foi o vosso date?" : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "Uma ideia à vossa medida" : "A vossa próxima aventura" : "Vamos encontrar uma ideia" : modal === "feeling" ? "O que vos apetece hoje?" : modal === "album" ? activeIdea ? `Álbum: ${activeIdea.title}` : "Álbum do date" : modal === "location" ? "Onde aconteceu?" : "O que gostariam de fazer?" : modal === "global-import" ? "Upload ideas for every couple" : modal === "import" ? "Import ideas for your couple" : modal === "plan" ? `Shall we make a date of it${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "How was your date?" : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "A date idea for the two of you" : "Your next little adventure" : "Let’s find an idea" : modal === "feeling" ? "What do you feel like today?" : modal === "album" ? activeIdea ? `${activeIdea.title} album` : "Date album" : modal === "location" ? "Where did it happen?" : "What would you love to do?"}</h2>
+        {modal === "plan" && plannedDateForecast && <p className="weather-date-hint"><span>{weatherEmoji(plannedDateForecast.weatherCode)}</span><span>{formatDate(plannedDateForecast.date, language, { weekday: "long", day: "numeric", month: "long" })}: <strong>{weatherLabel(plannedDateForecast, language)}, {Math.round(plannedDateForecast.temperatureMin)}°–{Math.round(plannedDateForecast.temperatureMax)}°</strong>{activeIdea?.weather_setting === "outdoor" && weatherConditionFor(plannedDateForecast) !== "clear" ? language === "pt" ? " · Este date é ao ar livre; considerem uma alternativa." : " · This date is outdoors; consider an alternative." : ""}</span></p>}
         {(modal === "import" || modal === "global-import") ? <div className="import-content"><h3>{language === "pt" ? isGlobalImport ? "Carregar ideias predefinidas" : "Importar ideias de dates" : isGlobalImport ? "Upload default ideas" : "Import date ideas"}</h3><p className="modal-copy">{language === "pt" ? isGlobalImport ? "Estas ideias ficam disponíveis para todos os casais. Cada casal recebe a sua própria cópia, onde os planos e memórias permanecem privados." : "Carreguem um ficheiro CSV ou Excel (.xlsx). Revemos as linhas antes de guardar; só as ideias válidas serão importadas para o vosso casal." : isGlobalImport ? "These ideas become available to every couple. Each couple gets its own copy, keeping plans and memories private." : "Choose a CSV or Excel (.xlsx) file. Review the rows before saving; only valid ideas will be imported for your couple."}</p><p className="import-limits">{language === "pt" ? isGlobalImport ? "Máximo: 10 MB e 5000 ideias por ficheiro." : "Máximo: 2 MB e 200 ideias por ficheiro." : isGlobalImport ? "Maximum: 10 MB and 5,000 ideas per file." : "Maximum: 2 MB and 200 ideas per file."}</p><button type="button" className="import-template-button" onClick={downloadImportTemplate}>{language === "pt" ? "Descarregar modelo CSV" : "Download CSV template"}</button><label className="import-file-button">{language === "pt" ? "Escolher ficheiro CSV ou XLSX" : "Choose CSV or XLSX file"}<input type="file" accept=".csv,.xlsx" onChange={(event) => void selectImportFile(event)} /></label>{importError && <p className="form-alert error-alert" role="alert">{importError}</p>}{importMessage && <p className="form-alert config-alert" role="status">{importMessage}</p>}{importPreview && <><p className="import-summary">{language === "pt" ? `${importPreview.valid.length} válidas · ${importPreview.invalid.length} inválidas` : `${importPreview.valid.length} valid · ${importPreview.invalid.length} invalid`}</p><div className="import-preview-list">{importPreview.valid.slice(0, 5).map((idea, index) => <div key={`${idea.title}-${index}`}><strong>{idea.title}</strong><span>{idea.mood} · {idea.duration} · {idea.budget}</span></div>)}{importPreview.valid.length > 5 && <p>{language === "pt" ? `e mais ${importPreview.valid.length - 5} ideias válidas` : `and ${importPreview.valid.length - 5} more valid ideas`}</p>}{importPreview.invalid.slice(0, 100).map((item) => <p className="import-invalid-row" key={item.row}>{language === "pt" ? `Linha ${item.row}: ${translateImportMessage(language, item.reason)}` : `Row ${item.row}: ${item.reason}`}</p>)}{importPreview.invalid.length > 100 && <p className="import-invalid-row">{language === "pt" ? `e mais ${importPreview.invalid.length - 100} linhas inv?lidas` : `and ${importPreview.invalid.length - 100} more invalid rows`}</p>}</div><button type="button" className="modal-submit" disabled={busy || importPreview.valid.length === 0} onClick={() => void importIdeas()}>{busy ? language === "pt" ? "A importar…" : "Importing…" : language === "pt" ? `Importar ${importPreview.valid.length} ideias válidas${isGlobalImport ? " para todos" : ""}` : `Import ${importPreview.valid.length} valid ideas${isGlobalImport ? " for everyone" : ""}`} <span>→</span></button></>}</div>
           : modal === "delete" ? <div className="delete-content"><h3>{language === "pt" ? "Apagar esta ideia?" : "Delete this idea?"}</h3><p className="modal-copy">{language === "pt" ? `“${activeIdea?.title ?? ""}” será removida permanentemente, incluindo as fotografias associadas.` : `“${activeIdea?.title ?? ""}” will be permanently removed, including its attached photos.`}</p><button type="button" className="modal-submit delete-confirm-button" disabled={busy} onClick={() => void deleteActiveIdea()}>{busy ? language === "pt" ? "A apagar…" : "Deleting…" : language === "pt" ? "Apagar permanentemente" : "Delete permanently"}</button></div>
           : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{language === "pt" ? ({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[activeIdea.category] : activeIdea.category}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>◷ {activeIdea.duration}</span><i /><span>{activeIdea.budget}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
@@ -1263,7 +1325,13 @@ function App() {
                   {feelingStep === 2 && ([["1", "Gratuito ou até 10 €", "Free or up to €10"], ["2", "10–30 €", "€10–30"], ["3", "30–60 €", "€30–60"], ["4", "Sem limite definido", "No set limit"]] as const).map(([value, portuguese, english]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.budget === value ? "selected" : ""}`} aria-pressed={feelingAnswers.budget === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, budget: value })); setFeelingStep(3); }}><span>€</span>{language === "pt" ? portuguese : english}</button>)}
                   {feelingStep === 3 && ([["1", "Em casa", "At home"], ["2", "Perto (até 30 min)", "Nearby (up to 30 min)"], ["3", "Até 1 hora de viagem", "Up to 1 hour away"], ["4", "Sem limite", "No limit"]] as const).map(([value, portuguese, english]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.distance === value ? "selected" : ""}`} aria-pressed={feelingAnswers.distance === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, distance: value })); setFeelingStep(4); }}><span>⌖</span>{language === "pt" ? portuguese : english}</button>)}
                 </div>
-              </> : <div className="feeling-avoid-step"><h3 className="feeling-question-title">{language === "pt" ? "Há algo que queiram evitar?" : "Anything you’d like to avoid?"} <span>{language === "pt" ? "Opcional" : "Optional"}</span></h3><input className="form-input" aria-label={language === "pt" ? "Coisas a evitar" : "Things to avoid"} value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder={language === "pt" ? "ex.: multidões, caminhadas longas" : "e.g. crowds, long walks"} maxLength={120} /><p className="feeling-note">{language === "pt" ? "A meteorologia ainda não está ligada. As sugestões usam os detalhes de cada ideia." : "Weather data isn’t connected yet. Suggestions are matched using the details saved with each idea."}</p></div>}
+              </> : <div className="feeling-avoid-step">
+                <h3 className="feeling-question-title">{language === "pt" ? "Há algo que queiram evitar?" : "Anything you’d like to avoid?"} <span>{language === "pt" ? "Opcional" : "Optional"}</span></h3>
+                <input className="form-input" aria-label={language === "pt" ? "Coisas a evitar" : "Things to avoid"} value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder={language === "pt" ? "ex.: multidões, caminhadas longas" : "e.g. crowds, long walks"} maxLength={120} />
+                <p className="feeling-note">{language === "pt"
+                  ? weatherCondition === "unknown" ? "Sem previsão disponível, as sugestões continuam a usar os filtros escolhidos e os detalhes de cada ideia." : weatherCondition === "rain" ? "A previsão aponta para chuva; as sugestões dão prioridade a atividades interiores." : weatherCondition === "cold" || weatherCondition === "hot" ? "A previsão aponta para temperaturas extremas; as sugestões dão prioridade a atividades interiores." : "A previsão está favorável; as sugestões dão prioridade a atividades ao ar livre."
+                  : weatherCondition === "unknown" ? "Without a forecast, suggestions still use your chosen filters and each idea's saved details." : weatherCondition === "rain" ? "Rain is likely; suggestions prioritise indoor activities." : weatherCondition === "cold" || weatherCondition === "hot" ? "Extreme temperatures are forecast; suggestions prioritise indoor activities." : "The forecast looks good; suggestions prioritise outdoor activities."}</p>
+              </div>}
               {feelingStep > 0 && <button type="button" className="feeling-back-button" onClick={() => setFeelingStep((step) => Math.max(0, step - 1))}>← {language === "pt" ? "Pergunta anterior" : "Previous question"}</button>}
             </div>
             <aside className="feeling-suggestions-panel" aria-label={language === "pt" ? "Ideias que correspondem às respostas" : "Ideas matching your answers"}>
@@ -1276,7 +1344,7 @@ function App() {
           : modal === "album" ? <><p className="modal-copy">{language === "pt" ? "As fotografias são privadas e só estão disponíveis na vossa conta. Adicionem imagens JPG, PNG, WEBP ou GIF (até 10 MB cada)." : "Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each)."}</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">{language === "pt" ? "A carregar o álbum…" : "Loading your album…"}</p>}<div className="album-grid">{photos.filter((photo) => photo.date_idea_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>{language === "pt" ? "Pré-visualização indisponível" : "Photo preview unavailable"}</div>)}</div><label className="photo-upload-button">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
           : modal === "location" ? <><p className="modal-copy">{language === "pt" ? "Pesquisem o local e escolham o resultado correto para o adicionar ao mapa." : "Search for the place, then select the right result to pin it on your map."}</p><LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar no mapa" : "Save map pin"} <span>→</span></button></>
           : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">{language === "pt" ? "Adicionem uma nota, uma avaliação ou o local que visitaram. Tudo é opcional. Podem adicionar fotografias agora ou mais tarde no álbum." : "Add a little note, a rating or where you went. Every detail is optional. You can add photos now or later from the album."}</p><label className="form-label">{language === "pt" ? "A vossa memória" : "Your memory"} <textarea className="form-input memory-input" maxLength={1000} placeholder={language === "pt" ? "Qual foi a vossa parte favorita?" : "What was your favourite part?"} value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><label className="form-label">{language === "pt" ? "Onde foram?" : "Where did you go?"} <LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /></label><label className="form-label">{language === "pt" ? "Como avaliam o date?" : "How would you rate it?"}</label><div className="rating-picker" aria-label={language === "pt" ? "Escolher uma classificação de um a cinco" : "Choose a rating from one to five"}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_idea_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_idea_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nas memórias" : "Save to our memories"} <span>→</span></button></form>
-            : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{language === "pt" ? modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões." : modal === "edit" ? "Update the details for this date idea." : "Add a date idea with the details Nossia uses to find a good match."}</p><label className="form-label" htmlFor="idea-title">{language === "pt" ? "A vossa ideia" : "Your idea"}<input className="form-input" id="idea-title" autoFocus placeholder={language === "pt" ? "ex.: Ver as estrelas numa noite de verão" : "e.g. Stargazing on a summer night"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">{language === "pt" ? "Descrição" : "Description"}<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} required maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">{language === "pt" ? "Estado de espírito" : "Mood"}<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label><label className="form-label" htmlFor="idea-category">{language === "pt" ? "Categoria" : "Category"}<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item, language)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">{language === "pt" ? "Duração" : "Duration"}<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="90">1–2 {language === "pt" ? "horas" : "hours"}</option><option value="180">2–4 {language === "pt" ? "horas" : "hours"}</option><option value="300">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label><label className="form-label" htmlFor="idea-budget">{language === "pt" ? "Orçamento para dois" : "Budget for two"}<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">{language === "pt" ? "Gratuito" : "Free"}</option><option value="10">{language === "pt" ? "Até 10 €" : "Up to €10"}</option><option value="30">{language === "pt" ? "Até 30 €" : "Up to €30"}</option><option value="60">{language === "pt" ? "Até 60 €" : "Up to €60"}</option></select></label></div><label className="form-label" htmlFor="idea-travel">{language === "pt" ? "Tempo de viagem (ida)" : "Travel time (one way)"}<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">{language === "pt" ? "Desconhecido / sem limite" : "Unknown / no limit"}</option><option value="15">{language === "pt" ? "Até 15 min" : "Up to 15 min"}</option><option value="30">{language === "pt" ? "Até 30 min" : "Up to 30 min"}</option><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="120">{language === "pt" ? "Mais de 1 hora" : "Over 1 hour"}</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) setNewTravel("0"); else if (newTravel === "0") setNewTravel(""); }} />{language === "pt" ? "Esta ideia pode ser feita em casa" : "This idea can be done at home"}</label><button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? modal === "edit" ? "Guardar alterações" : "Guardar esta ideia" : modal === "edit" ? "Save changes" : "Save this idea"} <span>→</span></button></form>}
+            : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{language === "pt" ? modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões." : modal === "edit" ? "Update the details for this date idea." : "Add a date idea with the details Nossia uses to find a good match."}</p><label className="form-label" htmlFor="idea-title">{language === "pt" ? "A vossa ideia" : "Your idea"}<input className="form-input" id="idea-title" autoFocus placeholder={language === "pt" ? "ex.: Ver as estrelas numa noite de verão" : "e.g. Stargazing on a summer night"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">{language === "pt" ? "Descrição" : "Description"}<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} required maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">{language === "pt" ? "Estado de espírito" : "Mood"}<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label><label className="form-label" htmlFor="idea-category">{language === "pt" ? "Categoria" : "Category"}<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item, language)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">{language === "pt" ? "Duração" : "Duration"}<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="90">1–2 {language === "pt" ? "horas" : "hours"}</option><option value="180">2–4 {language === "pt" ? "horas" : "hours"}</option><option value="300">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label><label className="form-label" htmlFor="idea-budget">{language === "pt" ? "Orçamento para dois" : "Budget for two"}<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">{language === "pt" ? "Gratuito" : "Free"}</option><option value="10">{language === "pt" ? "Até 10 €" : "Up to €10"}</option><option value="30">{language === "pt" ? "Até 30 €" : "Up to €30"}</option><option value="60">{language === "pt" ? "Até 60 €" : "Up to €60"}</option></select></label></div><label className="form-label" htmlFor="idea-travel">{language === "pt" ? "Tempo de viagem (ida)" : "Travel time (one way)"}<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">{language === "pt" ? "Desconhecido / sem limite" : "Unknown / no limit"}</option><option value="15">{language === "pt" ? "Até 15 min" : "Up to 15 min"}</option><option value="30">{language === "pt" ? "Até 30 min" : "Up to 30 min"}</option><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="120">{language === "pt" ? "Mais de 1 hora" : "Over 1 hour"}</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />{language === "pt" ? "Esta ideia pode ser feita em casa" : "This idea can be done at home"}</label><label className="form-label" htmlFor="idea-weather-setting">{language === "pt" ? "Adequação ao tempo" : "Weather suitability"}<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">{language === "pt" ? "Adequada a qualquer tempo" : "Suitable in any weather"}</option><option value="indoor">{language === "pt" ? "Interior" : "Indoor"}</option><option value="outdoor">{language === "pt" ? "Exterior" : "Outdoor"}</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? modal === "edit" ? "Guardar alterações" : "Guardar esta ideia" : modal === "edit" ? "Save changes" : "Save this idea"} <span>→</span></button></form>}
       </section></div>}
     </div>
   );

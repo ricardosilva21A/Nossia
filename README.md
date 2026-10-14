@@ -55,13 +55,13 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Completed-date memories with optional notes, ratings, and location.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
+- A weather panel with a seven-day forecast for a manually selected city or GPS location, requested only after the couple chooses to share it.
+- Weather-aware random and Feeling recommendations that prefer indoor ideas in rain, extreme heat, or cold, and outdoor ideas in mild conditions. Matching falls back to all available ideas when none fit; a planned date shows its forecast when available.
 - English and European Portuguese interfaces and an “Our stats” view that counts completed dates by mood. After five completed dates, the couple profile highlights the two most common moods.
 - Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
 - Password reset by email, followed by a secure password update through the recovery link.
 - Replanning a completed date creates a separate planned entry and keeps the original memory.
 - A proposal prompt linking to the supplied interactive page.
-
-Weather recommendations and push notifications are not included in this release.
 
 The couple profile is calculated from the mood tags on completed date ideas; it is not a psychological assessment. “Surprise me” dates are excluded from mood rankings.
 
@@ -79,6 +79,7 @@ Use one row per idea when importing an existing list. The app accepts `.xlsx` an
 | `at_home` | Yes | `true` or `false`. |
 | `travel_minutes` | No | Estimated one-way travel time in minutes; leave blank if unknown. Use `0` for at-home activities. |
 | `category` | No | `Romantic`, `Adventure`, `Food & drink`, `Creative`, `Relaxing`, or `Culture`. When blank, it is derived from the mood. |
+| `weather_setting` | No | `any`, `indoor`, or `outdoor`. Defaults to `indoor` for ideas marked `at_home`, otherwise `any`. |
 | `emoji` | No | Optional display emoji. |
 
 Each row must include a title, description, supported mood, positive whole-number duration in minutes, non-negative budget in euros, and `true`/`false` value for `at_home`. The preview shows validation errors by row; only valid rows can be imported.
@@ -93,7 +94,7 @@ title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,emoji
 
 Feeling first considers unplanned ideas, then progressively applies the selected mood, duration, budget, distance, and optional exclusions. Matching suggestions are shown alongside the current question and can be chosen at any point. “At home” matches ideas marked `at_home`; the 30-minute and one-hour choices match ideas marked at home or with a known travel time within that limit. “No limit” does not filter by travel or budget. The anniversary shortcut starts with the couple's most common completed-date mood, if one exists, and the same Feeling flow can refine that recommendation. The days/months/years relationship counter remembers its selected metric on the current device. Random mode makes at most three draws in its current draw session and favours ideas not already shown.
 
-Weather and current-device location are not used. Weather is a future enhancement; the optional “things to avoid” answer covers an immediate restriction without adding more required questions.
+Weather suggestions use the saved forecast location and remain optional. GPS access is requested only after the user chooses “Use my location”; a city can also be searched manually. The seven-day Open-Meteo forecast is used to prefer ideas marked `indoor` or `outdoor`; `any` ideas always remain eligible, and all available ideas are shown if no preferred matches exist. The optional “things to avoid” answer is still available for immediate restrictions.
 
 ## Technology Stack
 
@@ -107,6 +108,7 @@ Weather and current-device location are not used. Weather is a future enhancemen
 | Supabase PostgreSQL | Application data |
 | Supabase Storage | Private photo storage |
 | OpenStreetMap | Map tiles and place search |
+| Open-Meteo | Seven-day weather forecasts |
 | Git and GitHub | Version control and project management |
 | Vercel | Web application deployment |
 
@@ -119,6 +121,7 @@ Nossia follows a frontend-first architecture supported by Supabase services.
 - **Database:** PostgreSQL managed by Supabase.
 - **File storage:** Private Supabase Storage bucket with couple-scoped access policies.
 - **Maps and place search:** OpenStreetMap tiles and a user-triggered place search.
+- **Weather:** Open-Meteo forecasts using couple-selected coordinates.
 - **Deployment:** Vercel, integrated with the GitHub repository.
 
 Database access must be protected by Row Level Security (RLS). Server-side secrets must never be exposed in client-side code.
@@ -152,8 +155,9 @@ Apply the SQL migrations, in filename order, from the [`supabase/migrations`](./
 2. [`20261013230000_calendar_map_photo_albums.sql`](./supabase/migrations/20261013230000_calendar_map_photo_albums.sql)
 3. [`20261013233000_nossia_feeling_recommendations.sql`](./supabase/migrations/20261013233000_nossia_feeling_recommendations.sql)
 4. [`20261014000000_shared_date_idea_catalog.sql`](./supabase/migrations/20261014000000_shared_date_idea_catalog.sql)
+5. [`20261014010000_weather_preferences.sql`](./supabase/migrations/20261014010000_weather_preferences.sql)
 
-The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. If earlier migrations have already been applied, apply only the new fourth migration.
+The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. The fifth adds saved weather coordinates and indoor/outdoor metadata. If the first four migrations have already been applied, apply only the new fifth migration.
 
 To enable global catalog uploads for the app owner, set the `catalog_admin` flag in that owner's Supabase **app metadata**. Run this in the Supabase SQL Editor after replacing the email with the account's sign-in email:
 
@@ -232,13 +236,13 @@ The implementation must enforce:
 - Restricted access to stored photographs through both database and Storage policies.
 - Secure handling of credentials and environment variables.
 - Explicit permission before accessing device location.
-- Location searches are sent to OpenStreetMap's Nominatim service only when a user chooses to search for a place; the app does not access device GPS.
+- Place searches are sent to OpenStreetMap's Nominatim service only when a user chooses to search. GPS is requested only after the user chooses “Use my location”; the selected weather location is saved to the couple's private profile, and its coordinates are sent to Open-Meteo to retrieve the forecast.
 - Appropriate error handling without exposing sensitive information.
 
 ## Remaining roadmap
 
-1. Add weather-aware recommendations and use weather to refine indoor/outdoor suggestions.
-2. Add an upload/import workflow for date ideas from Excel.
-3. Add push notifications and reminders.
+1. Expand couple statistics beyond completed dates by mood.
+2. Add notifications and reminders.
+3. Add couple-profile editing and plan cancellation.
 
 The app is intended to deploy as a Vercel web app connected to a Supabase project, with its source hosted on GitHub.
