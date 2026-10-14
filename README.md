@@ -42,14 +42,14 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 
 - One shared account per couple, with both names and optional birthdays.
 - Required relationship anniversary and optional first-met, first-message, and first-date dates.
-- A prominent anniversary countdown with a shortcut to draw and plan an idea for the next anniversary.
+- A prominent anniversary countdown and relationship-duration counter with a selectable days, months, or years metric. Anniversary planning starts with the couple's most common completed-date mood when available, then lets them refine the idea with Feeling.
 - An English/European Portuguese language switch in the app header; the selected language is remembered on the current device.
 - Shared date ideas, categories, favourites, and planned dates.
 - Add and edit date ideas, or permanently delete an idea and its attached stored photos.
 - Import date ideas from an `.xlsx` workbook or `.csv` file after reviewing valid ideas and rejected rows. Imports are limited to 2 MB and 200 data rows at a time.
 - A global default-idea catalog, loaded into each couple's private list while keeping favourites, plans, and memories couple-specific. Catalog uploads are restricted to the configured catalog administrator and support up to 5,000 ideas per file.
 - A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
-- Two recommendation modes: an instant random draw (up to three results per draw session) or a Feeling questionnaire matching mood, duration, budget, distance, and optional things to avoid.
+- Two recommendation modes: an instant random draw (up to three results per draw session) or an interactive, one-question-at-a-time Feeling flow matching mood, duration, budget, distance, and optional things to avoid. Matching ideas remain visible and update as answers change.
 - Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
 - Choosing a suggested date plans it for today; choosing another day is a separate action.
 - Completed-date memories with optional notes, ratings, and location.
@@ -91,7 +91,7 @@ title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,emoji
 "Cook something new","Choose a cuisine and make dinner together.",Fun,90,10,true,0,🍝
 ```
 
-Feeling first considers unplanned ideas, then applies the selected mood, duration, budget, distance, and optional exclusions. “At home” matches ideas marked `at_home`; the 30-minute and one-hour choices match ideas marked at home or with a known travel time within that limit. “No limit” does not filter by travel or budget. If no ideas match, Nossia asks you to adjust your answers instead of silently suggesting an incompatible activity. Random mode makes at most three draws in its current draw session and favours ideas not already shown.
+Feeling first considers unplanned ideas, then progressively applies the selected mood, duration, budget, distance, and optional exclusions. Matching suggestions are shown alongside the current question and can be chosen at any point. “At home” matches ideas marked `at_home`; the 30-minute and one-hour choices match ideas marked at home or with a known travel time within that limit. “No limit” does not filter by travel or budget. The anniversary shortcut starts with the couple's most common completed-date mood, if one exists, and the same Feeling flow can refine that recommendation. The days/months/years relationship counter remembers its selected metric on the current device. Random mode makes at most three draws in its current draw session and favours ideas not already shown.
 
 Weather and current-device location are not used. Weather is a future enhancement; the optional “things to avoid” answer covers an immediate restriction without adding more required questions.
 

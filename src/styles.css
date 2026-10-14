@@ -360,3 +360,49 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
   .modal-backdrop{padding:12px}
   .import-template-button,.import-file-button{font-size:9px;padding:10px}
 }
+.relationship-duration{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:15px 0;padding:14px 16px;border:1px solid #f0eae5;border-radius:11px;background:#fffdfa}
+.relationship-duration-copy{display:grid;gap:3px}.relationship-duration-copy strong{font:500 25px "Playfair Display",serif;color:#563d3a}.relationship-duration-copy span{font-size:9px;color:#928983}
+.relationship-metric-switch{display:flex;gap:3px;padding:3px;border:1px solid #eee8e2;border-radius:8px;background:#faf7f4}
+.relationship-metric-switch button{border:0;border-radius:6px;background:transparent;padding:7px 10px;color:#887d75;font-size:9px;cursor:pointer}
+.relationship-metric-switch button.selected{background:#a95862;color:#fff}
+.feeling-modal{width:min(100%,920px)}
+.feeling-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,.85fr);gap:22px;align-items:start}
+.feeling-question-panel{min-width:0}
+.feeling-question-panel .modal-copy{margin:0 0 12px}
+.feeling-progress{height:5px;border-radius:5px;background:#f1eae5;overflow:hidden}
+.feeling-progress span{display:block;height:100%;border-radius:inherit;background:#a95862;transition:width .2s}
+.feeling-step-label{display:block;margin-top:7px;color:#a09891;font-size:8px;font-weight:700;letter-spacing:1px}
+.feeling-question-title{margin:15px 0 12px;color:#514540;font:500 20px "Playfair Display",Georgia,serif}
+.feeling-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.feeling-choice{min-height:48px;display:flex;align-items:center;gap:9px;padding:10px;border:1px solid #eee5df;border-radius:9px;background:#fffdfa;color:#655a54;text-align:left;font-size:10px;cursor:pointer;transition:border-color .15s,background .15s}
+.feeling-choice:hover,.feeling-choice.selected{border-color:#c99091;background:#fbf3f1}
+.feeling-choice>span{width:25px;height:25px;flex:none;display:grid;place-items:center;border-radius:7px;background:#f8efeb;color:#a95862;font-size:13px}
+.feeling-avoid-step .feeling-question-title span{font:500 9px "DM Sans",sans-serif;color:#9b9189}
+.feeling-avoid-step .form-input{margin-top:0}
+.feeling-back-button{margin-top:14px;padding:7px 0;border:0;background:transparent;color:#8f7770;font-size:9px;cursor:pointer}
+.feeling-back-button:hover{text-decoration:underline;color:#743d45}
+.feeling-suggestions-panel{min-width:0;padding:15px;border:1px solid #f0eae5;border-radius:11px;background:#fff}
+.feeling-suggestions-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.feeling-suggestions-heading .section-kicker{font-size:7px;line-height:1.4}
+.feeling-suggestions-heading h3{margin:4px 0 0;color:#514540;font:500 17px "Playfair Display",Georgia,serif}
+.feeling-suggestions-list{display:grid;gap:6px;max-height:390px;overflow-y:auto}
+.feeling-suggestion{display:flex;align-items:center;gap:9px;width:100%;min-height:53px;padding:8px;border:1px solid #f1ebe6;border-radius:8px;background:#fffdfa;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.feeling-suggestion:hover{border-color:#d8b3ad;background:#fbf5f1}
+.feeling-suggestion-emoji{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:8px;background:#f8efeb;font-size:17px}
+.feeling-suggestion-copy{display:grid;gap:4px;min-width:0}.feeling-suggestion-copy strong{overflow:hidden;color:#514540;font-size:10px;text-overflow:ellipsis;white-space:nowrap}.feeling-suggestion-copy small{color:#928983;font-size:8px}
+.feeling-suggestion-arrow{margin-left:auto;color:#a95862}
+.feeling-no-suggestions{display:grid;place-items:center;min-height:130px;padding:16px;text-align:center}.feeling-no-suggestions>span{color:#c28b8d;font-size:20px}.feeling-no-suggestions p,.feeling-more-suggestions{margin:7px 0 0;color:#928983;font-size:9px;line-height:1.5}
+.feeling-note{font-size:9px;line-height:1.5;color:#988d85;margin:11px 0 0}
+@media(max-width:760px){
+  .feeling-modal{width:min(100%,620px)}
+  .feeling-layout{grid-template-columns:1fr;gap:16px}
+  .feeling-suggestions-list{max-height:250px}
+}
+@media(max-width:430px){
+  .relationship-duration{align-items:flex-start;flex-direction:column;padding:12px}
+  .relationship-metric-switch{width:100%}
+  .relationship-metric-switch button{flex:1;padding:7px 4px}
+  .feeling-modal{width:100%}
+  .feeling-choice-grid{grid-template-columns:1fr}
+  .feeling-suggestions-panel{padding:11px}
+}

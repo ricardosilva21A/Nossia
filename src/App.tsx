@@ -12,6 +12,7 @@ type AuthMode = "sign-in" | "sign-up";
 type AuthFlow = AuthMode | "reset-request" | "password-update";
 type DiscoveryMode = "random" | "feeling";
 type Language = "en" | "pt";
+type RelationshipMetric = "days" | "months" | "years";
 type AppModal = "new" | "edit" | "import" | "global-import" | "delete" | "plan" | "memory" | "draw" | "feeling" | "album" | "location" | null;
 const LazyMapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
 type DatePhoto = {
@@ -97,6 +98,48 @@ function nextAnniversary(relationshipDate: string, today = new Date()) {
     : thisYear;
   const days = Math.round((Date.UTC(target.getFullYear(), target.getMonth(), target.getDate()) - Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())) / 86_400_000);
   return { date: localDateString(target), days, years: target.getFullYear() - Number(relationshipDate.slice(0, 4)) };
+}
+
+function relationshipDuration(relationshipDate: string, today = new Date()) {
+  const [startYear, startMonth, startDay] = relationshipDate.slice(0, 10).split("-").map(Number);
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const days = Math.max(0, Math.floor((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) - Date.UTC(startYear, startMonth - 1, startDay)) / 86_400_000));
+  let months = Math.max(0, (end.getFullYear() - startYear) * 12 + end.getMonth() - (startMonth - 1));
+  const anniversaryMonth = new Date(startYear, startMonth - 1 + months, 1);
+  const lastDayOfMonth = new Date(anniversaryMonth.getFullYear(), anniversaryMonth.getMonth() + 1, 0).getDate();
+  anniversaryMonth.setDate(Math.min(startDay, lastDayOfMonth));
+  if (anniversaryMonth > end) months -= 1;
+  return { days, months: Math.max(0, months), years: Math.max(0, months) / 12 };
+}
+
+function filterFeelingIdeas(ideas: DateIdea[], answers: FeelingAnswers, answeredQuestions: number) {
+  const avoidTerms = answers.avoid.split(",").map((term) => term.trim().toLocaleLowerCase("en-GB")).filter(Boolean);
+  return ideas.filter((idea) => {
+    if (idea.status !== "idea") return false;
+    if (answers.mood !== "Surprise me" && idea.mood !== answers.mood) return false;
+    if (answeredQuestions >= 2) {
+      const duration = idea.duration_minutes;
+      if (duration === null) return false;
+      if (answers.duration === "1" && duration > 60) return false;
+      if (answers.duration === "2" && (duration <= 60 || duration > 120)) return false;
+      if (answers.duration === "3" && (duration <= 120 || duration > 240)) return false;
+      if (answers.duration === "4" && duration <= 240) return false;
+    }
+    if (answeredQuestions >= 3) {
+      const budget = idea.budget_eur;
+      if (answers.budget !== "4" && budget === null) return false;
+      if (budget !== null && answers.budget === "1" && budget > 10) return false;
+      if (budget !== null && answers.budget === "2" && (budget <= 10 || budget > 30)) return false;
+      if (budget !== null && answers.budget === "3" && (budget <= 30 || budget > 60)) return false;
+    }
+    if (answeredQuestions >= 4) {
+      if (answers.distance === "1" && !idea.at_home) return false;
+      if (answers.distance === "2" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 30)) return false;
+      if (answers.distance === "3" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 60)) return false;
+    }
+    const searchable = `${idea.title} ${idea.description} ${idea.category} ${idea.mood}`.toLocaleLowerCase("en-GB");
+    return !avoidTerms.some((term) => searchable.includes(term));
+  });
 }
 
 function categoryForMood(mood: Mood): Category {
@@ -262,6 +305,10 @@ function AuthScreen({ language, onLanguageChange, recovery = false, onRecoveryCo
 
 function App() {
   const [language, setLanguage] = useState<Language>(() => window.localStorage.getItem("nossia-language") === "pt" ? "pt" : "en");
+  const [relationshipMetric, setRelationshipMetric] = useState<RelationshipMetric>(() => {
+    const savedMetric = window.localStorage.getItem("nossia-relationship-metric");
+    return savedMetric === "months" || savedMetric === "years" ? savedMetric : "days";
+  });
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
@@ -280,6 +327,7 @@ function App() {
   const [drawMessage, setDrawMessage] = useState("");
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("random");
   const [feelingAnswers, setFeelingAnswers] = useState<FeelingAnswers>({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+  const [feelingStep, setFeelingStep] = useState(0);
   const [newMood, setNewMood] = useState<Mood>("Romantic");
   const [newDuration, setNewDuration] = useState("120");
   const [newBudget, setNewBudget] = useState("30");
@@ -469,12 +517,22 @@ function App() {
     });
   }, [category, ideas, search, view]);
 
+  const feelingSuggestions = useMemo(
+    () => filterFeelingIdeas(ideas, feelingAnswers, feelingStep),
+    [feelingAnswers, feelingStep, ideas],
+  );
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId);
   const anniversary = couple ? nextAnniversary(couple.relationship_date) : null;
+  const relationshipTime = couple ? relationshipDuration(couple.relationship_date) : null;
 
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
     window.localStorage.setItem("nossia-language", nextLanguage);
+  }
+
+  function changeRelationshipMetric(metric: RelationshipMetric) {
+    setRelationshipMetric(metric);
+    window.localStorage.setItem("nossia-relationship-metric", metric);
   }
 
   function openImport(target: "couple" | "global") {
@@ -579,9 +637,13 @@ function App() {
   function startAnniversaryPlanning() {
     if (!anniversary) return;
     setAnniversaryPlanDate(anniversary.date);
+    setFeelingAnswers({ mood: completedMoodStats.top[0]?.mood ?? "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+    setFeelingStep(0);
     setCategory("All");
     setView("discover");
-    drawRandomIdea(true, "All");
+    setDiscoveryMode("feeling");
+    setDrawMessage("");
+    setModal("feeling");
   }
 
   function drawRandomIdea(startNewRound = false, selectedCategory: Category | "All" = category) {
@@ -616,43 +678,18 @@ function App() {
   }
 
   function beginFeeling() {
+    if (!anniversaryPlanDate) {
+      setFeelingAnswers({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+    }
+    setFeelingStep(0);
     setDiscoveryMode("feeling");
     setDrawMessage("");
     setModal("feeling");
   }
 
-  function chooseFeelingSuggestion(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const avoidTerms = feelingAnswers.avoid.split(",").map((term) => term.trim().toLocaleLowerCase("en-GB")).filter(Boolean);
-    const eligibleIdeas = ideas.filter((idea) => {
-      if (idea.status !== "idea") return false;
-      if (feelingAnswers.mood !== "Surprise me" && idea.mood !== feelingAnswers.mood) return false;
-      const duration = idea.duration_minutes;
-      if (duration === null) return false;
-      if (feelingAnswers.duration === "1" && duration > 60) return false;
-      if (feelingAnswers.duration === "2" && (duration <= 60 || duration > 120)) return false;
-      if (feelingAnswers.duration === "3" && (duration <= 120 || duration > 240)) return false;
-      if (feelingAnswers.duration === "4" && duration <= 240) return false;
-      const budget = idea.budget_eur;
-      if (feelingAnswers.budget !== "4" && budget === null) return false;
-      if (budget !== null && feelingAnswers.budget === "1" && budget > 10) return false;
-      if (budget !== null && feelingAnswers.budget === "2" && (budget <= 10 || budget > 30)) return false;
-      if (budget !== null && feelingAnswers.budget === "3" && (budget <= 30 || budget > 60)) return false;
-      if (feelingAnswers.distance === "1" && !idea.at_home) return false;
-      if (feelingAnswers.distance === "2" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 30)) return false;
-      if (feelingAnswers.distance === "3" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 60)) return false;
-      const searchable = `${idea.title} ${idea.description} ${idea.category} ${idea.mood}`.toLocaleLowerCase("en-GB");
-      return !avoidTerms.some((term) => searchable.includes(term));
-    });
-
-    if (eligibleIdeas.length === 0) {
-      setActiveIdeaId(null);
-      setDrawMessage(language === "pt" ? "Ainda não há ideias que correspondam a todas as respostas. Alterem uma ou duas respostas ou acrescentem mais detalhes às ideias." : "No ideas match every answer yet. Try changing one or two answers, or add more detail to your date ideas.");
-      setModal("feeling");
-      return;
-    }
-
-    const pickedIdea = eligibleIdeas[Math.floor(Math.random() * eligibleIdeas.length)];
+  function chooseFeelingSuggestion(ideaId: string) {
+    const pickedIdea = feelingSuggestions.find((idea) => idea.id === ideaId);
+    if (!pickedIdea) return;
     setActiveIdeaId(pickedIdea.id);
     setDrawMessage("");
     setDiscoveryMode("feeling");
@@ -1051,6 +1088,10 @@ function App() {
             </section>
             <section className="milestones-card" aria-label={language === "pt" ? "Datas importantes" : "Your important dates"}>
               <div className="milestones-heading"><span className="section-kicker">{language === "pt" ? "DATAS QUE SIGNIFICAM MUITO" : "THE LITTLE DATES THAT MEAN A LOT"}</span><h2>{language === "pt" ? "A vossa história até agora" : "Your story so far"}</h2></div>
+              {relationshipTime && <div className="relationship-duration">
+                <div className="relationship-duration-copy"><strong>{new Intl.NumberFormat(language === "pt" ? "pt-PT" : "en-GB", { maximumFractionDigits: 1 }).format(relationshipMetric === "days" ? relationshipTime.days : relationshipMetric === "months" ? relationshipTime.months : relationshipTime.years)}</strong><span>{language === "pt" ? relationshipMetric === "days" ? "dias juntos" : relationshipMetric === "months" ? "meses juntos" : "anos juntos" : relationshipMetric === "days" ? "days together" : relationshipMetric === "months" ? "months together" : "years together"}</span></div>
+                <div className="relationship-metric-switch" role="group" aria-label={language === "pt" ? "Métrica do tempo juntos" : "Time together metric"}>{(["days", "months", "years"] as const).map((metric) => <button key={metric} type="button" className={relationshipMetric === metric ? "selected" : ""} aria-pressed={relationshipMetric === metric} onClick={() => changeRelationshipMetric(metric)}>{language === "pt" ? ({ days: "Dias", months: "Meses", years: "Anos" } as Record<RelationshipMetric, string>)[metric] : metric[0].toLocaleUpperCase() + metric.slice(1)}</button>)}</div>
+              </div>}
               {anniversary && <article className="anniversary-feature">
                 <div className="anniversary-heart" aria-hidden="true">♥</div>
                 <div className="anniversary-copy"><span className="anniversary-label">{language === "pt" ? "ANIVERSÁRIO DE NAMORO" : "YOUR ANNIVERSARY"}</span><h3>{anniversary.days === 0 ? (language === "pt" ? "Feliz aniversário de namoro!" : "Happy anniversary!") : anniversary.days === 1 ? (language === "pt" ? "É já amanhã!" : "It’s tomorrow!") : language === "pt" ? `Faltam ${anniversary.days} dias` : `${anniversary.days} days to go`}</h3><p>{formatDate(anniversary.date, language)}{anniversary.days === 0 ? "" : ` · ${anniversary.years} ${language === "pt" ? "anos juntos" : anniversary.years === 1 ? "year together" : "years together"}`}</p></div>
@@ -1120,13 +1161,29 @@ function App() {
           {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>{language === "pt" ? "SUGESTÕES ANTERIORES" : "PREVIOUS DRAWS"}</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`${language === "pt" ? "Escolher sugestão" : "Choose suggestion"} ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
           {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{language === "pt" ? `Sortear outra vez (${3 - randomDrawCount} restantes)` : `Draw again (${3 - randomDrawCount} left)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{language === "pt" ? "Experimentar o modo feeling" : "Try feeling mode"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{language === "pt" ? "Alterar respostas" : "Change answers"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{language === "pt" ? "Planear para o aniversário" : "Plan this date for our anniversary"} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{language === "pt" ? "Este date é para hoje" : "This date is for today"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>{language === "pt" ? "Planear para outro dia" : "Plan for another day"}</button></div>}
             {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>{language === "pt" ? "Experimentar o modo feeling" : "Try feeling mode"} <span>→</span></button><button className="modal-submit" onClick={openNewIdea}>{language === "pt" ? "Adicionar ideia" : "Add an idea"} <span>→</span></button></div>}</>
-          : modal === "feeling" ? <form onSubmit={chooseFeelingSuggestion}><p className="modal-copy">{language === "pt" ? "Quatro respostas rápidas para encontrar uma ideia que combine com o vosso momento." : "Four quick answers to find an idea that fits the moment."}</p>{drawMessage && <p className="form-alert config-alert" role="status">{drawMessage}</p>}
-            <label className="form-label" htmlFor="feeling-mood">{language === "pt" ? "1. Qual é o vosso mood hoje?" : "1. What’s your mood today?"}<select className="form-input" id="feeling-mood" value={feelingAnswers.mood} onChange={(event) => setFeelingAnswers((current) => ({ ...current, mood: event.target.value as Mood }))}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label>
-            <label className="form-label" htmlFor="feeling-duration">{language === "pt" ? "2. Quanto tempo têm?" : "2. How much time do you have?"}<select className="form-input" id="feeling-duration" value={feelingAnswers.duration} onChange={(event) => setFeelingAnswers((current) => ({ ...current, duration: event.target.value as FeelingAnswers["duration"] }))}><option value="1">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="2">{language === "pt" ? "1–2 horas" : "1–2 hours"}</option><option value="3">{language === "pt" ? "2–4 horas" : "2–4 hours"}</option><option value="4">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label>
-            <label className="form-label" htmlFor="feeling-budget">{language === "pt" ? "3. Qual é o orçamento para os dois?" : "3. What’s your budget for two?"}<select className="form-input" id="feeling-budget" value={feelingAnswers.budget} onChange={(event) => setFeelingAnswers((current) => ({ ...current, budget: event.target.value as FeelingAnswers["budget"] }))}><option value="1">{language === "pt" ? "Gratuito ou até 10 €" : "Free or up to €10"}</option><option value="2">{language === "pt" ? "10–30 €" : "€10–30"}</option><option value="3">{language === "pt" ? "30–60 €" : "€30–60"}</option><option value="4">{language === "pt" ? "Sem limite definido" : "No set limit"}</option></select></label>
-            <label className="form-label" htmlFor="feeling-distance">{language === "pt" ? "4. Até onde querem ir?" : "4. How far would you like to go?"}<select className="form-input" id="feeling-distance" value={feelingAnswers.distance} onChange={(event) => setFeelingAnswers((current) => ({ ...current, distance: event.target.value as FeelingAnswers["distance"] }))}><option value="1">{language === "pt" ? "Em casa" : "At home"}</option><option value="2">{language === "pt" ? "Perto (até 30 min)" : "Nearby (up to 30 min)"}</option><option value="3">{language === "pt" ? "Até 1 hora de viagem" : "Up to 1 hour away"}</option><option value="4">{language === "pt" ? "Sem limite" : "No limit"}</option></select></label>
-            <label className="form-label" htmlFor="feeling-avoid">{language === "pt" ? "Há algo que queiram evitar?" : "Anything you’d like to avoid?"} <span>{language === "pt" ? "(opcional; separar por vírgulas)" : "(optional; separate with commas)"}</span><input className="form-input" id="feeling-avoid" value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder={language === "pt" ? "ex.: multidões, caminhadas longas" : "e.g. crowds, long walks"} maxLength={120} /></label>
-            <p className="feeling-note">{language === "pt" ? "A meteorologia ainda não está ligada. As sugestões usam os detalhes de cada ideia." : "Weather data isn’t connected yet. Suggestions are matched using the details saved with each idea."}</p><button className="modal-submit" type="submit">{language === "pt" ? "Encontrar o nosso date" : "Find our date"} <span>→</span></button></form>
+          : modal === "feeling" ? <div className="feeling-layout">
+            <div className="feeling-question-panel">
+              <p className="modal-copy">{anniversaryPlanDate ? language === "pt" ? completedMoodStats.top[0] ? `Para o vosso aniversário, começamos pelo mood mais frequente: ${completedMoodStats.top[0].mood}. Podem alterar a resposta.` : "Ainda não há um mood mais frequente. Respondam às perguntas para encontrar uma ideia para o aniversário." : completedMoodStats.top[0] ? `For your anniversary, we’ll start with your most common mood: ${completedMoodStats.top[0].mood}. You can change the answer.` : "You don't have a most common mood yet. Answer the questions to find an anniversary idea." : language === "pt" ? "Respondam a uma pergunta de cada vez. As sugestões ao lado atualizam-se à medida que escolhem." : "Answer one question at a time. The suggestions alongside update as you choose."}</p>
+              {drawMessage && <p className="form-alert config-alert" role="status">{drawMessage}</p>}
+              <div className="feeling-progress" role="progressbar" aria-label={language === "pt" ? "Progresso das perguntas" : "Question progress"} aria-valuenow={feelingStep} aria-valuemin={0} aria-valuemax={4}><span style={{ width: `${feelingStep / 4 * 100}%` }} /></div>
+              <span className="feeling-step-label">{language === "pt" ? `${Math.min(feelingStep + 1, 4)} DE 4 PERGUNTAS` : `QUESTION ${Math.min(feelingStep + 1, 4)} OF 4`}</span>
+              {feelingStep < 4 ? <>
+                <h3 className="feeling-question-title">{language === "pt" ? (["Qual é o vosso mood hoje?", "Quanto tempo têm?", "Qual é o orçamento para os dois?", "Até onde querem ir?"] as const)[feelingStep] : (["What’s your mood today?", "How much time do you have?", "What’s your budget for two?", "How far would you like to go?"] as const)[feelingStep]}</h3>
+                <div className="feeling-choice-grid">
+                  {feelingStep === 0 && moodOptions.map((mood) => <button type="button" key={mood} className={`feeling-choice ${feelingAnswers.mood === mood ? "selected" : ""}`} aria-pressed={feelingAnswers.mood === mood} onClick={() => { setFeelingAnswers((current) => ({ ...current, mood })); setFeelingStep(1); }}><span>{({ Romantic: "♥", Fun: "✳", Relaxing: "☁", Adventure: "⌖", Creative: "✧", "Surprise me": "?" })[mood]}</span>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</button>)}
+                  {feelingStep === 1 && ([["1", "Até 1 hora", "Up to 1 hour"], ["2", "1–2 horas", "1–2 hours"], ["3", "2–4 horas", "2–4 hours"], ["4", "Meio dia ou mais", "Half a day or more"]] as const).map(([value, portuguese, english]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.duration === value ? "selected" : ""}`} aria-pressed={feelingAnswers.duration === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, duration: value })); setFeelingStep(2); }}><span>◷</span>{language === "pt" ? portuguese : english}</button>)}
+                  {feelingStep === 2 && ([["1", "Gratuito ou até 10 €", "Free or up to €10"], ["2", "10–30 €", "€10–30"], ["3", "30–60 €", "€30–60"], ["4", "Sem limite definido", "No set limit"]] as const).map(([value, portuguese, english]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.budget === value ? "selected" : ""}`} aria-pressed={feelingAnswers.budget === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, budget: value })); setFeelingStep(3); }}><span>€</span>{language === "pt" ? portuguese : english}</button>)}
+                  {feelingStep === 3 && ([["1", "Em casa", "At home"], ["2", "Perto (até 30 min)", "Nearby (up to 30 min)"], ["3", "Até 1 hora de viagem", "Up to 1 hour away"], ["4", "Sem limite", "No limit"]] as const).map(([value, portuguese, english]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.distance === value ? "selected" : ""}`} aria-pressed={feelingAnswers.distance === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, distance: value })); setFeelingStep(4); }}><span>⌖</span>{language === "pt" ? portuguese : english}</button>)}
+                </div>
+              </> : <div className="feeling-avoid-step"><h3 className="feeling-question-title">{language === "pt" ? "Há algo que queiram evitar?" : "Anything you’d like to avoid?"} <span>{language === "pt" ? "Opcional" : "Optional"}</span></h3><input className="form-input" aria-label={language === "pt" ? "Coisas a evitar" : "Things to avoid"} value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder={language === "pt" ? "ex.: multidões, caminhadas longas" : "e.g. crowds, long walks"} maxLength={120} /><p className="feeling-note">{language === "pt" ? "A meteorologia ainda não está ligada. As sugestões usam os detalhes de cada ideia." : "Weather data isn’t connected yet. Suggestions are matched using the details saved with each idea."}</p></div>}
+              {feelingStep > 0 && <button type="button" className="feeling-back-button" onClick={() => setFeelingStep((step) => Math.max(0, step - 1))}>← {language === "pt" ? "Pergunta anterior" : "Previous question"}</button>}
+            </div>
+            <aside className="feeling-suggestions-panel" aria-label={language === "pt" ? "Ideias que correspondem às respostas" : "Ideas matching your answers"}>
+              <div className="feeling-suggestions-heading"><div><span className="section-kicker">{language === "pt" ? "A AFINAR COM AS VOSSAS RESPOSTAS" : "MATCHING YOUR ANSWERS"}</span><h3>{language === "pt" ? "Ideias para vocês" : "Ideas for you"}</h3></div><span className="heading-count">{feelingSuggestions.length}</span></div>
+              {feelingSuggestions.length ? <div className="feeling-suggestions-list">{feelingSuggestions.slice(0, 12).map((idea) => <button type="button" className="feeling-suggestion" key={idea.id} onClick={() => chooseFeelingSuggestion(idea.id)}><span className="feeling-suggestion-emoji">{idea.emoji}</span><span className="feeling-suggestion-copy"><strong>{idea.title}</strong><small>{idea.duration} · {idea.budget}</small></span><span className="feeling-suggestion-arrow">→</span></button>)}</div> : <div className="feeling-no-suggestions"><span>♡</span><p>{language === "pt" ? "Nenhuma ideia corresponde por agora. Voltem atrás e alterem uma resposta, ou adicionem mais ideias." : "No ideas match just yet. Go back and change an answer, or add more ideas."}</p></div>}
+              {feelingSuggestions.length > 12 && <p className="feeling-more-suggestions">{language === "pt" ? `Mais ${feelingSuggestions.length - 12} ideias disponíveis. Continuem a responder para filtrar.` : `${feelingSuggestions.length - 12} more ideas available. Keep answering to narrow them down.`}</p>}
+            </aside>
+          </div>
           : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? language === "pt" ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "This creates a new plan and keeps the original memory. To plan for today, choose “This date is for today” on the suggestion." : language === "pt" ? "Escolham uma data diferente para este date." : "Choose a different day for this date."}</p><label className="form-label" htmlFor="planned-date">{language === "pt" ? "Data" : "Date"}<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><label className="form-label">{language === "pt" ? "Onde vão?" : "Where will you go?"} <LocationSearch language={language} value={plannedLocation} onChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onSelect={(place: GeocodedPlace) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /></label><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nos dates planeados" : "Save to planned dates"} <span>→</span></button></>
           : modal === "album" ? <><p className="modal-copy">{language === "pt" ? "As fotografias são privadas e só estão disponíveis na vossa conta. Adicionem imagens JPG, PNG, WEBP ou GIF (até 10 MB cada)." : "Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each)."}</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">{language === "pt" ? "A carregar o álbum…" : "Loading your album…"}</p>}<div className="album-grid">{photos.filter((photo) => photo.date_idea_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>{language === "pt" ? "Pré-visualização indisponível" : "Photo preview unavailable"}</div>)}</div><label className="photo-upload-button">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
           : modal === "location" ? <><p className="modal-copy">{language === "pt" ? "Pesquisem o local e escolham o resultado correto para o adicionar ao mapa." : "Search for the place, then select the right result to pin it on your map."}</p><LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar no mapa" : "Save map pin"} <span>→</span></button></>
