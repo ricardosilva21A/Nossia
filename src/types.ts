@@ -32,6 +32,7 @@ export type DateIdea = {
   budget_eur: number | null;
   travel_minutes: number | null;
   at_home: boolean;
+  source_template_id: string | null;
 };
 
 export type GeocodedPlace = {

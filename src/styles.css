@@ -309,6 +309,11 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .welcome-actions{display:flex;align-items:center;gap:9px;flex-shrink:0}
 .import-button,.import-template-button{border:1px solid #e8d8d4;background:#fffdfa;border-radius:8px;padding:11px 13px;color:#91525a;font-size:10px;font-weight:600;cursor:pointer}
 .import-button:hover,.import-template-button:hover{background:#faf1ee}
+.global-import-button{background:#a95862;border-color:#a95862;color:#fff}
+.global-import-button:hover{background:#894650;color:#fff}
+.default-idea-label{position:absolute;left:10px;bottom:9px;background:#fffdfae8;border:1px solid #eee1da;border-radius:20px;padding:4px 7px;font-size:7px;font-weight:700;letter-spacing:.5px;color:#8e6058}
+.show-more-ideas{display:block;margin:18px auto 0;padding:10px 16px;border:1px solid #e8d8d4;border-radius:8px;background:#fffdfa;color:#91525a;font-size:10px;font-weight:600;cursor:pointer}
+.show-more-ideas:hover{background:#faf1ee}
 .idea-title-row{gap:8px}
 .idea-management{display:flex;gap:3px;flex-shrink:0}
 .idea-management button{width:27px;height:27px;border:1px solid #eee8e2;border-radius:7px;background:#fffdfa;color:#8f7771;font-size:14px;cursor:pointer}
@@ -341,7 +346,7 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
   .mobile-more-menu button{min-height:43px;display:flex;align-items:center;gap:12px;padding:8px 11px;border:0;border-radius:8px;background:transparent;text-align:left;color:#716964;font-size:11px}
   .mobile-more-menu button.active,.mobile-more-menu button:hover{background:#f7eeee;color:#9b535e}
   .mobile-more-menu button span{width:20px;text-align:center;font-size:17px}
-  .welcome-actions{gap:7px}
+  .welcome-actions{gap:7px;flex-wrap:wrap}
   .import-button,.welcome-actions .add-button{padding:9px;font-size:9px}
   .idea-management button{width:30px;height:30px}
   .card-action{font-size:9px;padding:7px 0}

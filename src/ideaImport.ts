@@ -136,8 +136,8 @@ function displayBudget(euros: number) {
   return euros === 0 ? "Free" : `€${euros > 10 ? "€" : ""}${euros > 30 ? "€" : ""}`;
 }
 
-export async function previewIdeaImport(file: File): Promise<ImportPreview> {
-  if (file.size > 2 * 1024 * 1024) throw new Error("Choose a file smaller than 2 MB.");
+export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeMb = 2): Promise<ImportPreview> {
+  if (file.size > maxFileSizeMb * 1024 * 1024) throw new Error(`Choose a file smaller than ${maxFileSizeMb} MB.`);
   const extension = file.name.split(".").pop()?.toLocaleLowerCase();
   let rows: unknown[][];
   if (extension === "csv") {
@@ -149,7 +149,7 @@ export async function previewIdeaImport(file: File): Promise<ImportPreview> {
   }
 
   if (rows.length < 2) throw new Error("The file must contain a header row and at least one idea.");
-  if (rows.length > 201) throw new Error("Import up to 200 ideas at a time.");
+  if (rows.length > maxIdeas + 1) throw new Error(`Import up to ${maxIdeas} ideas at a time.`);
 
   const headers = new Map<string, number>();
   rows[0].forEach((header, index) => headers.set(normalizeHeader(header), index));

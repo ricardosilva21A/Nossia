@@ -47,6 +47,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Shared date ideas, categories, favourites, and planned dates.
 - Add and edit date ideas, or permanently delete an idea and its attached stored photos.
 - Import date ideas from an `.xlsx` workbook or `.csv` file after reviewing valid ideas and rejected rows. Imports are limited to 2 MB and 200 data rows at a time.
+- A global default-idea catalog, loaded into each couple's private list while keeping favourites, plans, and memories couple-specific. Catalog uploads are restricted to the configured catalog administrator and support up to 5,000 ideas per file.
 - A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
 - Two recommendation modes: an instant random draw (up to three results per draw session) or a Feeling questionnaire matching mood, duration, budget, distance, and optional things to avoid.
 - Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
@@ -150,8 +151,19 @@ Apply the SQL migrations, in filename order, from the [`supabase/migrations`](./
 1. [`20261013000000_initial_couple_app.sql`](./supabase/migrations/20261013000000_initial_couple_app.sql)
 2. [`20261013230000_calendar_map_photo_albums.sql`](./supabase/migrations/20261013230000_calendar_map_photo_albums.sql)
 3. [`20261013233000_nossia_feeling_recommendations.sql`](./supabase/migrations/20261013233000_nossia_feeling_recommendations.sql)
+4. [`20261014000000_shared_date_idea_catalog.sql`](./supabase/migrations/20261014000000_shared_date_idea_catalog.sql)
 
-The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. If earlier migrations have already been applied, apply only the new third migration.
+The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. If earlier migrations have already been applied, apply only the new fourth migration.
+
+To enable global catalog uploads for the app owner, set the `catalog_admin` flag in that owner's Supabase **app metadata**. Run this in the Supabase SQL Editor after replacing the email with the account's sign-in email:
+
+```sql
+update auth.users
+set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"catalog_admin": true}'::jsonb
+where email = 'YOUR_LOGIN_EMAIL';
+```
+
+The SQL policy checks this signed app-metadata claim, so changing browser-side data cannot grant catalog access. Sign out and back in after setting the flag so the new claim is included in the session. Only mark the app owner's account as an administrator.
 
 In Supabase Auth, configure the site URL and allowed redirect URLs for your local app and deployed domain. If the Vercel domain changes, add `https://nossia.vercel.app/**` to the allowed redirects and set the Site URL to `https://nossia.vercel.app`. The Supabase project and credentials do not need to change. Email confirmation can be enabled in the Supabase Auth settings.
 
