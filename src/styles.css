@@ -148,6 +148,8 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#38312e}
 .auth-card .auth-submit{margin-top:20px}
 .auth-submit span{float:right}
 .auth-submit:disabled{opacity:.5;cursor:not-allowed}
+.auth-forgot-button{display:block;width:max-content;margin:9px 0 0 auto;padding:3px 1px;border:0;background:transparent;color:#9b555e;font-size:10px;font-weight:600;cursor:pointer;transition:color .18s}
+.auth-forgot-button:hover{color:#743d45;text-decoration:underline;text-underline-offset:3px}
 .auth-switch{text-align:center;font-size:10px;color:#948a83;margin:18px 0 0}
 .auth-switch button{border:0;background:transparent;color:#9b555e;font-weight:700;cursor:pointer;padding:4px}
 .form-alert{font-size:10px;line-height:1.55;padding:10px 11px;border-radius:7px;margin:13px 0 0}
