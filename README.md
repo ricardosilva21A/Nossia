@@ -54,6 +54,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Choosing a suggested date plans it for today; choosing another day is a separate action.
 - Completed-date memories with optional notes, ratings, and location.
 - Choose either partner's home as a planned or completed date location; statistics show the number of dates at home and which partner's home is most frequent.
+- Set or change the home location of a completed memory later from its Memories card without changing its date or other details.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
 - A weather panel with a seven-day forecast for a manually selected city or GPS location. On first use, the app asks before requesting GPS; the choice is saved to the couple's shared profile.
