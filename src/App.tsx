@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import { CalendarView, LocationSearch } from "./CalendarMap";
+import { CoupleCompanion } from "./CoupleCompanion";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
@@ -1346,6 +1347,7 @@ function App() {
                 <span className="discovery-option-icon">♡</span><span className="discovery-option-copy"><strong>{language === "pt" ? "Escolher pelo feeling" : "Choose by feeling"}</strong><small>{language === "pt" ? "Respondam a algumas perguntas" : "Answer a few quick questions"}</small></span><span className="discovery-option-arrow">→</span>
               </button>
             </section>
+            <CoupleCompanion completedDates={completedStats.total} language={language} />
             <WeatherPanel
               language={language}
               location={{
