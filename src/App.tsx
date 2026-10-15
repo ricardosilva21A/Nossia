@@ -8,7 +8,7 @@ import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
 import type { Category, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Mood, WeatherSetting } from "./types";
-import { weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
+import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
 type View = "discover" | "favorites" | "planned" | "memories" | "calendar" | "map" | "insights";
@@ -231,11 +231,26 @@ function filterFeelingIdeas(ideas: DateIdea[], answers: FeelingAnswers, answered
   });
 }
 
-function filterWeatherIdeas(ideas: DateIdea[], condition: WeatherCondition) {
-  if (condition === "unknown") return ideas;
-  const preferredSetting: WeatherSetting = condition === "clear" ? "outdoor" : "indoor";
-  const preferredIdeas = ideas.filter((idea) => idea.weather_setting === preferredSetting || idea.weather_setting === "any");
-  return preferredIdeas.length ? preferredIdeas : ideas;
+function rankWeatherIdeas(ideas: DateIdea[], forecast: DailyWeather | undefined) {
+  if (!forecast) return ideas;
+  return ideas
+    .map((idea, index) => ({ idea, index, score: activityWeatherAdvice(idea, forecast).score }))
+    .sort((first, second) => second.score - first.score || first.index - second.index)
+    .map(({ idea }) => idea);
+}
+
+function pickWeatherWeightedIdea(ideas: DateIdea[], forecast: DailyWeather | undefined) {
+  if (ideas.length < 2 || !forecast) return ideas[Math.floor(Math.random() * ideas.length)];
+  const weighted = ideas.map((idea) => ({
+    idea,
+    weight: 0.5 + activityWeatherAdvice(idea, forecast).score / 100 * 2.5,
+  }));
+  let choice = Math.random() * weighted.reduce((total, item) => total + item.weight, 0);
+  for (const item of weighted) {
+    choice -= item.weight;
+    if (choice < 0) return item.idea;
+  }
+  return weighted[weighted.length - 1].idea;
 }
 
 function categoryForMood(mood: Mood): Category {
@@ -703,10 +718,11 @@ function App() {
   }, [category, ideas, search, view]);
 
   const feelingSuggestions = useMemo(
-    () => filterWeatherIdeas(filterFeelingIdeas(ideas, feelingAnswers, feelingStep), weatherCondition),
-    [feelingAnswers, feelingStep, ideas, weatherCondition],
+    () => rankWeatherIdeas(filterFeelingIdeas(ideas, feelingAnswers, feelingStep), weatherForecast[0]),
+    [feelingAnswers, feelingStep, ideas, weatherForecast],
   );
   const activeIdea = ideas.find((idea) => idea.id === activeIdeaId);
+  const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
   const anniversary = couple ? nextAnniversary(couple.relationship_date) : null;
   const anniversaryGiftReminder = anniversary !== null && anniversary.days <= 30;
@@ -843,7 +859,7 @@ function App() {
 
   function drawRandomIdea(startNewRound = false, selectedCategory: Category | "All" = category) {
     const categoryIdeas = ideas.filter((idea) => idea.status === "idea" && (selectedCategory === "All" || idea.category === selectedCategory));
-    const availableIdeas = filterWeatherIdeas(categoryIdeas, weatherCondition);
+    const availableIdeas = categoryIdeas;
     const previousDraws = startNewRound ? [] : drawnIdeaIds;
     const drawCount = startNewRound ? 0 : randomDrawCount;
     if (drawCount >= 3) {
@@ -864,7 +880,7 @@ function App() {
 
     const unseenIdeas = availableIdeas.filter((idea) => !previousDraws.includes(idea.id));
     const pool = unseenIdeas.length > 0 ? unseenIdeas : availableIdeas;
-    const pickedIdea = pool[Math.floor(Math.random() * pool.length)];
+    const pickedIdea = pickWeatherWeightedIdea(pool, weatherForecast[0]);
     setActiveIdeaId(pickedIdea.id);
     setDrawnIdeaIds(unseenIdeas.length > 0 || previousDraws.length === 0 ? [...previousDraws, pickedIdea.id] : previousDraws);
     setRandomDrawCount(drawCount + 1);
@@ -1454,7 +1470,7 @@ function App() {
         {modal === "plan" && plannedDateForecast && <p className="weather-date-hint"><span>{weatherEmoji(plannedDateForecast.weatherCode)}</span><span>{formatDate(plannedDateForecast.date, language, { weekday: "long", day: "numeric", month: "long" })}: <strong>{weatherLabel(plannedDateForecast, language)}, {Math.round(plannedDateForecast.temperatureMin)}°–{Math.round(plannedDateForecast.temperatureMax)}°</strong>{activeIdea?.weather_setting === "outdoor" && weatherConditionFor(plannedDateForecast) !== "clear" ? language === "pt" ? " · Este date é ao ar livre; considerem uma alternativa." : " · This date is outdoors; consider an alternative." : ""}</span></p>}
         {(modal === "import" || modal === "global-import") ? <div className="import-content"><h3>{language === "pt" ? isGlobalImport ? "Carregar ideias predefinidas" : "Importar ideias de dates" : isGlobalImport ? "Upload default ideas" : "Import date ideas"}</h3><p className="modal-copy">{language === "pt" ? isGlobalImport ? "Estas ideias ficam disponíveis para todos os casais. Cada casal recebe a sua própria cópia, onde os planos e memórias permanecem privados." : "Carreguem um ficheiro CSV ou Excel (.xlsx). Revemos as linhas antes de guardar; só as ideias válidas serão importadas para o vosso casal." : isGlobalImport ? "These ideas become available to every couple. Each couple gets its own copy, keeping plans and memories private." : "Choose a CSV or Excel (.xlsx) file. Review the rows before saving; only valid ideas will be imported for your couple."}</p><p className="import-limits">{language === "pt" ? isGlobalImport ? "Máximo: 10 MB e 5000 ideias por ficheiro." : "Máximo: 2 MB e 200 ideias por ficheiro." : isGlobalImport ? "Maximum: 10 MB and 5,000 ideas per file." : "Maximum: 2 MB and 200 ideas per file."}</p><button type="button" className="import-template-button" onClick={downloadImportTemplate}>{language === "pt" ? "Descarregar modelo CSV" : "Download CSV template"}</button><label className="import-file-button">{language === "pt" ? "Escolher ficheiro CSV ou XLSX" : "Choose CSV or XLSX file"}<input type="file" accept=".csv,.xlsx" onChange={(event) => void selectImportFile(event)} /></label>{importError && <p className="form-alert error-alert" role="alert">{importError}</p>}{importMessage && <p className="form-alert config-alert" role="status">{importMessage}</p>}{importPreview && <><p className="import-summary">{language === "pt" ? `${importPreview.valid.length} válidas · ${importPreview.invalid.length} inválidas` : `${importPreview.valid.length} valid · ${importPreview.invalid.length} invalid`}</p><div className="import-preview-list">{importPreview.valid.slice(0, 5).map((idea, index) => <div key={`${idea.title}-${index}`}><strong>{idea.title}</strong><span>{idea.mood} · {idea.duration} · {idea.budget}</span></div>)}{importPreview.valid.length > 5 && <p>{language === "pt" ? `e mais ${importPreview.valid.length - 5} ideias válidas` : `and ${importPreview.valid.length - 5} more valid ideas`}</p>}{importPreview.invalid.slice(0, 100).map((item) => <p className="import-invalid-row" key={item.row}>{language === "pt" ? `Linha ${item.row}: ${translateImportMessage(language, item.reason)}` : `Row ${item.row}: ${item.reason}`}</p>)}{importPreview.invalid.length > 100 && <p className="import-invalid-row">{language === "pt" ? `e mais ${importPreview.invalid.length - 100} linhas inv?lidas` : `and ${importPreview.invalid.length - 100} more invalid rows`}</p>}</div><button type="button" className="modal-submit" disabled={busy || importPreview.valid.length === 0} onClick={() => void importIdeas()}>{busy ? language === "pt" ? "A importar…" : "Importing…" : language === "pt" ? `Importar ${importPreview.valid.length} ideias válidas${isGlobalImport ? " para todos" : ""}` : `Import ${importPreview.valid.length} valid ideas${isGlobalImport ? " for everyone" : ""}`} <span>→</span></button></>}</div>
           : modal === "delete" ? <div className="delete-content"><h3>{language === "pt" ? "Apagar esta ideia?" : "Delete this idea?"}</h3><p className="modal-copy">{language === "pt" ? `“${activeIdea?.title ?? ""}” será removida permanentemente, incluindo as fotografias associadas.` : `“${activeIdea?.title ?? ""}” will be permanently removed, including its attached photos.`}</p><button type="button" className="modal-submit delete-confirm-button" disabled={busy} onClick={() => void deleteActiveIdea()}>{busy ? language === "pt" ? "A apagar…" : "Deleting…" : language === "pt" ? "Apagar permanentemente" : "Delete permanently"}</button></div>
-          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{language === "pt" ? ({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[activeIdea.category] : activeIdea.category}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>◷ {activeIdea.duration}</span><i /><span>{activeIdea.budget}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
+          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{language === "pt" ? ({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[activeIdea.category] : activeIdea.category}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>◷ {activeIdea.duration}</span><i /><span>{activeIdea.budget}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice, language)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason, language)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>{language === "pt" ? "O tempo é uma indicação, não uma regra — a escolha continua a ser vossa." : "Weather is a guide, not a rule — the choice is always yours."}</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
           {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>{language === "pt" ? "SUGESTÕES ANTERIORES" : "PREVIOUS DRAWS"}</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`${language === "pt" ? "Escolher sugestão" : "Choose suggestion"} ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
           {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{language === "pt" ? `Sortear outra vez (${3 - randomDrawCount} restantes)` : `Draw again (${3 - randomDrawCount} left)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{language === "pt" ? "Experimentar o modo feeling" : "Try feeling mode"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{language === "pt" ? "Alterar respostas" : "Change answers"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{language === "pt" ? "Planear para o aniversário" : "Plan this date for our anniversary"} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{language === "pt" ? "Este date é para hoje" : "This date is for today"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>{language === "pt" ? "Planear para outro dia" : "Plan for another day"}</button></div>}
             {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>{language === "pt" ? "Experimentar o modo feeling" : "Try feeling mode"} <span>→</span></button><button className="modal-submit" onClick={openNewIdea}>{language === "pt" ? "Adicionar ideia" : "Add an idea"} <span>→</span></button></div>}</>
@@ -1476,14 +1492,17 @@ function App() {
                 <h3 className="feeling-question-title">{language === "pt" ? "Há algo que queiram evitar?" : "Anything you’d like to avoid?"} <span>{language === "pt" ? "Opcional" : "Optional"}</span></h3>
                 <input className="form-input" aria-label={language === "pt" ? "Coisas a evitar" : "Things to avoid"} value={feelingAnswers.avoid} onChange={(event) => setFeelingAnswers((current) => ({ ...current, avoid: event.target.value }))} placeholder={language === "pt" ? "ex.: multidões, caminhadas longas" : "e.g. crowds, long walks"} maxLength={120} />
                 <p className="feeling-note">{language === "pt"
-                  ? weatherCondition === "unknown" ? "Sem previsão disponível, as sugestões continuam a usar os filtros escolhidos e os detalhes de cada ideia." : weatherCondition === "rain" ? "A previsão aponta para chuva; as sugestões dão prioridade a atividades interiores." : weatherCondition === "cold" || weatherCondition === "hot" ? "A previsão aponta para temperaturas extremas; as sugestões dão prioridade a atividades interiores." : "A previsão está favorável; as sugestões dão prioridade a atividades ao ar livre."
-                  : weatherCondition === "unknown" ? "Without a forecast, suggestions still use your chosen filters and each idea's saved details." : weatherCondition === "rain" ? "Rain is likely; suggestions prioritise indoor activities." : weatherCondition === "cold" || weatherCondition === "hot" ? "Extreme temperatures are forecast; suggestions prioritise indoor activities." : "The forecast looks good; suggestions prioritise outdoor activities."}</p>
+                  ? weatherCondition === "unknown" ? "Sem previsão disponível, as sugestões continuam a usar as vossas respostas. Quando existe previsão, cada atividade é avaliada pelos fatores meteorológicos mais relevantes." : "A meteorologia é avaliada para cada atividade — a chuva não exclui automaticamente os dates ao ar livre."
+                  : weatherCondition === "unknown" ? "Without a forecast, suggestions still use your answers. When available, each activity is assessed using its relevant weather factors." : "Weather is assessed for each activity — rain doesn't automatically rule out outdoor dates."}</p>
               </div>}
               {feelingStep > 0 && <button type="button" className="feeling-back-button" onClick={() => setFeelingStep((step) => Math.max(0, step - 1))}>← {language === "pt" ? "Pergunta anterior" : "Previous question"}</button>}
             </div>
             <aside className="feeling-suggestions-panel" aria-label={language === "pt" ? "Ideias que correspondem às respostas" : "Ideas matching your answers"}>
               <div className="feeling-suggestions-heading"><div><span className="section-kicker">{language === "pt" ? "A AFINAR COM AS VOSSAS RESPOSTAS" : "MATCHING YOUR ANSWERS"}</span><h3>{language === "pt" ? "Ideias para vocês" : "Ideas for you"}</h3></div><span className="heading-count">{feelingSuggestions.length}</span></div>
-              {feelingSuggestions.length ? <div className="feeling-suggestions-list">{feelingSuggestions.slice(0, 12).map((idea) => <button type="button" className="feeling-suggestion" key={idea.id} onClick={() => chooseFeelingSuggestion(idea.id)}><span className="feeling-suggestion-emoji">{idea.emoji}</span><span className="feeling-suggestion-copy"><strong>{idea.title}</strong><small>{idea.duration} · {idea.budget}</small></span><span className="feeling-suggestion-arrow">→</span></button>)}</div> : <div className="feeling-no-suggestions"><span>♡</span><p>{language === "pt" ? "Nenhuma ideia corresponde por agora. Voltem atrás e alterem uma resposta, ou adicionem mais ideias." : "No ideas match just yet. Go back and change an answer, or add more ideas."}</p></div>}
+              {feelingSuggestions.length ? <div className="feeling-suggestions-list">{feelingSuggestions.slice(0, 12).map((idea) => {
+                const advice = activityWeatherAdvice(idea, weatherForecast[0]);
+                return <button type="button" className="feeling-suggestion" key={idea.id} onClick={() => chooseFeelingSuggestion(idea.id)}><span className="feeling-suggestion-emoji">{idea.emoji}</span><span className="feeling-suggestion-copy"><strong>{idea.title}</strong><small>{idea.duration} · {idea.budget}</small>{weatherForecast[0] && <small className="feeling-weather-fit">{activityWeatherLabel(advice, language)}</small>}</span><span className="feeling-suggestion-arrow">→</span></button>;
+              })}</div> : <div className="feeling-no-suggestions"><span>♡</span><p>{language === "pt" ? "Nenhuma ideia corresponde por agora. Voltem atrás e alterem uma resposta, ou adicionem mais ideias." : "No ideas match just yet. Go back and change an answer, or add more ideas."}</p></div>}
               {feelingSuggestions.length > 12 && <p className="feeling-more-suggestions">{language === "pt" ? `Mais ${feelingSuggestions.length - 12} ideias disponíveis. Continuem a responder para filtrar.` : `${feelingSuggestions.length - 12} more ideas available. Keep answering to narrow them down.`}</p>}
             </aside>
           </div>
