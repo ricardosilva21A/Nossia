@@ -1,7 +1,8 @@
-import { useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { ArrowRight, CalendarDays, Check, Clock, MapPin, Shuffle } from "lucide-react";
-import type { DateIdea } from "./types";
+import { QuickAddBox } from "./QuickAddBox";
+import type { QuickAddValue } from "./QuickAddBox";
+import type { CoupleCommitment, DateIdea } from "./types";
 import { budgetLabel, durationLabel } from "./suggestions";
 import type { ScoredIdea } from "./suggestions";
 import { describeWindows } from "./SchedulePanel";
@@ -32,7 +33,11 @@ export function TodayView({
   birthdays,
   companion,
   weather,
+  partnerOneName,
+  partnerTwoName,
+  commitments,
   onQuickAdd,
+  onMoreDetails,
   onPlanSuggestion,
   onAnotherSuggestion,
   onMarkDone,
@@ -53,7 +58,11 @@ export function TodayView({
   birthdays: Array<{ name: string; date: string; days: number }>;
   companion: ReactNode;
   weather: ReactNode;
-  onQuickAdd: (title: string, date: string, time: string) => Promise<boolean>;
+  partnerOneName: string;
+  partnerTwoName: string;
+  commitments: CoupleCommitment[];
+  onQuickAdd: (value: QuickAddValue) => Promise<boolean>;
+  onMoreDetails: (title: string) => void;
   onPlanSuggestion: (idea: DateIdea, date: string) => void;
   onAnotherSuggestion: () => void;
   onMarkDone: (id: string) => void;
@@ -64,29 +73,11 @@ export function TodayView({
   const pt = language === "pt";
   const now = new Date();
   const today = dateKey(now);
-  const tomorrow = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
-  const saturday = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + ((6 - now.getDay() + 7) % 7 || 7)));
-  const [title, setTitle] = useState("");
-  const [day, setDay] = useState(saturday);
-  const [customDay, setCustomDay] = useState(false);
-  const [time, setTime] = useState("");
   const [nextDate, ...laterDates] = upcomingDates;
   const firstFreeDay = freeDays.find((freeDay) => freeDay.windows.length > 0 && freeDay.dates.length === 0);
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!title.trim() || !day) return;
-    if (await onQuickAdd(title.trim(), day, time)) {
-      setTitle("");
-      setTime("");
-    }
-  }
-
-  const dayChoices = [
-    { key: today, label: pt ? "Hoje" : "Today" },
-    { key: tomorrow, label: pt ? "Amanhã" : "Tomorrow" },
-    ...(saturday !== tomorrow ? [{ key: saturday, label: pt ? "Sábado" : "Saturday" }] : []),
-  ];
+  const nextCommitments = commitments.filter((commitment) => commitment.event_date >= today).sort((first, second) => first.event_date.localeCompare(second.event_date) || (first.starts_at ?? "").localeCompare(second.starts_at ?? "")).slice(0, 4);
+  const partnerName = (slot: CoupleCommitment["for_partner"]) => slot === "partner_one" ? partnerOneName : slot === "partner_two" ? partnerTwoName : "Os dois";
 
   return (
     <div className="today-grid">
@@ -106,27 +97,16 @@ export function TodayView({
         </>}
       </section>
 
-      <section className="panel today-quick-add" aria-label={pt ? "Marcar um date" : "Plan a date"}>
-        <p className="panel-label">{pt ? "Marcar um date" : "Plan a date"}</p>
-        <form onSubmit={(event) => void submit(event)}>
-          <input className="form-input" required maxLength={120} aria-label={pt ? "O que vão fazer" : "What you'll do"} placeholder={pt ? "O que vão fazer? ex.: Jantar no Taberna" : "What will you do? e.g. Dinner at Taberna"} value={title} onChange={(event) => setTitle(event.target.value)} />
-          <div className="chip-row" role="group" aria-label={pt ? "Dia" : "Day"}>
-            {dayChoices.map((choice) => <button type="button" key={choice.key} className={`chip ${!customDay && day === choice.key ? "selected" : ""}`} aria-pressed={!customDay && day === choice.key} onClick={() => { setCustomDay(false); setDay(choice.key); }}>{choice.label}</button>)}
-            <button type="button" className={`chip ${customDay ? "selected" : ""}`} aria-pressed={customDay} onClick={() => { setCustomDay(true); setDay(""); }}>{pt ? "Outro dia" : "Another day"}</button>
-          </div>
-          <div className="quick-add-row">
-            {customDay && <input className="form-input" type="date" required min={today} aria-label={pt ? "Dia" : "Day"} value={day} onChange={(event) => setDay(event.target.value)} />}
-            <input className="form-input" type="time" aria-label={pt ? "Hora (opcional)" : "Time (optional)"} value={time} onChange={(event) => setTime(event.target.value)} />
-            <button className="button button-primary" type="submit" disabled={busy || !title.trim() || !day}>{pt ? "Marcar" : "Plan it"}</button>
-          </div>
-        </form>
+      <section className="panel today-quick-add" aria-label="Marcar">
+        <p className="panel-label">O que querem marcar?</p>
+        <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
       </section>
 
       <section className="panel today-free" aria-label={pt ? "Tempo livre em comum" : "Shared free time"}>
         <div className="panel-heading"><p className="panel-label">{pt ? "Livres os dois" : "Both free"}</p><button type="button" className="button button-ghost" onClick={onOpenAgenda}>{pt ? "Agenda" : "Schedule"}<ArrowRight size={16} aria-hidden="true" /></button></div>
         {!hasSchedule && <p className="panel-copy">{pt ? "Ponham o horário de trabalho na Agenda para ver aqui só o tempo que têm em comum." : "Add your work hours in the Schedule to see only the time you share."}</p>}
         <ul className="free-days">
-          {freeDays.slice(0, 4).map((freeDay) => <li key={freeDay.key}><strong>{freeDay.key === today ? pt ? "Hoje" : "Today" : shortDay(freeDay.key, language)}</strong><span>{freeDay.dates.length ? `${freeDay.dates[0].emoji} ${freeDay.dates[0].title}` : describeWindows(freeDay.windows, language)}</span></li>)}
+          {freeDays.slice(0, 4).map((freeDay) => <li key={freeDay.key}><strong>{freeDay.key === today ? pt ? "Hoje" : "Today" : shortDay(freeDay.key, language)}</strong><span>{freeDay.dates.length ? `${freeDay.dates[0].emoji} ${freeDay.dates[0].title}` : freeDay.commitments.some((commitment) => !commitment.starts_at) ? freeDay.commitments.find((commitment) => !commitment.starts_at)?.title : describeWindows(freeDay.windows, language)}</span></li>)}
         </ul>
       </section>
 
@@ -141,6 +121,11 @@ export function TodayView({
           <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion.idea, suggestionDate)}>Marcar para {suggestionDate === today ? "hoje" : shortDay(suggestionDate, language)}</button><button type="button" className="button button-ghost" onClick={onOpenIdeas}>Ver ideias<ArrowRight size={16} aria-hidden="true" /></button></div>
         </> : <p className="panel-copy">Já fizeram todas as ideias desta época. Acrescentem novas em Ideias.</p>}
       </section>
+
+      {nextCommitments.length > 0 && <section className="panel today-commitments" aria-label="Compromissos">
+        <div className="panel-heading"><p className="panel-label">Próximos compromissos</p><button type="button" className="button button-ghost" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button></div>
+        <ul className="special-dates">{nextCommitments.map((commitment) => <li key={commitment.id}><strong>{commitment.title}</strong><span>{commitment.event_date === today ? "Hoje" : shortDay(commitment.event_date, language)}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""} · {partnerName(commitment.for_partner)}</span></li>)}</ul>
+      </section>}
 
       {(anniversary || birthdays.length > 0) && <section className="panel today-dates" aria-label={pt ? "Datas especiais" : "Special dates"}>
         <p className="panel-label">{pt ? "Datas especiais" : "Special dates"}</p>

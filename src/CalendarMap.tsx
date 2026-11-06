@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Category, DateIdea, GeocodedPlace } from "./types";
+import type { Category, CoupleCommitment, DateIdea, GeocodedPlace } from "./types";
 
 export type CalendarMapIdea = Pick<DateIdea, "id" | "title" | "category" | "status" | "planned_for" | "completed_at" | "location_name" | "latitude" | "longitude">;
 let lastPlaceSearchAt = 0;
@@ -104,7 +104,7 @@ export function LocationSearch({
   );
 }
 
-export function CalendarView({ ideas, language = "en" }: { ideas: CalendarMapIdea[]; language?: Language }) {
+export function CalendarView({ ideas, commitments = [], language = "en" }: { ideas: CalendarMapIdea[]; commitments?: CoupleCommitment[]; language?: Language }) {
   const [month, setMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -126,6 +126,7 @@ export function CalendarView({ ideas, language = "en" }: { ideas: CalendarMapIde
   const gridStart = new Date(month.getFullYear(), month.getMonth(), 1 - firstWeekday);
   const days = Array.from({ length: 42 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
   const selectedIdeas = eventsByDate.get(selectedDate) ?? [];
+  const selectedCommitments = commitments.filter((commitment) => commitment.event_date === selectedDate).sort((first, second) => (first.starts_at ?? "").localeCompare(second.starts_at ?? ""));
   const unscheduledIdeas = ideas.filter((idea) => idea.status === "planned" && !idea.planned_for);
 
   function changeMonth(amount: number) {
@@ -152,6 +153,7 @@ export function CalendarView({ ideas, language = "en" }: { ideas: CalendarMapIde
         {days.map((day) => {
           const dateKey = localDateKey(day);
           const dayEvents = eventsByDate.get(dateKey) ?? [];
+          const hasCommitment = commitments.some((commitment) => commitment.event_date === dateKey);
           return <button
             type="button"
             role="gridcell"
@@ -162,17 +164,22 @@ export function CalendarView({ ideas, language = "en" }: { ideas: CalendarMapIde
             aria-pressed={dateKey === selectedDate}
           >
             <span>{day.getDate()}</span>
-            {dayEvents.length > 0 && <span className="calendar-event-dots" aria-hidden="true">{dayEvents.slice(0, 3).map((idea) => <i className={idea.status === "completed" ? "memory-dot" : ""} key={idea.id} />)}{dayEvents.length > 3 && <small>+{dayEvents.length - 3}</small>}</span>}
+            {(dayEvents.length > 0 || hasCommitment) && <span className="calendar-event-dots" aria-hidden="true">{hasCommitment && <i className="commitment-dot" />}{dayEvents.slice(0, 3).map((idea) => <i className={idea.status === "completed" ? "memory-dot" : ""} key={idea.id} />)}{dayEvents.length > 3 && <small>+{dayEvents.length - 3}</small>}</span>}
           </button>;
         })}
       </div>
       <div className="calendar-day-details">
         <h3>{displayDate(selectedDate, language)}</h3>
+        {selectedCommitments.map((commitment) => <article className="calendar-event" key={commitment.id}>
+          <span className="calendar-event-marker commitment-marker" />
+          <div><strong>{commitment.title}</strong><span>{commitment.starts_at ? commitment.starts_at.slice(0, 5) : "Sem hora"}</span></div>
+          <small>Compromisso</small>
+        </article>)}
         {selectedIdeas.length > 0 ? selectedIdeas.map((idea) => <article className="calendar-event" key={idea.id}>
           <span className={idea.status === "completed" ? "calendar-event-marker completed-marker" : "calendar-event-marker"} />
           <div><strong>{idea.title}</strong><span>{displayCategory(idea.category, language)}{idea.location_name ? ` · ${idea.location_name}` : ""}</span></div>
           <small>{idea.status === "completed" ? language === "pt" ? "Memória" : "Memory" : language === "pt" ? "Planeado" : "Planned"}</small>
-        </article>) : <p className="calendar-empty">{language === "pt" ? "Ainda não há nada planeado para este dia. Escolha outra data ou planeie um date a partir das ideias." : "Nothing planned for this day yet. Pick another date or plan a date from your ideas."}</p>}
+        </article>) : selectedCommitments.length > 0 ? null : <p className="calendar-empty">{language === "pt" ? "Ainda não há nada planeado para este dia. Escolha outra data ou planeie um date a partir das ideias." : "Nothing planned for this day yet. Pick another date or plan a date from your ideas."}</p>}
       </div>
       {unscheduledIdeas.length > 0 && <div className="unscheduled-dates">
         <h3>{language === "pt" ? "Dates por agendar" : "Dates to decide"}</h3>
