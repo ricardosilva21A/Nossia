@@ -35,6 +35,14 @@ export type CalendarFeed = {
     due_time: string | null;
     assigned_to: PartnerSlot | null;
   }>;
+  commitments?: Array<{
+    id: string;
+    title: string;
+    event_date: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    for_partner: PartnerSlot | null;
+  }>;
 };
 
 const timeZone = "Europe/Lisbon";
@@ -158,6 +166,20 @@ export function buildCalendar(feed: CalendarFeed, language: Language, now = new 
       time: task.due_time,
       durationMinutes: 30,
       description: [pt ? `Tarefa para ${owner}` : `Task for ${owner}`, task.notes].filter(Boolean).join("\n\n"),
+    }));
+  }
+
+  for (const commitment of feed.commitments ?? []) {
+    const minutes = (time: string) => { const [hours, mins] = time.split(":").map(Number); return hours * 60 + mins; };
+    const owner = commitment.for_partner ? partnerName(commitment.for_partner) : pt ? "os dois" : "both of you";
+    lines.push(...event({
+      uid: `commitment-${commitment.id}`,
+      stamp,
+      summary: `📌 ${commitment.title}`,
+      date: commitment.event_date,
+      time: commitment.starts_at,
+      durationMinutes: commitment.starts_at && commitment.ends_at ? minutes(commitment.ends_at) - minutes(commitment.starts_at) : 60,
+      description: pt ? `Compromisso para ${owner}` : `Commitment for ${owner}`,
     }));
   }
 

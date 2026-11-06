@@ -90,6 +90,18 @@ export type CoupleTask = {
   created_at: string;
 };
 
+// for_partner null means the commitment is for both.
+export type CoupleCommitment = {
+  id: string;
+  couple_id: string;
+  title: string;
+  event_date: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  for_partner: HomePartner | null;
+  created_at: string;
+};
+
 export type GeocodedPlace = {
   displayName: string;
   latitude: number;

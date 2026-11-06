@@ -59,6 +59,8 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - Suggestions (Today, random draw and Feeling) are ranked by season, the forecast for that day, whether the idea fits your shared free time, and the categories you tend to do, and Today says why an idea was picked. Today suggests for the next free weekend day.
 - A Today page (`/hoje`, the default after sign-in) with the next date, a one-step way to plan a date from a few words, the time you are both free, a weekend suggestion and upcoming special dates.
+- One box to add dates, commitments and ideas from a sentence such as "sábado às 9 dentista": it works out the day, time and kind in the browser, and new ideas get a guessed emoji, category and duration.
+- Commitments for one partner or both, shown on Today, in the Agenda and in the calendar. They reach the calendar feed, and timed ones count as busy time.
 - An Agenda page (`/agenda`) with each partner's fixed weekly work hours, the time you are both free over the next 7 days, and couple tasks that can belong to one partner or both.
 - Planned dates can have an optional start time.
 - A private calendar feed per partner (`/api/calendar?token=…`) to subscribe to in the iPhone Calendar (or any app that reads `.ics`). It carries planned dates, that partner's open tasks and shared ones, the anniversary and birthdays. The feed endpoint is a Vercel function that reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (or `SUPABASE_URL` / `SUPABASE_ANON_KEY`); times use the Europe/Lisbon time zone.

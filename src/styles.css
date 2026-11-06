@@ -665,3 +665,22 @@ h1{font-size:30px;margin-bottom:4px}
 .season-label{left:8px;bottom:8px;max-width:calc(100% - 16px);padding:3px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .category-label{max-width:calc(100% - 52px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:760px){.idea-art{height:auto;min-height:136px;align-self:stretch}.idea-emoji{margin-bottom:12px}}
+.quick-add{display:grid;gap:10px;margin-top:10px}
+.quick-add-input{font-size:16px}
+.quick-add-preview{margin:0;font-size:13px;color:var(--ink-2)}
+.quick-add-preview strong{color:var(--ink);font-weight:600}
+.quick-add-actions{margin-top:2px}
+.quick-add-message{margin:0;font-size:13px;color:#3b6d11}
+.quick-add-modal{max-width:520px}
+.quick-add-modal h2{font-size:24px;margin:0 0 6px}
+.commitment-list{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:5px}
+.commitment-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;background:#faf6f1}
+.commitment-list strong{display:block;font-size:13px;font-weight:600;color:var(--ink);overflow-wrap:anywhere}
+.commitment-list small{font-size:12px;color:#928983}
+.commitment-list button{border:0;background:transparent;color:#b0a49d;font-size:18px;line-height:1;cursor:pointer;padding:2px 6px;border-radius:6px}
+.commitment-list button:hover{color:#9b535e;background:#f7eeee}
+.free-time-list em.free-time-commitment{color:var(--ink-2)}
+.calendar-event-dots i.commitment-dot{background:#c08a1e}
+.calendar-event-marker.commitment-marker{background:#c08a1e}
+.special-dates strong{overflow-wrap:anywhere}
+.special-dates span{text-align:right}
