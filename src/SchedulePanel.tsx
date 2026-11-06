@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "./lib/supabase";
+import { NotificationSettings } from "./NotificationSettings";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, CoupleTask, DateIdea, HomePartner, WorkScheduleBlock } from "./types";
@@ -86,7 +87,7 @@ export function describeWindows(windows: FreeWindow[], language: Language) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ couple, mySlot, plannedDates, blocks, commitments, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { couple: ScheduleCouple; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
+export function SchedulePanel({ couple, userId, mySlot, plannedDates, blocks, commitments, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
   const pt = language === "pt";
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
@@ -306,6 +307,7 @@ export function SchedulePanel({ couple, mySlot, plannedDates, blocks, commitment
         </>}
         {feedMessage && <p className="form-alert config-alert" role="status">{feedMessage}</p>}
       </article>
+      <NotificationSettings userId={userId} />
     </section>
   );
 }

@@ -1776,7 +1776,7 @@ function App() {
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} language={language} />}
-          {view === "schedule" && <SchedulePanel couple={couple} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
+          {view === "schedule" && <SchedulePanel couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
           {view === "map" && <Suspense fallback={<div className="map-loading">{language === "pt" ? "A abrir o mapa…" : "Opening the map…"}</div>}><LazyMapView
             ideas={visibleIdeas}
             language={language}
