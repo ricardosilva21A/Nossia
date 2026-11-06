@@ -1,9 +1,10 @@
 import { readSheet } from "read-excel-file/browser";
-import type { Category, DateIdea, Mood, WeatherSetting } from "./types";
+import { seasons as knownSeasons } from "./seasons";
+import type { Category, DateIdea, Mood, SeasonKey, WeatherSetting } from "./types";
 
 export type ImportedIdea = Pick<
   DateIdea,
-  "title" | "description" | "category" | "mood" | "duration" | "duration_minutes" | "budget" | "budget_eur" | "travel_minutes" | "at_home" | "weather_setting" | "emoji"
+  "title" | "description" | "category" | "mood" | "duration" | "duration_minutes" | "budget" | "budget_eur" | "travel_minutes" | "at_home" | "weather_setting" | "emoji" | "seasons"
 >;
 
 export type ImportPreview = {
@@ -181,6 +182,8 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
     const travel = parseNumber(travelValue);
     const categoryText = cellText(field(row, headers, "category", "categoria")).toLocaleLowerCase();
     const category = categoryText ? categoryByLabel[categoryText] : mood ? categoryForMood(mood) : undefined;
+    // Optional, separated by "|": e.g. natal|inverno. Empty means the idea works all year.
+    const seasonList = cellText(field(row, headers, "seasons", "epocas", "épocas", "epoca", "época")).toLocaleLowerCase().split("|").map((season) => season.trim()).filter(Boolean);
     const problems: string[] = [];
 
     if (!title) problems.push("title is required");
@@ -191,6 +194,7 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
     if (atHome === null) problems.push("at_home must be true or false");
     if (travelValue !== null && cellText(travelValue) !== "" && (travel === null || Number.isNaN(travel) || !Number.isInteger(travel) || travel < 0)) problems.push("travel_minutes must be a non-negative whole number or blank");
     if (categoryText && !category) problems.push("category is invalid");
+    if (seasonList.some((season) => !(season in knownSeasons))) problems.push("seasons has an unknown value");
     if (weatherSettingText && !weatherSetting) problems.push("weather_setting must be any, indoor, or outdoor");
 
     if (problems.length || !mood || duration === null || budget === null || atHome === null) {
@@ -213,6 +217,7 @@ export async function previewIdeaImport(file: File, maxIdeas = 200, maxFileSizeM
       travel_minutes: atHome ? 0 : travelMinutes,
       at_home: atHome,
       weather_setting: weatherSetting ?? "any",
+      seasons: seasonList as SeasonKey[],
       emoji: cellText(field(row, headers, "emoji", "icon")) || "💌",
     });
   });
