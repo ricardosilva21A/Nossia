@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
@@ -27,6 +27,8 @@ type DiscoveryMode = "random" | "feeling";
 type Language = "en" | "pt";
 type RelationshipMetric = "days" | "months" | "years";
 type AppModal = "new" | "edit" | "import" | "global-import" | "delete" | "plan" | "memory" | "draw" | "feeling" | "album" | "location" | "home-location" | "profile" | null;
+// How stale the data may get before returning to the tab refreshes it in the background.
+const backgroundRefreshAfterMs = 5 * 60 * 1000;
 const LazyMapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
 type DatePhoto = {
   id: string;
@@ -599,11 +601,15 @@ function App() {
     setView(nextView);
   }
 
+  const loadedUser = useRef<{ id: string; at: number } | null>(null);
+
   const loadCoupleData = useCallback(async (currentSession: Session) => {
     if (!supabase) return;
+    loadedUser.current = { id: currentSession.user.id, at: Date.now() };
     setDataError("");
     const { data: profile, error: profileError } = await supabase.from("couples").select("*").single();
     if (profileError) {
+      loadedUser.current = null;
       setDataError(`Não foi possível carregar o perfil do casal: ${profileError.message}`);
       return;
     }
@@ -630,6 +636,7 @@ function App() {
       supabase.from("couple_commitments").select("*").order("event_date"),
     ]);
     if (ideasError || datesError) {
+      loadedUser.current = null;
       setCatalogAvailable(false);
       setDataError(language === "pt" ? `Não foi possível carregar os vossos dates. Confirmem que todas as migrations foram aplicadas no Supabase: ${ideasError ?? datesError}` : `We couldn't load your dates. Make sure every migration has been applied in Supabase: ${ideasError ?? datesError}`);
       return;
@@ -696,12 +703,22 @@ function App() {
         if (updatedSession) void loadCoupleData(updatedSession);
         return;
       }
+      // Supabase also reports SIGNED_IN when the tab regains focus and when a token refreshes.
+      // For the same person that's not a new sign-in, so what's on screen stays put.
+      if (updatedSession && loadedUser.current?.id === updatedSession.user.id) {
+        setSession(updatedSession);
+        if (Date.now() - loadedUser.current.at > backgroundRefreshAfterMs) {
+          window.setTimeout(() => { if (active) void loadCoupleData(updatedSession); }, 0);
+        }
+        return;
+      }
       if (updatedSession) {
         setAuthReady(false);
         window.setTimeout(() => {
           if (active) void loadCoupleData(updatedSession).finally(() => { if (active) setAuthReady(true); });
         }, 0);
       } else {
+        loadedUser.current = null;
         setPasswordRecovery(false);
         setSession(null);
         setCouple(null);
