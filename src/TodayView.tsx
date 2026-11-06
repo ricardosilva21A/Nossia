@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { ArrowRight, CalendarDays, Check, Clock, MapPin, Shuffle } from "lucide-react";
 import type { DateIdea } from "./types";
+import { budgetLabel, durationLabel } from "./suggestions";
+import type { ScoredIdea } from "./suggestions";
 import { describeWindows } from "./SchedulePanel";
 import type { sharedFreeDays } from "./SchedulePanel";
 
@@ -13,7 +15,7 @@ function dateKey(date: Date) {
 }
 
 function shortDay(key: string, language: Language) {
-  return new Intl.DateTimeFormat(language === "pt" ? "pt-PT" : "en-GB", { weekday: "long", day: "numeric", month: "short" }).format(new Date(`${key}T12:00:00`));
+  return new Intl.DateTimeFormat(language === "pt" ? "pt-PT" : "en-GB", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${key}T12:00:00`));
 }
 
 export function TodayView({
@@ -23,6 +25,8 @@ export function TodayView({
   freeDays,
   hasSchedule,
   suggestion,
+  suggestionDate,
+  weatherKnown,
   busy,
   anniversary,
   birthdays,
@@ -41,7 +45,9 @@ export function TodayView({
   overdueCount: number;
   freeDays: FreeDay[];
   hasSchedule: boolean;
-  suggestion: DateIdea | null;
+  suggestion: ScoredIdea | null;
+  suggestionDate: string;
+  weatherKnown: boolean;
   busy: boolean;
   anniversary: { days: number; date: string; years: number } | null;
   birthdays: Array<{ name: string; date: string; days: number }>;
@@ -125,13 +131,15 @@ export function TodayView({
       </section>
 
       <section className="panel today-suggestion" aria-label={pt ? "Sugestão" : "Suggestion"}>
-        <div className="panel-heading"><p className="panel-label">{pt ? "Sugestão para o fim de semana" : "Idea for the weekend"}</p><button type="button" className="icon-button" aria-label={pt ? "Outra sugestão" : "Another idea"} onClick={onAnotherSuggestion}><Shuffle size={18} aria-hidden="true" /></button></div>
+        <div className="panel-heading"><p className="panel-label">Sugestão para {suggestionDate === today ? "hoje" : shortDay(suggestionDate, language)}</p><button type="button" className="icon-button" aria-label={pt ? "Outra sugestão" : "Another idea"} onClick={onAnotherSuggestion}><Shuffle size={18} aria-hidden="true" /></button></div>
         {suggestion ? <>
-          <h2>{suggestion.emoji} {suggestion.title}</h2>
-          <p className="panel-copy">{suggestion.description}</p>
-          <p className="today-meta"><Clock size={16} aria-hidden="true" />{suggestion.duration}<span aria-hidden="true">·</span>{suggestion.budget}</p>
-          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion, saturday)}>{pt ? "Marcar para sábado" : "Plan for Saturday"}</button><button type="button" className="button button-ghost" onClick={onOpenIdeas}>{pt ? "Ver ideias" : "Browse ideas"}<ArrowRight size={16} aria-hidden="true" /></button></div>
-        </> : <p className="panel-copy">{pt ? "Já fizeram todas as ideias. Acrescentem novas em Ideias." : "You've done every idea. Add new ones in Ideas."}</p>}
+          <h2>{suggestion.idea.emoji} {suggestion.idea.title}</h2>
+          {suggestion.idea.description && <p className="panel-copy">{suggestion.idea.description}</p>}
+          <p className="today-meta"><Clock size={16} aria-hidden="true" />{durationLabel(suggestion.idea.duration_minutes, suggestion.idea.duration)}<span aria-hidden="true">·</span>{budgetLabel(suggestion.idea.budget_eur)}</p>
+          {suggestion.reasons.length > 0 && <ul className="suggestion-reasons">{suggestion.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul>}
+          {!weatherKnown && <p className="suggestion-hint">Partilhem a localização mais abaixo para a sugestão ter em conta o tempo.</p>}
+          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion.idea, suggestionDate)}>Marcar para {suggestionDate === today ? "hoje" : shortDay(suggestionDate, language)}</button><button type="button" className="button button-ghost" onClick={onOpenIdeas}>Ver ideias<ArrowRight size={16} aria-hidden="true" /></button></div>
+        </> : <p className="panel-copy">Já fizeram todas as ideias desta época. Acrescentem novas em Ideias.</p>}
       </section>
 
       {(anniversary || birthdays.length > 0) && <section className="panel today-dates" aria-label={pt ? "Datas especiais" : "Special dates"}>

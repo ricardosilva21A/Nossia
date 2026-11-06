@@ -44,11 +44,11 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Required relationship anniversary and optional first-met, first-message, and first-date dates.
 - Edit the couple names and important dates from the profile button in the header, and upload a shared profile photo stored privately in Supabase Storage.
 - A prominent anniversary countdown and relationship-duration counter with a selectable days, months, or years metric. Anniversary planning starts with the couple's most common completed-date mood when available, then lets them refine the idea with Feeling.
-- An English/European Portuguese language switch in the app header; the selected language is remembered on the current device.
+- The app is in European Portuguese for now. The English strings remain in the code for a later phase, but the language switch is hidden.
 - Shared date ideas, categories, favourites, and planned dates.
 - Add and edit date ideas, or permanently delete an idea and its attached stored photos.
 - Import date ideas from an `.xlsx` workbook or `.csv` file after reviewing valid ideas and rejected rows. Imports are limited to 2 MB and 200 data rows at a time.
-- One shared idea catalog for every couple, plus private ideas each couple adds or imports. Favourites, plans and memories stay couple-specific, and planning an idea creates a separate date, so the same idea can be lived more than once. Catalog uploads are restricted to the configured catalog administrator and support up to 5,000 ideas per file.
+- One shared Portuguese idea catalog for every couple, plus private ideas each couple adds or imports. Ideas can belong to seasons (Natal, São Martinho, Carnaval, verão…): out of season they are hidden from suggestions and from the list unless searched for, and in season they come first. Favourites, plans and memories stay couple-specific, and planning an idea creates a separate date, so the same idea can be lived more than once. Catalog uploads are restricted to the configured catalog administrator and support up to 5,000 ideas per file.
 - A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
 - Two recommendation modes: an instant random draw (up to three results per draw session) or an interactive, one-question-at-a-time Feeling flow matching mood, duration, budget, distance, and optional things to avoid. Matching ideas remain visible and update as answers change.
 - Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
@@ -57,6 +57,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Choose either partner's home as a planned or completed date location; statistics show the number of dates at home and which partner's home is most frequent.
 - Set or change the home location of a completed memory later from its Memories card without changing its date or other details.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
+- Suggestions (Today, random draw and Feeling) are ranked by season, the forecast for that day, whether the idea fits your shared free time, and the categories you tend to do, and Today says why an idea was picked. Today suggests for the next free weekend day.
 - A Today page (`/hoje`, the default after sign-in) with the next date, a one-step way to plan a date from a few words, the time you are both free, a weekend suggestion and upcoming special dates.
 - An Agenda page (`/agenda`) with each partner's fixed weekly work hours, the time you are both free over the next 7 days, and couple tasks that can belong to one partner or both.
 - Planned dates can have an optional start time.

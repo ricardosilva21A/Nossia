@@ -11,6 +11,8 @@ export type FeelingAnswers = {
   avoid: string;
 };
 
+export type SeasonKey = "sao_martinho" | "natal_preparar" | "natal" | "passagem_de_ano" | "reis" | "namorados" | "carnaval" | "pascoa" | "santos_populares" | "halloween" | "primavera" | "verao" | "outono" | "inverno";
+
 export type IdeaDetails = {
   title: string;
   description: string;
@@ -24,6 +26,7 @@ export type IdeaDetails = {
   travel_minutes: number | null;
   at_home: boolean;
   weather_setting: WeatherSetting;
+  seasons: SeasonKey[];
 };
 
 // A shared catalog idea (created_by_couple_id is null) or a couple's private idea.
