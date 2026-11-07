@@ -11,7 +11,7 @@ import { guessIdea } from "./quickParse";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
-import { ArrowRight, BarChart3, Bookmark, CalendarCheck, CalendarClock, CalendarDays, Check, Clock, Home, Images, Lightbulb, LogOut, MapPin, MoreHorizontal, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
@@ -20,7 +20,8 @@ import type { Category, CoupleCommitment, CoupleDate, DateDetails, DateIdea, Fee
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
-type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights";
+type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings";
+type Section = "today" | "ideas" | "agenda" | "us";
 type AuthMode = "sign-in" | "sign-up";
 type AuthFlow = AuthMode | "reset-request" | "password-update" | "join";
 type DiscoveryMode = "random" | "feeling";
@@ -69,18 +70,26 @@ const authPaths: Record<AuthFlow, string> = {
   "password-update": "/update-password",
   join: initialInviteCode ? `/join/${initialInviteCode}` : "/signup",
 };
-// The first four are the phone's bottom bar; the rest sit under "More".
-const navItems: Array<{ view: View; Icon: LucideIcon }> = [
-  { view: "today", Icon: Home },
-  { view: "discover", Icon: Lightbulb },
-  { view: "planned", Icon: CalendarCheck },
-  { view: "schedule", Icon: CalendarClock },
-  { view: "memories", Icon: Images },
-  { view: "calendar", Icon: CalendarDays },
-  { view: "favorites", Icon: Bookmark },
-  { view: "map", Icon: MapPin },
-  { view: "insights", Icon: BarChart3 },
+// Four tabs; pages that belong together sit under one tab as sub-sections.
+const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: View[] }> = [
+  { id: "today", label: "Hoje", Icon: Home, views: ["today"] },
+  { id: "ideas", label: "Ideias", Icon: Lightbulb, views: ["discover", "favorites"] },
+  { id: "agenda", label: "Agenda", Icon: CalendarDays, views: ["planned", "calendar", "schedule"] },
+  { id: "us", label: "Nós", Icon: Heart, views: ["memories", "map", "insights", "settings"] },
 ];
+const subviewLabels: Record<View, string> = {
+  today: "Hoje",
+  discover: "Todas",
+  favorites: "Favoritas",
+  planned: "Planeados",
+  calendar: "Calendário",
+  schedule: "Semana",
+  memories: "Memórias",
+  map: "Mapa",
+  insights: "Números",
+  settings: "Definições",
+};
+const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
 
 function authFlowFromPath(pathname: string): AuthFlow {
   if (pathname === "/recover") return "reset-request";
@@ -103,6 +112,9 @@ function viewFromPath(pathname: string): View {
     memories: "memories",
     calendar: "calendar",
     agenda: "schedule",
+    semana: "schedule",
+    definicoes: "settings",
+    settings: "settings",
     favorites: "favorites",
     map: "map",
     insights: "insights",
@@ -111,7 +123,7 @@ function viewFromPath(pathname: string): View {
 }
 
 function pathForView(view: View) {
-  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view}`;
+  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view}`;
 }
 
 function translateImportMessage(language: Language, message: string) {
@@ -571,7 +583,8 @@ function App() {
   const [importTarget, setImportTarget] = useState<"couple" | "global">("couple");
   const [importError, setImportError] = useState("");
   const [importMessage, setImportMessage] = useState("");
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  // The sub-section last opened in each tab, so going back to a tab returns there.
+  const lastViewInSection = useRef<Partial<Record<Section, View>>>({});
   const [memoryNote, setMemoryNote] = useState("");
   const [rating, setRating] = useState(0);
   const [locationName, setLocationName] = useState("");
@@ -594,6 +607,7 @@ function App() {
   }
 
   function navigateView(nextView: View, replace = false) {
+    lastViewInSection.current[sectionOf(nextView).id] = nextView;
     const path = pathForView(nextView);
     if (window.location.pathname !== path) {
       window.history[replace ? "replaceState" : "pushState"]({}, "", path);
@@ -1652,6 +1666,7 @@ function App() {
   const pageHeading: Record<View, [string, string]> = language === "pt" ? {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
+    settings: ["Definições", "Perfil, notificações, calendário do iPhone e localização."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
     planned: ["Planeados", "O que já está marcado."],
     memories: ["Memórias", "Os dates que já fizeram, com notas e fotografias."],
@@ -1662,6 +1677,7 @@ function App() {
   } : {
     today: [`Hi, ${couple?.partner_one_name} and ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideas", "Pick something to do together, or let Nossia choose."],
+    settings: ["Settings", "Profile, notifications, iPhone calendar and location."],
     favorites: ["Favourites", "Ideas you saved for later."],
     planned: ["Planned", "What's already on the calendar."],
     memories: ["Memories", "Dates you've done, with notes and photos."],
@@ -1670,9 +1686,6 @@ function App() {
     map: ["Map", "The places of your dates."],
     insights: ["Stats", "Your story in numbers and dates."],
   };
-  const navLabels: Record<View, string> = language === "pt"
-    ? { today: "Hoje", discover: "Ideias", favorites: "Favoritos", planned: "Planeados", memories: "Memórias", calendar: "Calendário", schedule: "Agenda", map: "Mapa", insights: "Estatísticas" }
-    : { today: "Today", discover: "Ideas", favorites: "Favourites", planned: "Planned", memories: "Memories", calendar: "Calendar", schedule: "Schedule", map: "Map", insights: "Stats" };
   const isGlobalImport = modal === "global-import";
   const localToday = new Date();
   const todayDate = `${localToday.getFullYear()}-${String(localToday.getMonth() + 1).padStart(2, "0")}-${String(localToday.getDate()).padStart(2, "0")}`;
@@ -1687,9 +1700,7 @@ function App() {
         <a className="brand" href="/hoje" onClick={(event) => { event.preventDefault(); navigateView("today"); }} aria-label="Nossia"><span className="brand-mark">n</span><span className="brand-name">nossia</span></a>
         <div className="couple-chip"><span className={`avatar-pair ${couplePhotoUrl ? "has-photo" : ""}`}>{couplePhotoUrl ? <img src={couplePhotoUrl} alt="" /> : <>{couple.partner_one_name.slice(0, 1)}<span>+</span>{couple.partner_two_name.slice(0, 1)}</>}</span><span>{couple.partner_one_name} & {couple.partner_two_name}</span><span className="online-dot" /></div>
         <nav className="side-nav" aria-label={language === "pt" ? "Navegação principal" : "Main navigation"}>
-          {navItems.map((item) => <button className={`nav-link ${view === item.view ? "active" : ""}`} key={item.view} onClick={() => { navigateView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><item.Icon className="nav-icon" size={19} strokeWidth={1.8} aria-hidden="true" />{navLabels[item.view]}{item.view === "planned" && counts.planned > 0 && <span className="nav-count">{counts.planned}</span>}</button>)}
-          <button type="button" className={`mobile-more-button ${mobileMoreOpen ? "active" : ""}`} aria-expanded={mobileMoreOpen} onClick={() => setMobileMoreOpen((open) => !open)}><MoreHorizontal className="nav-icon" size={19} strokeWidth={1.8} aria-hidden="true" />{language === "pt" ? "Mais" : "More"}</button>
-          {mobileMoreOpen && <div className="mobile-more-menu">{navItems.slice(4).map((item) => <button type="button" key={item.view} className={view === item.view ? "active" : ""} onClick={() => { navigateView(item.view); setCategory("All"); setMobileMoreOpen(false); }}><item.Icon size={18} strokeWidth={1.8} aria-hidden="true" />{navLabels[item.view]}</button>)}<button type="button" onClick={() => { setMobileMoreOpen(false); void signOut(); }}><LogOut size={18} strokeWidth={1.8} aria-hidden="true" />{language === "pt" ? "Terminar sessão" : "Sign out"}</button></div>}
+          {sections.map((section) => <button type="button" className={`nav-link ${sectionOf(view).id === section.id ? "active" : ""}`} aria-current={sectionOf(view).id === section.id ? "page" : undefined} key={section.id} onClick={() => { navigateView(sectionOf(view).id === section.id ? section.views[0] : lastViewInSection.current[section.id] ?? section.views[0]); setCategory("All"); }}><section.Icon className="nav-icon" size={22} strokeWidth={1.9} aria-hidden="true" /><span>{section.label}</span>{section.id === "agenda" && counts.planned > 0 && <span className="nav-count">{counts.planned}</span>}</button>)}
         </nav>
         <button className="sign-out-button" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />{language === "pt" ? "Terminar sessão" : "Sign out"}</button>
       </aside>
@@ -1700,7 +1711,9 @@ function App() {
         </header>
 
         <div className="content">
-          <section className="welcome-row"><div><h1>{pageHeading[view][0]}</h1><p className="welcome-copy">{pageHeading[view][1]}</p></div>{view === "discover" && <div className="welcome-actions">{isCatalogAdmin && catalogAvailable && <button className="button button-ghost" onClick={() => openImport("global")}>{language === "pt" ? "Carregar ideias globais" : "Upload default ideas"}</button>}<button className="button button-ghost" onClick={() => openImport("couple")}><Upload size={16} aria-hidden="true" />{language === "pt" ? "Importar" : "Import"}</button><button className="button button-primary" onClick={() => setQuickAddOpen(true)}><Plus size={16} aria-hidden="true" />{language === "pt" ? "Nova ideia" : "New idea"}</button></div>}</section>
+          <section className="welcome-row"><div><h1>{sectionOf(view).views.length > 1 ? sectionOf(view).label : pageHeading[view][0]}</h1><p className="welcome-copy">{pageHeading[view][1]}</p></div>{view === "discover" && <div className="welcome-actions">{isCatalogAdmin && catalogAvailable && <button className="button button-ghost" onClick={() => openImport("global")}>{language === "pt" ? "Carregar ideias globais" : "Upload default ideas"}</button>}<button className="button button-ghost" onClick={() => openImport("couple")}><Upload size={16} aria-hidden="true" />{language === "pt" ? "Importar" : "Import"}</button><button className="button button-primary" onClick={() => setQuickAddOpen(true)}><Plus size={16} aria-hidden="true" />{language === "pt" ? "Nova ideia" : "New idea"}</button></div>}</section>
+
+          {sectionOf(view).views.length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{sectionOf(view).views.map((item) => <button type="button" key={item} className={view === item ? "active" : ""} aria-current={view === item ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>)}</nav>}
 
           {dataError && <p className="data-alert" role="alert">{dataError}</p>}
 
@@ -1709,15 +1722,13 @@ function App() {
             upcomingDates={upcomingDates}
             overdueCount={overdueDates.length}
             freeDays={freeDays}
-            hasSchedule={workBlocks.length > 0}
             suggestion={suggestion}
             suggestionDate={suggestionDay.key}
             weatherKnown={couple.weather_latitude !== null}
             busy={busy}
             anniversary={anniversary}
             birthdays={personalBirthdays}
-            companion={<CoupleCompanion completedDates={completedStats.total} language={language} />}
-            weather={<WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude, }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />}
+            weather={couple.weather_latitude !== null ? null : <WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude, }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />}
             partnerOneName={couple.partner_one_name}
             partnerTwoName={couple.partner_two_name}
             commitments={commitments}
@@ -1741,6 +1752,7 @@ function App() {
             </section>
           </>}
           {view === "insights" && <>
+          <CoupleCompanion completedDates={completedStats.total} language={language} />
           <section className="milestones-card" aria-label={language === "pt" ? "Datas importantes" : "Your important dates"}>
             <div className="milestones-heading"><span className="section-kicker">{language === "pt" ? "DATAS QUE SIGNIFICAM MUITO" : "THE LITTLE DATES THAT MEAN A LOT"}</span><h2>{language === "pt" ? "A vossa história até agora" : "Your story so far"}</h2></div>
             {relationshipTime && <div className="relationship-duration">
@@ -1776,7 +1788,12 @@ function App() {
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} language={language} />}
-          {view === "schedule" && <SchedulePanel couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
+          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
+          {view === "settings" && <section className="settings-page">
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article>
+            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
+            <WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
+          </section>}
           {view === "map" && <Suspense fallback={<div className="map-loading">{language === "pt" ? "A abrir o mapa…" : "Opening the map…"}</div>}><LazyMapView
             ideas={visibleIdeas}
             language={language}
@@ -1807,7 +1824,7 @@ function App() {
               : <div className="insights-profile"><span className="section-kicker">{language === "pt" ? "O VOSSO PERFIL DE CASAL" : "YOUR COUPLE PROFILE"}</span><h2>{language === "pt" ? `São um casal ${completedMoodStats.top.map((stat) => ({ Romantic: "romântico", Fun: "divertido", Relaxing: "tranquilo", Adventure: "aventureiro", Creative: "criativo" })[stat.mood as Exclude<Mood, "Surprise me">]).join(" e ")}` : `You’re a ${completedMoodStats.top.map((stat) => stat.mood).join(" & ")} couple`}</h2><p>{language === "pt" ? `Com base nos vossos ${completedMoodStats.total} dates concluídos, estes são os vossos moods mais frequentes:` : `Based on your ${completedMoodStats.total} completed dates, you’ve shared these kinds of moments the most:`}</p><div className="insights-moods">{completedMoodStats.moods.map((stat) => <div className="insights-mood" key={stat.mood}><div><strong>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[stat.mood] : stat.mood}</strong><span>{stat.count} {language === "pt" ? stat.count === 1 ? "date" : "dates" : stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
           </section>}
 
-          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && <section className="ideas-section">
+          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? language === "pt" ? "A CAMINHO" : "COMING UP" : view === "memories" ? language === "pt" ? "O VOSSO ÁLBUM" : "YOUR LITTLE ALBUM" : language === "pt" ? "ESCOLHIDO A PENSAR NOS DOIS" : "PICKED WITH THE TWO OF YOU IN MIND"}</p><h2>{view === "planned" ? language === "pt" ? "Os vossos próximos dates" : "Your upcoming dates" : view === "memories" ? language === "pt" ? "Momentos que viveram juntos" : "Moments you've shared" : view === "favorites" ? language === "pt" ? "Guardados com carinho" : "Saved with love" : language === "pt" ? "Ideias para desfrutarem juntos" : "Ideas to enjoy together"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={language === "pt" ? "Pesquisar ideias de date" : "Search date ideas"} placeholder={language === "pt" ? "Encontrar uma ideia..." : "Find an idea..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
             <div className="filters" aria-label={language === "pt" ? "Filtrar por categoria" : "Filter by category"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{language === "pt" ? ({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item] : item}</button>)}</div>
 

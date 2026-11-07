@@ -5,7 +5,6 @@ import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, DateIdea } from "./types";
 import { budgetLabel, durationLabel } from "./suggestions";
 import type { ScoredIdea } from "./suggestions";
-import { describeWindows } from "./SchedulePanel";
 import type { sharedFreeDays } from "./SchedulePanel";
 
 type Language = "en" | "pt";
@@ -24,14 +23,12 @@ export function TodayView({
   upcomingDates,
   overdueCount,
   freeDays,
-  hasSchedule,
   suggestion,
   suggestionDate,
   weatherKnown,
   busy,
   anniversary,
   birthdays,
-  companion,
   weather,
   partnerOneName,
   partnerTwoName,
@@ -49,14 +46,12 @@ export function TodayView({
   upcomingDates: DateIdea[];
   overdueCount: number;
   freeDays: FreeDay[];
-  hasSchedule: boolean;
   suggestion: ScoredIdea | null;
   suggestionDate: string;
   weatherKnown: boolean;
   busy: boolean;
   anniversary: { days: number; date: string; years: number } | null;
   birthdays: Array<{ name: string; date: string; days: number }>;
-  companion: ReactNode;
   weather: ReactNode;
   partnerOneName: string;
   partnerTwoName: string;
@@ -92,22 +87,14 @@ export function TodayView({
         </> : <>
           <h2>{pt ? "Nada marcado ainda" : "Nothing planned yet"}</h2>
           <p className="panel-copy">{firstFreeDay
-            ? pt ? `Estão os dois livres ${shortDay(firstFreeDay.key, language)}. Marquem algo aqui ao lado.` : `You're both free on ${shortDay(firstFreeDay.key, language)}. Plan something alongside.`
-            : pt ? "Marquem algo aqui ao lado, ou vejam as ideias." : "Plan something alongside, or browse ideas."}</p>
+            ? pt ? `Estão os dois livres ${shortDay(firstFreeDay.key, language)}. Marquem algo já a seguir.` : `You're both free on ${shortDay(firstFreeDay.key, language)}. Plan something alongside.`
+            : pt ? "Marquem algo já a seguir, ou vejam as ideias." : "Plan something alongside, or browse ideas."}</p>
         </>}
       </section>
 
       <section className="panel today-quick-add" aria-label="Marcar">
         <p className="panel-label">O que querem marcar?</p>
         <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
-      </section>
-
-      <section className="panel today-free" aria-label={pt ? "Tempo livre em comum" : "Shared free time"}>
-        <div className="panel-heading"><p className="panel-label">{pt ? "Livres os dois" : "Both free"}</p><button type="button" className="button button-ghost" onClick={onOpenAgenda}>{pt ? "Agenda" : "Schedule"}<ArrowRight size={16} aria-hidden="true" /></button></div>
-        {!hasSchedule && <p className="panel-copy">{pt ? "Ponham o horário de trabalho na Agenda para ver aqui só o tempo que têm em comum." : "Add your work hours in the Schedule to see only the time you share."}</p>}
-        <ul className="free-days">
-          {freeDays.slice(0, 4).map((freeDay) => <li key={freeDay.key}><strong>{freeDay.key === today ? pt ? "Hoje" : "Today" : shortDay(freeDay.key, language)}</strong><span>{freeDay.dates.length ? `${freeDay.dates[0].emoji} ${freeDay.dates[0].title}` : freeDay.commitments.some((commitment) => !commitment.starts_at) ? freeDay.commitments.find((commitment) => !commitment.starts_at)?.title : describeWindows(freeDay.windows, language)}</span></li>)}
-        </ul>
       </section>
 
       <section className="panel today-suggestion" aria-label={pt ? "Sugestão" : "Suggestion"}>
@@ -135,8 +122,7 @@ export function TodayView({
         </ul>
       </section>}
 
-      <div className="today-companion">{companion}</div>
-      <div className="today-weather">{weather}</div>
+      {weather && <div className="today-weather">{weather}</div>}
     </div>
   );
 }
