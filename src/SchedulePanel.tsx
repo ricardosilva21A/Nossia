@@ -87,7 +87,7 @@ export function describeWindows(windows: FreeWindow[], language: Language) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ couple, userId, mySlot, plannedDates, blocks, commitments, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
   const pt = language === "pt";
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
@@ -223,6 +223,7 @@ export function SchedulePanel({ couple, userId, mySlot, plannedDates, blocks, co
     <section className="schedule-page" aria-label={pt ? "Agenda do casal" : "Couple schedule"}>
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
 
+      {part === "week" && <>
       <article className="schedule-card free-time-card">
         <div className="schedule-card-heading"><div><p className="section-kicker">{pt ? "PRÓXIMOS 7 DIAS" : "NEXT 7 DAYS"}</p><h2>{pt ? "Quando estão os dois livres" : "When you're both free"}</h2></div><button type="button" className="add-button" onClick={onFindDate}>{pt ? "Encontrar um date" : "Find a date"}</button></div>
         {loaded && blocks.length === 0 && <p className="schedule-hint">{pt ? "Adicionem o horário de trabalho de cada um, aqui em baixo, para verem só o tempo que têm em comum." : "Add each of your work schedules below to see only the time you share."}</p>}
@@ -289,6 +290,9 @@ export function SchedulePanel({ couple, userId, mySlot, plannedDates, blocks, co
         </article>
       </div>
 
+      </>}
+
+      {part === "settings" && <>
       <article className="schedule-card calendar-sync-card">
         <p className="section-kicker">{pt ? "CALENDÁRIO DO IPHONE" : "IPHONE CALENDAR"}</p>
         <h2>{pt ? "Ver tudo no calendário do telemóvel" : "See it all in your phone's calendar"}</h2>
@@ -308,6 +312,7 @@ export function SchedulePanel({ couple, userId, mySlot, plannedDates, blocks, co
         {feedMessage && <p className="form-alert config-alert" role="status">{feedMessage}</p>}
       </article>
       <NotificationSettings userId={userId} />
+      </>}
     </section>
   );
 }
