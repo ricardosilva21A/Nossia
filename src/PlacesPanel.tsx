@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { Bookmark, CalendarPlus, ExternalLink, LocateFixed, MapPin, RefreshCw, Star, Trash2 } from "lucide-react";
+import { Bookmark, CalendarPlus, ExternalLink, LocateFixed, MapPin, RefreshCw, Trash2 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { cuisineFilters, mapsUrl, rankPlaces, searchPlaces, theForkUrl } from "./osmPlaces";
 import type { OsmPlace } from "./osmPlaces";
-import type { CouplePlace, DateIdea, HomePartner, PlaceKind, PlaceRating } from "./types";
+import type { CouplePlace, DateIdea, PlaceKind } from "./types";
 
 type PlacesCouple = { id: string; partner_one_name: string; partner_two_name: string; weather_latitude: number | null; weather_longitude: number | null; weather_location_name: string | null };
 
@@ -25,14 +25,6 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function Stars({ value, onChange, label }: { value: number; onChange?: (value: number) => void; label: string }) {
-  return <span className="stars" role={onChange ? "radiogroup" : "img"} aria-label={`${label}: ${value} em 5`}>
-    {[1, 2, 3, 4, 5].map((star) => onChange
-      ? <button key={star} type="button" role="radio" aria-checked={value === star} aria-label={`${star}`} onClick={() => onChange(star)}><Star size={22} fill={star <= value ? "currentColor" : "none"} aria-hidden="true" /></button>
-      : <Star key={star} size={15} fill={star <= value ? "currentColor" : "none"} aria-hidden="true" />)}
-  </span>;
-}
-
 function PlanForm({ onPlan, busy }: { onPlan: (date: string, time: string) => void; busy: boolean }) {
   const now = new Date();
   const choices = [
@@ -49,9 +41,9 @@ function PlanForm({ onPlan, busy }: { onPlan: (date: string, time: string) => vo
   </form>;
 }
 
-export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: PlacesCouple; mySlot: HomePartner | null; dates: DateIdea[]; busy: boolean; onPlan: (place: PlaceToPlan, date: string, time: string) => Promise<boolean> }) {
+export function PlacesPanel({ couple, dates, busy, onPlan }: { couple: PlacesCouple; dates: DateIdea[]; busy: boolean; onPlan: (place: PlaceToPlan, date: string, time: string) => Promise<boolean> }) {
   const [places, setPlaces] = useState<CouplePlace[]>([]);
-  const [ratings, setRatings] = useState<PlaceRating[]>([]);
+  const [mode, setMode] = useState<"new" | "approved">("new");
   const [kind, setKind] = useState<PlaceKind>("restaurant");
   const [radiusKm, setRadiusKm] = useState(distances[1].km);
   const [cuisine, setCuisine] = useState("");
@@ -66,34 +58,27 @@ export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: P
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState("");
   const [planningId, setPlanningId] = useState<string | null>(null);
-  const [savedTab, setSavedTab] = useState<"want" | "been">("want");
-  const [ratingDraft, setRatingDraft] = useState<{ placeId: string; rating: number; comment: string } | null>(null);
-  const partnerName = (slot: HomePartner) => slot === "partner_one" ? couple.partner_one_name : couple.partner_two_name;
+  const [savedTab, setSavedTab] = useState<"want" | "liked" | "no">("want");
 
   useEffect(() => {
     if (!supabase) return;
     let active = true;
-    void Promise.all([
-      supabase.from("couple_places").select("*").order("created_at"),
-      supabase.from("place_ratings").select("*"),
-    ]).then(([placeResult, ratingResult]) => {
+    void supabase.from("couple_places").select("*").order("created_at").then((placeResult) => {
       if (!active) return;
-      const loadError = placeResult.error ?? ratingResult.error;
-      if (loadError) setMessage(`Não foi possível carregar os vossos sítios: ${loadError.message}`);
+      if (placeResult.error) setMessage(`Não foi possível carregar os vossos sítios: ${placeResult.error.message}`);
       setPlaces((placeResult.data ?? []) as CouplePlace[]);
-      setRatings((ratingResult.data ?? []) as PlaceRating[]);
     });
     return () => { active = false; };
   }, [couple.id]);
 
-  const visitedPlaceIds = useMemo(() => new Set([
-    ...dates.filter((date) => date.status === "completed" && date.place_id).map((date) => date.place_id as string),
-    ...ratings.map((rating) => rating.place_id),
-  ]), [dates, ratings]);
+  const visitedPlaceIds = useMemo(() => new Set(dates.filter((date) => date.status === "completed" && date.place_id).map((date) => date.place_id as string)), [dates]);
   const savedByRef = useMemo(() => new Map(places.map((place) => [place.place_ref, place])), [places]);
   const visitedRefs = useMemo(() => new Set(places.filter((place) => visitedPlaceIds.has(place.id)).map((place) => place.place_ref)), [places, visitedPlaceIds]);
-  const ranked = useMemo(() => rankPlaces(results ?? [], visitedRefs, searchedRadius, seed), [results, searchedRadius, seed, visitedRefs]);
+  // Somewhere new: leave out the places they've already judged.
+  const ranked = useMemo(() => rankPlaces((results ?? []).filter((place) => !savedByRef.get(place.ref)?.verdict), visitedRefs, searchedRadius, seed), [results, savedByRef, searchedRadius, seed, visitedRefs]);
   const shown = ranked.slice(offset, offset + 3);
+  const approved = useMemo(() => places.filter((place) => place.verdict === "liked" && place.kind === kind), [kind, places]);
+  const lastFood = (placeId: string) => dates.filter((date) => date.place_id === placeId && date.food_notes).sort((first, second) => (second.completed_at ?? "").localeCompare(first.completed_at ?? ""))[0]?.food_notes ?? null;
 
   function locateMe() {
     if (!navigator.geolocation) return;
@@ -163,29 +148,30 @@ export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: P
     else setPlaces((current) => current.filter((item) => item.id !== place.id));
   }
 
-  async function saveRating() {
-    if (!supabase || !ratingDraft || !mySlot || ratingDraft.rating < 1) return;
-    const { data, error } = await supabase.from("place_ratings").upsert({
-      place_id: ratingDraft.placeId,
-      partner_slot: mySlot,
-      rating: ratingDraft.rating,
-      comment: ratingDraft.comment.trim(),
-      updated_at: new Date().toISOString(),
-    }).select("*").single();
-    if (error) {
-      setMessage(`Não foi possível guardar a avaliação: ${error.message}`);
-      return;
-    }
-    setRatings((current) => [...current.filter((rating) => !(rating.place_id === ratingDraft.placeId && rating.partner_slot === mySlot)), data as PlaceRating]);
-    setRatingDraft(null);
+  async function setVerdict(place: CouplePlace, verdict: CouplePlace["verdict"]) {
+    if (!supabase) return;
+    const { error } = await supabase.from("couple_places").update({ verdict }).eq("id", place.id);
+    if (error) setMessage(`Não foi possível atualizar: ${error.message}`);
+    else setPlaces((current) => current.map((item) => item.id === place.id ? { ...item, verdict } : item));
   }
 
-  const savedList = places.filter((place) => savedTab === "been" ? visitedPlaceIds.has(place.id) : !visitedPlaceIds.has(place.id));
+  const savedList = places.filter((place) => savedTab === "want" ? !place.verdict : place.verdict === savedTab);
   const kindEmoji = (value: PlaceKind) => kinds.find((item) => item.value === value)?.emoji ?? "📍";
 
   return (
     <section className="places-page" aria-label="Sítios">
-      <form className="panel places-finder" onSubmit={(event) => void search(event)}>
+      <div className="chip-row places-mode" role="group" aria-label="Que tipo de sítio">{([["new", "Experimentar um novo"], ["approved", "Voltar a um que gostámos"]] as const).map(([value, label]) => <button type="button" key={value} className={`chip ${mode === value ? "selected" : ""}`} aria-pressed={mode === value} onClick={() => setMode(value)}>{label}</button>)}</div>
+
+      {mode === "approved" && <section className="panel places-approved" aria-label="Sítios aprovados">
+        <div className="chip-row" role="group" aria-label="Tipo">{kinds.map((item) => <button type="button" key={item.value} className={`chip ${kind === item.value ? "selected" : ""}`} aria-pressed={kind === item.value} onClick={() => setKind(item.value)}>{item.label}</button>)}</div>
+        {approved.length === 0 ? <p className="panel-copy saved-empty">Ainda não há sítios aprovados aqui. Quando disserem que querem repetir um date num sítio, ele aparece nesta lista.</p> : <ul className="saved-place-list">{approved.map((place) => <li key={place.id}>
+          <div><strong>{kindEmoji(place.kind)} {place.name}</strong>{lastFood(place.id) && <small className="place-food">Da última vez: {lastFood(place.id)}</small>}</div>
+          <div className="panel-actions"><button type="button" className="button button-primary" onClick={() => setPlanningId(planningId === place.id ? null : place.id)}><CalendarPlus size={16} aria-hidden="true" />Marcar</button><a className="button button-ghost" href={mapsUrl(place.name, place.latitude, place.longitude)} target="_blank" rel="noopener noreferrer">Maps<ExternalLink size={14} aria-hidden="true" /></a></div>
+          {planningId === place.id && <PlanForm busy={busy} onPlan={(date, time) => void planAt(place, date, time)} />}
+        </li>)}</ul>}
+      </section>}
+
+      {mode === "new" && <form className="panel places-finder" onSubmit={(event) => void search(event)}>
         <p className="panel-label">Encontrar um sítio</p>
         <div className="chip-row" role="group" aria-label="Tipo">{kinds.map((item) => <button type="button" key={item.value} className={`chip ${kind === item.value ? "selected" : ""}`} aria-pressed={kind === item.value} onClick={() => setKind(item.value)}>{item.label}</button>)}</div>
         <div className="finder-grid">
@@ -194,11 +180,11 @@ export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: P
         </div>
         <div className="finder-origin"><MapPin size={16} aria-hidden="true" /><span>{origin ? origin.label : "Sem localização"}</span><button type="button" className="button button-ghost" onClick={locateMe}><LocateFixed size={16} aria-hidden="true" />Usar onde estou</button></div>
         <button className="button button-primary" type="submit" disabled={searching || !origin}>{searching ? "A procurar…" : "Dar-me 3 ideias"}</button>
-      </form>
+      </form>}
 
       {message && <p className="form-alert config-alert" role="status">{message}</p>}
 
-      {shown.length > 0 && <section aria-label="Sugestões">
+      {mode === "new" && shown.length > 0 && <section aria-label="Sugestões">
         <div className="panel-heading places-results-heading"><h2>3 ideias para vocês</h2><button type="button" className="button button-secondary" onClick={nextThree}><RefreshCw size={16} aria-hidden="true" />Outras 3</button></div>
         <div className="place-grid">
           {shown.map((result) => {
@@ -228,12 +214,10 @@ export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: P
 
       <section className="panel saved-places" aria-label="Os vossos sítios">
         <div className="panel-heading"><h2>Os vossos sítios</h2></div>
-        <div className="chip-row" role="tablist">{(["want", "been"] as const).map((tab) => <button type="button" role="tab" key={tab} aria-selected={savedTab === tab} className={`chip ${savedTab === tab ? "selected" : ""}`} onClick={() => setSavedTab(tab)}>{tab === "want" ? "Queremos ir" : "Já fomos"}</button>)}</div>
-        {savedList.length === 0 ? <p className="panel-copy saved-empty">{savedTab === "want" ? "Guardem sítios a partir das sugestões para os terem aqui." : "Quando fizerem um date num sítio guardado, ou o avaliarem, aparece aqui."}</p> : <ul className="saved-place-list">
+        <div className="chip-row" role="tablist">{(["want", "liked", "no"] as const).map((tab) => <button type="button" role="tab" key={tab} aria-selected={savedTab === tab} className={`chip ${savedTab === tab ? "selected" : ""}`} onClick={() => setSavedTab(tab)}>{tab === "want" ? "Queremos ir" : tab === "liked" ? "Aprovados" : "Não repetir"}</button>)}</div>
+        {savedList.length === 0 ? <p className="panel-copy saved-empty">{savedTab === "want" ? "Guardem sítios a partir das sugestões para os terem aqui." : savedTab === "liked" ? "Os sítios de que gostaram aparecem aqui." : "Os sítios a evitar aparecem aqui."}</p> : <ul className="saved-place-list">
           {savedList.map((place) => {
-            const placeRatings = ratings.filter((rating) => rating.place_id === place.id);
             const visits = dates.filter((date) => date.status === "completed" && date.place_id === place.id).length;
-            const mine = placeRatings.find((rating) => rating.partner_slot === mySlot);
             return <li key={place.id}>
               <div className="saved-place-main">
                 <div><strong>{kindEmoji(place.kind)} {place.name}</strong>{place.address && <small>{place.address}</small>}{visits > 0 && <small>{`${visits} date${visits === 1 ? "" : "s"} aqui`}</small>}</div>
@@ -243,10 +227,8 @@ export function PlacesPanel({ couple, mySlot, dates, busy, onPlan }: { couple: P
                   <button type="button" className="icon-button" aria-label="Remover" onClick={() => void removePlace(place)}><Trash2 size={17} aria-hidden="true" /></button>
                 </div>
               </div>
-              {placeRatings.length > 0 && <div className="saved-place-ratings">{placeRatings.map((rating) => <p key={rating.partner_slot}><span>{partnerName(rating.partner_slot)}</span><Stars value={rating.rating} label={partnerName(rating.partner_slot)} />{rating.comment && <em>“{rating.comment}”</em>}</p>)}</div>}
-              {mySlot && (ratingDraft?.placeId === place.id
-                ? <div className="rating-form"><Stars value={ratingDraft.rating} label="A tua avaliação" onChange={(rating) => setRatingDraft({ ...ratingDraft, rating })} /><input className="form-input" maxLength={300} placeholder="Comentário (opcional)" value={ratingDraft.comment} onChange={(event) => setRatingDraft({ ...ratingDraft, comment: event.target.value })} /><button type="button" className="button button-primary" disabled={ratingDraft.rating < 1} onClick={() => void saveRating()}>Guardar</button></div>
-                : <button type="button" className="button button-ghost rate-button" onClick={() => setRatingDraft({ placeId: place.id, rating: mine?.rating ?? 0, comment: mine?.comment ?? "" })}><Star size={15} aria-hidden="true" />{mine ? "Mudar a tua avaliação" : "Avaliar"}</button>)}
+              {lastFood(place.id) && <small className="place-food">Da última vez: {lastFood(place.id)}</small>}
+              <div className="chip-row" role="group" aria-label={`Veredito sobre ${place.name}`}><button type="button" className={`chip ${place.verdict === "liked" ? "selected" : ""}`} aria-pressed={place.verdict === "liked"} onClick={() => void setVerdict(place, place.verdict === "liked" ? null : "liked")}>Aprovado</button><button type="button" className={`chip ${place.verdict === "no" ? "selected" : ""}`} aria-pressed={place.verdict === "no"} onClick={() => void setVerdict(place, place.verdict === "no" ? null : "no")}>Não repetir</button></div>
               {planningId === place.id && <PlanForm busy={busy} onPlan={(date, time) => void planAt(place, date, time)} />}
             </li>;
           })}

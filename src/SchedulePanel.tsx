@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import { Pencil } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { NotificationSettings } from "./NotificationSettings";
 import { QuickAddBox } from "./QuickAddBox";
@@ -88,7 +89,7 @@ export function describeWindows(windows: FreeWindow[], language: Language) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onUpdateCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
   const pt = language === "pt";
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
@@ -104,6 +105,8 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
   const [taskTime, setTaskTime] = useState("");
   const [taskAssignee, setTaskAssignee] = useState<HomePartner | "both">("both");
   const [showDone, setShowDone] = useState(false);
+  const [commitmentDraft, setCommitmentDraft] = useState<CoupleCommitment | null>(null);
+  const [taskDraft, setTaskDraft] = useState<CoupleTask | null>(null);
   const [feedUrl, setFeedUrl] = useState("");
   const [feedMessage, setFeedMessage] = useState("");
   const partnerName = (slot: HomePartner) => slot === "partner_one" ? couple.partner_one_name : couple.partner_two_name;
@@ -185,6 +188,22 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     else setTasks((current) => current.map((item) => item.id === task.id ? data as CoupleTask : item));
   }
 
+  async function saveTaskDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !taskDraft || !taskDraft.title.trim()) return;
+    const { data, error: saveError } = await supabase.from("couple_tasks").update({
+      title: taskDraft.title.trim(),
+      due_date: taskDraft.due_date || null,
+      due_time: taskDraft.due_date && taskDraft.due_time ? taskDraft.due_time : null,
+      assigned_to: taskDraft.assigned_to,
+    }).eq("id", taskDraft.id).select("*").single();
+    if (saveError) setError(`Não foi possível guardar a tarefa: ${saveError.message}`);
+    else {
+      setTasks((current) => current.map((task) => task.id === taskDraft.id ? data as CoupleTask : task));
+      setTaskDraft(null);
+    }
+  }
+
   async function removeTask(id: string) {
     if (!supabase) return;
     const { error: removeError } = await supabase.from("couple_tasks").delete().eq("id", id);
@@ -243,7 +262,11 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
         <p className="schedule-hint">Jantar em casa da família, o dentista, uma reunião. Vão para o calendário e contam como tempo ocupado.</p>
         <QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={appBusy} defaultKind="commitment" onSubmit={onQuickAdd} />
         {upcomingCommitments.length > 0 && <ul className="commitment-list">
-          {upcomingCommitments.map((commitment) => <li key={commitment.id}><div><strong>{commitment.title}</strong><small>{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${commitment.event_date}T12:00:00`))}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""}{commitment.ends_at ? `–${commitment.ends_at.slice(0, 5)}` : ""} · {commitment.for_partner ? partnerName(commitment.for_partner) : "Os dois"}</small></div><button type="button" aria-label={`Apagar ${commitment.title}`} onClick={() => onRemoveCommitment(commitment.id)}>×</button></li>)}
+          {upcomingCommitments.map((commitment) => commitmentDraft?.id === commitment.id ? <li key={commitment.id} className="edit-row"><form onSubmit={(event) => { event.preventDefault(); if (commitmentDraft.title.trim() && commitmentDraft.event_date) void onUpdateCommitment(commitment.id, { title: commitmentDraft.title.trim(), event_date: commitmentDraft.event_date, starts_at: commitmentDraft.starts_at || null, ends_at: commitmentDraft.starts_at && commitmentDraft.ends_at && commitmentDraft.ends_at > commitmentDraft.starts_at ? commitmentDraft.ends_at : null, for_partner: commitmentDraft.for_partner }).then((saved) => { if (saved) setCommitmentDraft(null); }); }}>
+            <input className="form-input" required maxLength={200} aria-label="Compromisso" value={commitmentDraft.title} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, title: event.target.value })} />
+            <div className="edit-row-fields"><input className="form-input" type="date" required aria-label="Dia" value={commitmentDraft.event_date} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, event_date: event.target.value })} /><input className="form-input" type="time" aria-label="Início" value={commitmentDraft.starts_at?.slice(0, 5) ?? ""} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, starts_at: event.target.value || null })} /><input className="form-input" type="time" aria-label="Fim" value={commitmentDraft.ends_at?.slice(0, 5) ?? ""} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, ends_at: event.target.value || null })} /><select className="form-input" aria-label="Para quem" value={commitmentDraft.for_partner ?? "both"} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, for_partner: event.target.value === "both" ? null : event.target.value as HomePartner })}><option value="both">Os dois</option><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select></div>
+            <div className="panel-actions"><button className="button button-primary" type="submit">Guardar</button><button type="button" className="button button-ghost" onClick={() => setCommitmentDraft(null)}>Cancelar</button></div>
+          </form></li> : <li key={commitment.id}><div><strong>{commitment.title}</strong><small>{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date(`${commitment.event_date}T12:00:00`))}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""}{commitment.ends_at ? `–${commitment.ends_at.slice(0, 5)}` : ""} · {commitment.for_partner ? partnerName(commitment.for_partner) : "Os dois"}</small></div><div className="row-actions"><button type="button" aria-label={`Alterar ${commitment.title}`} onClick={() => setCommitmentDraft(commitment)}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${commitment.title}`} onClick={() => onRemoveCommitment(commitment.id)}>×</button></div></li>)}
         </ul>}
       </article>
 
@@ -282,7 +305,11 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
             </div>
           </form>
           {openTasks.length === 0 ? <p className="schedule-hint">{loaded ? pt ? "Nada pendente. 🎉" : "Nothing pending. 🎉" : pt ? "A carregar…" : "Loading…"}</p> : <ul className="task-list">
-            {openTasks.map((task) => <li key={task.id}><input type="checkbox" checked={false} aria-label={pt ? `Marcar "${task.title}" como feita` : `Mark "${task.title}" as done`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{formatDue(task)} · {assigneeLabel(task)}</small></div><button type="button" aria-label={pt ? "Apagar tarefa" : "Delete task"} onClick={() => void removeTask(task.id)}>×</button></li>)}
+            {openTasks.map((task) => taskDraft?.id === task.id ? <li key={task.id} className="edit-row"><form onSubmit={(event) => void saveTaskDraft(event)}>
+              <input className="form-input" required maxLength={200} aria-label="Tarefa" value={taskDraft.title} onChange={(event) => setTaskDraft({ ...taskDraft, title: event.target.value })} />
+              <div className="edit-row-fields"><input className="form-input" type="date" aria-label="Dia" value={taskDraft.due_date ?? ""} onChange={(event) => setTaskDraft({ ...taskDraft, due_date: event.target.value || null })} /><input className="form-input" type="time" aria-label="Hora" disabled={!taskDraft.due_date} value={taskDraft.due_time?.slice(0, 5) ?? ""} onChange={(event) => setTaskDraft({ ...taskDraft, due_time: event.target.value || null })} /><select className="form-input" aria-label="Para quem" value={taskDraft.assigned_to ?? "both"} onChange={(event) => setTaskDraft({ ...taskDraft, assigned_to: event.target.value === "both" ? null : event.target.value as HomePartner })}><option value="both">Os dois</option><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select></div>
+              <div className="panel-actions"><button className="button button-primary" type="submit">Guardar</button><button type="button" className="button button-ghost" onClick={() => setTaskDraft(null)}>Cancelar</button></div>
+            </form></li> : <li key={task.id}><input type="checkbox" checked={false} aria-label={pt ? `Marcar "${task.title}" como feita` : `Mark "${task.title}" as done`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{formatDue(task)} · {assigneeLabel(task)}</small></div><div className="row-actions"><button type="button" aria-label={`Alterar ${task.title}`} onClick={() => setTaskDraft(task)}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label="Apagar tarefa" onClick={() => void removeTask(task.id)}>×</button></div></li>)}
           </ul>}
           {doneTasks.length > 0 && <button type="button" className="task-done-toggle" onClick={() => setShowDone((shown) => !shown)}>{showDone ? pt ? "Esconder feitas" : "Hide done" : pt ? `Ver feitas (${doneTasks.length})` : `Show done (${doneTasks.length})`}</button>}
           {showDone && <ul className="task-list done-tasks">

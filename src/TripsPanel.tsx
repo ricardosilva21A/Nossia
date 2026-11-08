@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import { CalendarPlus, ChevronDown, ExternalLink, Plane, Plus, Trash2 } from "lucide-react";
+import { CalendarPlus, ChevronDown, ExternalLink, Pencil, Plane, Plus, Trash2 } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { bestMonthsLabel, destinationGuides, findGuide, flightsUrl, guidesForSoon, monthNames } from "./destinations";
 import type { CoupleDestination, CoupleTrip, TripItem } from "./types";
@@ -51,6 +51,7 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
   const [newItem, setNewItem] = useState("");
   const [newItemDay, setNewItemDay] = useState("");
   const [showPast, setShowPast] = useState(false);
+  const [tripDraft, setTripDraft] = useState<CoupleTrip | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const today = todayKey();
@@ -126,6 +127,31 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
     setBusy(false);
   }
 
+  async function saveTripDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || !tripDraft || !tripDraft.title.trim() || tripDraft.end_date < tripDraft.start_date) return;
+    setBusy(true);
+    setError("");
+    const draft = tripDraft;
+    // A changed title means a different place, so the map looks it up again.
+    const original = trips.find((trip) => trip.id === draft.id);
+    const moved = original?.title !== draft.title.trim();
+    const patch = { title: draft.title.trim(), start_date: draft.start_date, end_date: draft.end_date, ...(moved ? { latitude: null, longitude: null } : {}) };
+    const { error: saveError } = await supabase.from("couple_trips").update(patch).eq("id", draft.id);
+    if (saveError) setError(`Não foi possível guardar a viagem: ${saveError.message}`);
+    else {
+      onTripsChange((current) => current.map((trip) => trip.id === draft.id ? { ...trip, ...patch } : trip));
+      const outside = items.filter((item) => item.trip_id === draft.id && item.day && (item.day < draft.start_date || item.day > draft.end_date));
+      if (outside.length) {
+        const { error: itemsError } = await supabase.from("trip_items").update({ day: null }).in("id", outside.map((item) => item.id));
+        if (itemsError) setError(`A viagem mudou, mas alguns planos ficaram fora das novas datas: ${itemsError.message}`);
+        else setItems((current) => current.map((item) => outside.some((other) => other.id === item.id) ? { ...item, day: null } : item));
+      }
+      setTripDraft(null);
+    }
+    setBusy(false);
+  }
+
   async function removeTrip(id: string) {
     if (!supabase) return;
     const client = supabase;
@@ -192,6 +218,11 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
         <ChevronDown className={open ? "trip-chevron open" : "trip-chevron"} size={20} aria-hidden="true" />
       </button>
       {open && <div className="trip-plan">
+        {tripDraft?.id === trip.id && <form className="trip-edit-form" onSubmit={(event) => void saveTripDraft(event)}>
+          <label className="form-label">Destino<input className="form-input" required maxLength={120} value={tripDraft.title} onChange={(event) => setTripDraft({ ...tripDraft, title: event.target.value })} /></label>
+          <div className="trip-dates-form"><label className="form-label">Ida<input className="form-input" type="date" required value={tripDraft.start_date} onChange={(event) => setTripDraft({ ...tripDraft, start_date: event.target.value, end_date: tripDraft.end_date < event.target.value ? event.target.value : tripDraft.end_date })} /></label><label className="form-label">Volta<input className="form-input" type="date" required min={tripDraft.start_date} value={tripDraft.end_date} onChange={(event) => setTripDraft({ ...tripDraft, end_date: event.target.value })} /></label></div>
+          <div className="panel-actions"><button className="button button-primary" type="submit" disabled={busy}>Guardar</button><button type="button" className="button button-ghost" onClick={() => setTripDraft(null)}>Cancelar</button></div>
+        </form>}
         <form className="trip-item-form" onSubmit={(event) => submitItem(event, trip)}>
           <input className="form-input" required maxLength={200} aria-label="Coisa a fazer" placeholder="Coisa a fazer, reserva, sítio…" value={newItem} onChange={(event) => setNewItem(event.target.value)} />
           <select className="form-input" aria-label="Dia" value={newItemDay} onChange={(event) => setNewItemDay(event.target.value)}><option value="">Por encaixar</option>{daysOf(trip).map((day) => <option key={day} value={day}>{formatDay(day, { weekday: "short", day: "numeric" })}</option>)}</select>
@@ -207,6 +238,7 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
         <div className="panel-actions">
           {trip.end_date < today && <button type="button" className="button button-primary" onClick={() => onOpenMemory(trip.id)}>Ver memória</button>}
           <a className="button button-ghost" href={flightsUrl(trip.title, monthNames[Number(trip.start_date.slice(5, 7)) - 1])} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a>
+          <button type="button" className="button button-ghost" onClick={() => setTripDraft(trip)}><Pencil size={16} aria-hidden="true" />Editar</button>
           <button type="button" className="button button-ghost" disabled={busy} onClick={() => void removeTrip(trip.id)}><Trash2 size={16} aria-hidden="true" />Apagar viagem</button>
         </div>
       </div>}

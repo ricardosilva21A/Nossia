@@ -27,6 +27,7 @@ export type IdeaDetails = {
   at_home: boolean;
   weather_setting: WeatherSetting;
   seasons: SeasonKey[];
+  repeatable: boolean;
 };
 
 // A shared catalog idea (created_by_couple_id is null) or a couple's private idea.
@@ -47,6 +48,9 @@ export type DateDetails = {
   longitude: number | null;
   home_partner: HomePartner | null;
   place_id: string | null;
+  would_repeat: boolean | null;
+  watched_title: string | null;
+  food_notes: string | null;
 };
 
 export type CoupleDate = DateDetails & {
@@ -155,15 +159,8 @@ export type CouplePlace = {
   latitude: number | null;
   longitude: number | null;
   kind: PlaceKind;
+  verdict: "liked" | "no" | null;
   created_at: string;
-};
-
-export type PlaceRating = {
-  place_id: string;
-  partner_slot: HomePartner;
-  rating: number;
-  comment: string;
-  updated_at: string;
 };
 
 export type GeocodedPlace = {

@@ -25,6 +25,7 @@ const kinds: Array<{ value: QuickKind; label: string; button: string }> = [
   { value: "date", label: "Date", button: "Marcar date" },
   { value: "commitment", label: "Compromisso", button: "Guardar compromisso" },
   { value: "idea", label: "Ideia para depois", button: "Guardar ideia" },
+  { value: "done", label: "Já fizemos", button: "Guardar e contar como foi" },
 ];
 
 // One box for everything: type a sentence and the day, time and kind are worked out from it.
@@ -51,9 +52,13 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
 
   const parsed = useMemo(() => parseQuickText(text), [text]);
   const kind = chosenKind ?? (defaultKind === "commitment" ? "commitment" : defaultKind === "idea" && !parsed.date ? "idea" : parsed.kind);
-  const day = kind === "idea" ? null : chosenDay ?? parsed.date ?? (otherDay ? null : saturday);
+  const day = kind === "idea" ? null : chosenDay ?? parsed.date ?? (otherDay ? null : kind === "done" ? today : saturday);
   const time = chosenTime ?? parsed.startTime ?? "";
-  const dayChoices = [
+  const yesterday = dateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const dayChoices = kind === "done" ? [
+    { key: today, label: "Hoje" },
+    { key: yesterday, label: "Ontem" },
+  ] : [
     { key: today, label: "Hoje" },
     { key: tomorrow, label: "Amanhã" },
     ...(saturday !== tomorrow ? [{ key: saturday, label: "Sábado" }] : []),
@@ -75,7 +80,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
       forPartner: kind === "commitment" ? forPartner : null,
     });
     if (!saved) return;
-    setMessage(kind === "idea" ? `“${parsed.title}” ficou nas vossas ideias.` : `“${parsed.title}” ficou marcado para ${day ? longDay(day) : "mais tarde"}.`);
+    setMessage(kind === "done" ? "" : kind === "idea" ? `“${parsed.title}” ficou nas vossas ideias.` : `“${parsed.title}” ficou marcado para ${day ? longDay(day) : "mais tarde"}.`);
     setText("");
     setChosenKind(null);
     setChosenDay(null);
@@ -96,7 +101,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
           <button type="button" className={`chip ${showDateInput ? "selected" : ""}`} aria-pressed={showDateInput} onClick={() => { setOtherDay(true); setChosenDay(null); }}>Outro dia</button>
         </div>
         <div className="quick-add-row">
-          {showDateInput && <input className="form-input" type="date" required min={today} aria-label="Dia" value={day ?? ""} onChange={(event) => setChosenDay(event.target.value || null)} />}
+          {showDateInput && <input className="form-input" type="date" required min={kind === "done" ? undefined : today} max={kind === "done" ? today : undefined} aria-label="Dia" value={day ?? ""} onChange={(event) => setChosenDay(event.target.value || null)} />}
           <input className="form-input" type="time" aria-label="Hora (opcional)" value={time} onChange={(event) => setChosenTime(event.target.value)} />
         </div>
       </>}

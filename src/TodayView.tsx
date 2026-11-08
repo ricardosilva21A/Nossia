@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarDays, Check, Clock, MapPin, Shuffle } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock, MapPin, Pencil, Shuffle, UtensilsCrossed } from "lucide-react";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, DateIdea } from "./types";
@@ -39,6 +39,8 @@ export function TodayView({
   onPlanSuggestion,
   onAnotherSuggestion,
   onMarkDone,
+  onEditDate,
+  onOpenPlaces,
   onOpenIdeas,
   onOpenPlanned,
   onOpenAgenda,
@@ -63,6 +65,8 @@ export function TodayView({
   onPlanSuggestion: (idea: DateIdea, date: string) => void;
   onAnotherSuggestion: () => void;
   onMarkDone: (id: string) => void;
+  onEditDate: (id: string) => void;
+  onOpenPlaces: () => void;
   onOpenIdeas: () => void;
   onOpenPlanned: () => void;
   onOpenAgenda: () => void;
@@ -85,7 +89,7 @@ export function TodayView({
           <h2>{nextDate.emoji} {nextDate.title}</h2>
           <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{nextDate.planned_for ? shortDay(nextDate.planned_for, language) : pt ? "Dia por decidir" : "Day to decide"}{nextDate.planned_start_time && <><Clock size={16} aria-hidden="true" />{nextDate.planned_start_time.slice(0, 5)}</>}</p>
           {nextDate.location_name && <p className="today-meta"><MapPin size={16} aria-hidden="true" />{nextDate.location_name}</p>}
-          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />{pt ? "Já fizemos" : "We did it"}</button>{laterDates.length > 0 && <button type="button" className="button button-ghost" onClick={onOpenPlanned}>{pt ? `Mais ${laterDates.length} planeado${laterDates.length === 1 ? "" : "s"}` : `${laterDates.length} more planned`}<ArrowRight size={16} aria-hidden="true" /></button>}</div>
+          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />{pt ? "Já fizemos" : "We did it"}</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button>{laterDates.length > 0 && <button type="button" className="button button-ghost" onClick={onOpenPlanned}>{pt ? `Mais ${laterDates.length} planeado${laterDates.length === 1 ? "" : "s"}` : `${laterDates.length} more planned`}<ArrowRight size={16} aria-hidden="true" /></button>}</div>
         </> : <>
           <h2>{pt ? "Nada marcado ainda" : "Nothing planned yet"}</h2>
           <p className="panel-copy">{firstFreeDay
@@ -95,7 +99,7 @@ export function TodayView({
       </section>
 
       <section className="panel today-quick-add" aria-label="Marcar">
-        <p className="panel-label">O que querem marcar?</p>
+        <div className="panel-heading"><p className="panel-label">O que querem marcar?</p><button type="button" className="button button-ghost" onClick={onOpenPlaces}><UtensilsCrossed size={16} aria-hidden="true" />Jantar fora</button></div>
         <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
       </section>
 

@@ -1,6 +1,6 @@
 import type { Category, Mood, WeatherSetting } from "./types";
 
-export type QuickKind = "date" | "commitment" | "idea";
+export type QuickKind = "date" | "commitment" | "idea" | "done";
 
 export type ParsedQuickText = {
   title: string;
@@ -17,6 +17,7 @@ export type GuessedIdea = {
   durationMinutes: number;
   atHome: boolean;
   weatherSetting: WeatherSetting;
+  repeatable: boolean;
 };
 
 const weekdays: Record<string, number> = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
@@ -93,6 +94,7 @@ export function parseQuickText(text: string, now = new Date()): ParsedQuickText 
   const dateRules: Array<[RegExp, (match: RegExpExecArray) => string | null]> = [
     [new RegExp(`\\b${leadingWords}depois de amanha\\b`), () => addDays(now, 2)],
     [new RegExp(`\\b${leadingWords}amanha\\b`), () => addDays(now, 1)],
+    [new RegExp(`\\b${leadingWords}ontem\\b`), () => addDays(now, -1)],
     [new RegExp(`\\b${leadingWords}hoje\\b`), () => addDays(now, 0)],
     [new RegExp(`\\b${leadingWords}fim de semana\\b`), () => addDays(now, (6 - now.getDay() + 7) % 7)],
     [new RegExp(`\\b${leadingWords}(?:dia )?(\\d{1,2})\\/(\\d{1,2})(?:\\/(\\d{4}))?\\b`), (match) => match[3]
@@ -151,8 +153,11 @@ export function parseQuickText(text: string, now = new Date()): ParsedQuickText 
     .replace(/^(?:para|pra|na|no|ao|às|as)\s+/i, "");
   title = title ? title[0].toLocaleUpperCase("pt-PT") + title.slice(1) : "";
 
-  return { title, date, startTime, endTime, kind: commitmentWords.test(plain(title)) ? "commitment" : "date" };
+  const kind = date !== null && date < addDays(now, 0) ? "done" : commitmentWords.test(plain(title)) ? "commitment" : "date";
+  return { title, date, startTime, endTime, kind };
 }
+
+const watching = /\b(cinema|filme|filmes|serie|series|anime|animes|netflix|documentario|maratona)\b/;
 
 const ideaGuesses: Array<[RegExp, Partial<GuessedIdea> & { emoji: string; category: Category; mood: Mood }]> = [
   [/\b(praia|mar|surf|piscina)\b/, { emoji: "🏖️", category: "Relaxing", mood: "Relaxing", durationMinutes: 240, weatherSetting: "outdoor" }],
@@ -163,7 +168,7 @@ const ideaGuesses: Array<[RegExp, Partial<GuessedIdea> & { emoji: string; catego
   [/\b(brunch|pequeno[- ]almoco|cafe|lanche|pastelaria)\b/, { emoji: "☕", category: "Food & drink", mood: "Relaxing", durationMinutes: 75, weatherSetting: "indoor" }],
   [/\b(bar|copo|cocktail|vinho|cerveja)\b/, { emoji: "🍸", category: "Food & drink", mood: "Fun", durationMinutes: 120, weatherSetting: "indoor" }],
   [/\b(cozinhar|receita|bolo|bolachas)\b/, { emoji: "🍳", category: "Food & drink", mood: "Fun", durationMinutes: 90, atHome: true, weatherSetting: "indoor" }],
-  [/\b(cinema|filme|filmes|serie|series)\b/, { emoji: "🎬", category: "Culture", mood: "Relaxing", durationMinutes: 150, weatherSetting: "indoor" }],
+  [/\b(cinema|filme|filmes|serie|series|anime|animes|netflix|documentario)\b/, { emoji: "🎬", category: "Culture", mood: "Relaxing", durationMinutes: 150, weatherSetting: "indoor" }],
   [/\b(museu|exposicao|galeria|teatro)\b/, { emoji: "🏛️", category: "Culture", mood: "Creative", durationMinutes: 120, weatherSetting: "indoor" }],
   [/\b(concerto|festival|musica|karaoke)\b/, { emoji: "🎶", category: "Culture", mood: "Fun", durationMinutes: 150 }],
   [/\b(jogo|jogos|bowling|padel|mini-golf|escape)\b/, { emoji: "🎲", category: "Culture", mood: "Fun", durationMinutes: 90 }],
@@ -183,5 +188,13 @@ export function guessIdea(title: string): GuessedIdea {
     durationMinutes: guess?.durationMinutes ?? 120,
     atHome,
     weatherSetting: atHome ? "indoor" : guess?.weatherSetting ?? "any",
+    repeatable: watching.test(text),
   };
+}
+
+// What a finished date should ask about.
+export function memoryKind(title: string, category: string, hasPlace: boolean): "watch" | "food" | "other" {
+  const text = plain(title);
+  if (watching.test(text)) return "watch";
+  return hasPlace || category === "Food & drink" || /\b(jantar|almoco|restaurante|brunch|petiscos)\b/.test(text) ? "food" : "other";
 }
