@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarDays, Check, Clock, MapPin, Pencil, Shuffle, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock, MapPin, Pencil, Popcorn, Shuffle, UtensilsCrossed } from "lucide-react";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, DateIdea } from "./types";
@@ -41,6 +41,7 @@ export function TodayView({
   onMarkDone,
   onEditDate,
   onOpenPlaces,
+  onLogWatched,
   onOpenIdeas,
   onOpenPlanned,
   onOpenAgenda,
@@ -67,6 +68,7 @@ export function TodayView({
   onMarkDone: (id: string) => void;
   onEditDate: (id: string) => void;
   onOpenPlaces: () => void;
+  onLogWatched: () => void;
   onOpenIdeas: () => void;
   onOpenPlanned: () => void;
   onOpenAgenda: () => void;
@@ -99,7 +101,7 @@ export function TodayView({
       </section>
 
       <section className="panel today-quick-add" aria-label="Marcar">
-        <div className="panel-heading"><p className="panel-label">O que querem marcar?</p><button type="button" className="button button-ghost" onClick={onOpenPlaces}><UtensilsCrossed size={16} aria-hidden="true" />Jantar fora</button></div>
+        <p className="panel-label">O que querem marcar?</p><div className="today-shortcuts"><button type="button" className="button button-ghost" onClick={onOpenPlaces}><UtensilsCrossed size={16} aria-hidden="true" />Jantar fora</button><button type="button" className="button button-ghost" onClick={onLogWatched}><Popcorn size={16} aria-hidden="true" />Vimos um filme ou série</button></div>
         <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
       </section>
 

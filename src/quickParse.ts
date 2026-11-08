@@ -26,7 +26,7 @@ const commitmentWords = /\b(dentista|medic[oa]|medicina|consulta|exame|analises|
 const leadingWords = "(?:para |pra |ate )?(?:n[ao] |ao |a |d[ao] |est[ae] |proxim[ao] )*";
 
 // Accents off and lowercase, one character for one, so positions match the original text.
-function plain(text: string) {
+export function plain(text: string) {
   return Array.from(text, (character) => {
     if (character.length !== 1) return character;
     const base = character.normalize("NFD")[0].toLocaleLowerCase("pt-PT");
@@ -190,6 +190,33 @@ export function guessIdea(title: string): GuessedIdea {
     weatherSetting: atHome ? "indoor" : guess?.weatherSetting ?? "any",
     repeatable: watching.test(text),
   };
+}
+
+// Watching something at home is one activity, whatever the title. Going to the cinema is an outing.
+export function isWatchingAtHome(title: string) {
+  const text = plain(title);
+  return watching.test(text) && !/\bcinema\b/.test(text);
+}
+
+const notATitle = new Set(["vimos", "vi", "ver", "vamos", "assistir", "assistimos", "acabar", "acabamos", "continuar", "continuamos", "mais", "um", "uma", "uns", "umas", "o", "a", "os", "as", "de", "da", "do", "das", "dos", "na", "no", "em", "ao", "filme", "filmes", "serie", "series", "anime", "animes", "netflix", "documentario", "documentarios", "maratona", "episodio", "episodios", "casa", "sofa", "juntos", "terror", "comedia", "acao", "romance", "romantico", "natal", "drama"]);
+
+// "ver o Interstellar" names what they'll watch; "ver um filme de terror" doesn't.
+export function watchedName(title: string) {
+  return title.replace(/\s+com\s+(?:a|o)\s+\S+\s*$/i, "").split(/\s+/).filter((word) => word && !notATitle.has(plain(word))).join(" ");
+}
+
+const notAPlace = /^(?:casa|praia|rua|parque|restaurante|centro|cidade|sofa|varanda|jardim|campo)$/;
+
+// "Jantar no Ramiro" says where it was.
+export function placeFromTitle(title: string) {
+  const name = title.replace(/\s+com\s+(?:a|o)\s+\S+\s*$/i, "").match(/\s(?:no|na|ao|à)\s+(.+)$/i)?.[1]?.trim() ?? "";
+  return notAPlace.test(plain(name)) ? "" : name;
+}
+
+export function placeKindFromTitle(title: string): "restaurant" | "cafe" | "bar" {
+  const text = plain(title);
+  if (/\b(brunch|cafe|pastelaria|lanche)\b/.test(text)) return "cafe";
+  return /\b(bar|cocktail|cocktails|copo|copos)\b/.test(text) ? "bar" : "restaurant";
 }
 
 // What a finished date should ask about.

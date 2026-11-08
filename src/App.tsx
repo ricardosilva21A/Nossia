@@ -11,7 +11,8 @@ import { PlacesPanel } from "./PlacesPanel";
 import type { PlaceToPlan } from "./PlacesPanel";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
-import { guessIdea, memoryKind } from "./quickParse";
+import { guessIdea, isWatchingAtHome, memoryKind, placeFromTitle, placeKindFromTitle, plain, watchedName } from "./quickParse";
+import { authErrorMessage } from "./authErrors";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
@@ -20,7 +21,7 @@ import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
-import type { Category, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, Mood, WeatherSetting, WorkScheduleBlock } from "./types";
+import type { CouplePlace, Category, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, Mood, WeatherSetting, WorkScheduleBlock } from "./types";
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
@@ -165,6 +166,8 @@ function formatDate(date: string, language: Language, options: Intl.DateTimeForm
   return new Intl.DateTimeFormat(language === "pt" ? "pt-PT" : "en-GB", options).format(new Date(`${date.slice(0, 10)}T12:00:00`));
 }
 
+const watchingIdeaTitle = "Ver um filme ou uma série";
+
 function HomeLocationPicker({
   id,
   language,
@@ -172,6 +175,7 @@ function HomeLocationPicker({
   partnerTwoName,
   homePartner,
   value,
+  searchLabel,
   onHomePartnerChange,
   onLocationChange,
   onPlaceSelect,
@@ -182,6 +186,7 @@ function HomeLocationPicker({
   partnerTwoName: string;
   homePartner: HomePartner | null;
   value: string;
+  searchLabel?: string;
   onHomePartnerChange: (partner: HomePartner | null) => void;
   onLocationChange: (value: string) => void;
   onPlaceSelect: (place: GeocodedPlace) => void;
@@ -198,7 +203,7 @@ function HomeLocationPicker({
           <option value="partner_two">{language === "pt" ? `Casa de ${partnerTwoName}` : `${partnerTwoName}'s home`}</option>
         </select>
       </label>
-      {!homePartner && <label className="form-label">{language === "pt" ? "Pesquisar local" : "Search for a place"}
+      {!homePartner && <label className="form-label">{searchLabel ?? "Pesquisar local"}
         <LocationSearch language={language} value={value} onChange={onLocationChange} onSelect={onPlaceSelect} />
       </label>}
     </>
@@ -477,7 +482,7 @@ function AuthScreen({ language, initialMode, onModeChange, recovery = false, onR
         if (signInError) throw signInError;
       }
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : language === "pt" ? "Não foi possível concluir o pedido. Tente novamente." : "We couldn't complete that request. Please try again.");
+      setError(authErrorMessage(caught instanceof Error ? caught.message : ""));
     } finally {
       setLoading(false);
     }
@@ -1444,24 +1449,58 @@ function App() {
     setMemoryDate(idea?.planned_for && idea.planned_for < today ? idea.planned_for : today);
     setMemoryNote("");
     setMemoryRepeat(null);
-    setMemoryWatched(idea ? lastWatched(idea.idea_id) : "");
+    setMemoryWatched(idea ? idea.watched_title || lastWatched(idea.idea_id) : "");
     setMemoryFood("");
     setMemoryHomePartner(idea?.home_partner ?? null);
     setLocationName(idea?.home_partner
       ? language === "pt"
         ? `Casa de ${idea.home_partner === "partner_one" ? couple?.partner_one_name : couple?.partner_two_name}`
         : `${idea.home_partner === "partner_one" ? couple?.partner_one_name : couple?.partner_two_name}'s home`
-      : idea?.location_name ?? "");
+      : idea?.location_name || (idea && !idea.at_home && memoryKind(idea.title, idea.category, false) === "food" ? placeFromTitle(idea.title) : ""));
     setLocationLatitude(idea?.latitude ?? null);
     setLocationLongitude(idea?.longitude ?? null);
     setModal("memory");
+  }
+
+  // A restaurant typed by hand joins the couple's places, or matches one they already have.
+  async function findOrCreatePlace(name: string, title: string) {
+    if (!supabase || !couple) return null;
+    const { data, error } = await supabase.from("couple_places").select("*");
+    if (error) {
+      setDataError(`Não foi possível guardar o sítio: ${error.message}`);
+      return null;
+    }
+    const found = (data as CouplePlace[]).find((place) => plain(place.name) === plain(name));
+    if (found) return found.id;
+    const { data: created, error: createError } = await supabase.from("couple_places").insert({
+      couple_id: couple.id,
+      place_ref: `manual:${plain(name)}`,
+      name,
+      latitude: locationLatitude,
+      longitude: locationLongitude,
+      kind: placeKindFromTitle(title),
+    }).select("*").single();
+    if (createError) {
+      setDataError(`Não foi possível guardar o sítio: ${createError.message}`);
+      return null;
+    }
+    return (created as CouplePlace).id;
   }
 
   async function saveMemory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeIdeaId) return;
     const current = ideas.find((idea) => idea.id === activeIdeaId);
+    const placeName = locationName.trim();
+    const atRestaurant = Boolean(current && !current.at_home && !memoryHomePartner && memoryKind(current.title, current.category, Boolean(current.place_id)) === "food");
+    let placeId = current?.place_id ?? null;
+    if (current && atRestaurant) {
+      const samePlace = placeId !== null && plain(placeName) === plain(current.location_name ?? "");
+      if (!placeName) placeId = null;
+      else if (!samePlace && memoryRepeat !== null) placeId = await findOrCreatePlace(placeName, current.title) ?? placeId;
+    }
     const saved = await updateDate(activeIdeaId, {
+      place_id: placeId,
       status: "completed",
       completed_at: memoryDate || localDateString(),
       planned_for: null,
@@ -1476,8 +1515,8 @@ function App() {
     });
     if (!saved) return;
     // What they thought of the date is what they think of the place.
-    if (supabase && current?.place_id && memoryRepeat !== null) {
-      const { error } = await supabase.from("couple_places").update({ verdict: memoryRepeat ? "liked" : "no" }).eq("id", current.place_id);
+    if (supabase && placeId && memoryRepeat !== null) {
+      const { error } = await supabase.from("couple_places").update({ verdict: memoryRepeat ? "liked" : "no" }).eq("id", placeId);
       if (error) setDataError(`Não foi possível atualizar o sítio: ${error.message}`);
     }
     setModal(null);
@@ -1716,7 +1755,9 @@ function App() {
       setCommitments((current) => [...current, data as CoupleCommitment]);
       return true;
     }
-    const ideaId = await findOrCreateIdea(value.title);
+    const exact = catalog.some((idea) => plain(idea.title) === plain(value.title));
+    const sharedWatching = value.kind !== "idea" && !exact && isWatchingAtHome(value.title) ? catalog.find((idea) => idea.title === watchingIdeaTitle) : undefined;
+    const ideaId = sharedWatching?.id ?? await findOrCreateIdea(value.title);
     if (!ideaId) return false;
     if (value.kind === "idea") return true;
     if (value.kind === "done") {
@@ -1732,17 +1773,17 @@ function App() {
       setMemoryDate(saved.completed_at ?? localDateString());
       setMemoryNote("");
       setMemoryRepeat(null);
-      setMemoryWatched(lastWatched(ideaId));
+      setMemoryWatched((sharedWatching ? watchedName(value.title) : "") || lastWatched(ideaId));
       setMemoryFood("");
       setMemoryHomePartner(null);
-      setLocationName("");
+      setLocationName(memoryKind(value.title, "", false) === "food" ? placeFromTitle(value.title) : "");
       setLocationLatitude(null);
       setLocationLongitude(null);
       setQuickAddOpen(false);
       setModal("memory");
       return true;
     }
-    return value.date ? createDate(ideaId, { planned_for: value.date, planned_start_time: value.startTime }) : false;
+    return value.date ? createDate(ideaId, { planned_for: value.date, planned_start_time: value.startTime, watched_title: sharedWatching ? watchedName(value.title) || null : null }) : false;
   }
 
   async function planAtPlace(place: PlaceToPlan, date: string, time: string) {
@@ -1884,6 +1925,7 @@ function App() {
             onMarkDone={(id) => void markCompleted(id)}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
+            onLogWatched={() => void quickAdd({ kind: "done", title: watchingIdeaTitle, date: localDateString(), startTime: null, endTime: null, forPartner: null })}
             onOpenIdeas={() => navigateView("discover")}
             onOpenPlanned={() => navigateView("planned")}
             onOpenAgenda={() => navigateView("schedule")}
@@ -2065,7 +2107,7 @@ function App() {
           : modal === "album" ? <><p className="modal-copy">{language === "pt" ? "As fotografias são privadas e só estão disponíveis na vossa conta. Adicionem imagens JPG, PNG, WEBP ou GIF (até 10 MB cada)." : "Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each)."}</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">{language === "pt" ? "A carregar o álbum…" : "Loading your album…"}</p>}<div className="album-grid">{photos.filter((photo) => photo.date_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>{language === "pt" ? "Pré-visualização indisponível" : "Photo preview unavailable"}</div>)}</div><label className="photo-upload-button">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
           : modal === "home-location" ? <><p className="modal-copy">{language === "pt" ? "Escolham em que casa aconteceu. Isto atualiza esta memória e as estatísticas, sem alterar a data nem o resto do registo." : "Choose whose home hosted this date. This updates the memory and statistics without changing its date or other details."}</p><label className="form-label" htmlFor="completed-home-location">{language === "pt" ? "Local do date" : "Date location"}<select className="form-input" id="completed-home-location" value={memoryHomePartner ?? "unset"} onChange={(event) => { const value = event.target.value; setMemoryHomePartner(value === "partner_one" || value === "partner_two" ? value : null); }}><option value="unset">{language === "pt" ? "Não indicar a casa" : "Don't mark as either home"}</option><option value="partner_one">{language === "pt" ? `Casa de ${couple.partner_one_name}` : `${couple.partner_one_name}'s home`}</option><option value="partner_two">{language === "pt" ? `Casa de ${couple.partner_two_name}` : `${couple.partner_two_name}'s home`}</option></select></label><button className="modal-submit" disabled={busy} onClick={() => void saveCompletedHomeLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar localização" : "Save location"} <span>→</span></button></>
           : modal === "location" ? <><p className="modal-copy">{language === "pt" ? "Pesquisem o local e escolham o resultado correto para o adicionar ao mapa." : "Search for the place, then select the right result to pin it on your map."}</p><LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar no mapa" : "Save map pin"} <span>→</span></button></>
-          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Tudo é opcional. Podem juntar fotografias agora ou mais tarde.</p><label className="form-label">Quando foi<input className="form-input" type="date" required max={todayDate} value={memoryDate} onChange={(event) => setMemoryDate(event.target.value)} /></label>{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "watch" && <label className="form-label">O que viram?<input className="form-input" list="watched-titles" maxLength={200} placeholder="Nome do filme, série ou anime" value={memoryWatched} onChange={(event) => setMemoryWatched(event.target.value)} /><datalist id="watched-titles">{[...new Set(dates.flatMap((date) => date.watched_title ? [date.watched_title] : []))].map((title) => <option key={title} value={title} />)}</datalist></label>}{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" && <label className="form-label">O que comeram e beberam?<textarea className="form-input memory-input" maxLength={1000} placeholder="Pratos e bebidas de que se querem lembrar" value={memoryFood} onChange={(event) => setMemoryFood(event.target.value)} /></label>}<label className="form-label">Como foi? <textarea className="form-input memory-input" maxLength={1000} placeholder="Gostaram? O que não querem esquecer?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><div className="repeat-question"><span className="form-label">Querem repetir?</span><div className="chip-row" role="group" aria-label="Querem repetir?">{([[true, "Sim"], [false, "Não"]] as const).map(([value, label]) => <button type="button" key={label} className={`chip ${memoryRepeat === value ? "selected" : ""}`} aria-pressed={memoryRepeat === value} onClick={() => setMemoryRepeat(memoryRepeat === value ? null : value)}>{label}</button>)}</div></div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : editingMemory ? "Guardar alterações" : "Guardar nas memórias"} <span>→</span></button>{editingMemory && <button type="button" className="button button-ghost memory-undo" disabled={busy} onClick={() => void undoCompleted()}>Afinal ainda não fizemos</button>}</form>
+          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Tudo é opcional. Podem juntar fotografias agora ou mais tarde.</p><label className="form-label">Quando foi<input className="form-input" type="date" required max={todayDate} value={memoryDate} onChange={(event) => setMemoryDate(event.target.value)} /></label>{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "watch" && <label className="form-label">O que viram?<input className="form-input" list="watched-titles" maxLength={200} placeholder="Nome do filme, série ou anime" value={memoryWatched} onChange={(event) => setMemoryWatched(event.target.value)} /><datalist id="watched-titles">{[...new Set(dates.flatMap((date) => date.watched_title ? [date.watched_title] : []))].map((title) => <option key={title} value={title} />)}</datalist></label>}{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" && <label className="form-label">O que comeram e beberam?<textarea className="form-input memory-input" maxLength={1000} placeholder="Pratos e bebidas de que se querem lembrar" value={memoryFood} onChange={(event) => setMemoryFood(event.target.value)} /></label>}<label className="form-label">Como foi? <textarea className="form-input memory-input" maxLength={1000} placeholder="Gostaram? O que não querem esquecer?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" searchLabel={activeIdea && !activeIdea.at_home && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" ? "Em que restaurante ou sítio?" : undefined} language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><div className="repeat-question"><span className="form-label">Querem repetir?</span><div className="chip-row" role="group" aria-label="Querem repetir?">{([[true, "Sim"], [false, "Não"]] as const).map(([value, label]) => <button type="button" key={label} className={`chip ${memoryRepeat === value ? "selected" : ""}`} aria-pressed={memoryRepeat === value} onClick={() => setMemoryRepeat(memoryRepeat === value ? null : value)}>{label}</button>)}</div></div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : editingMemory ? "Guardar alterações" : "Guardar nas memórias"} <span>→</span></button>{editingMemory && <button type="button" className="button button-ghost memory-undo" disabled={busy} onClick={() => void undoCompleted()}>Afinal ainda não fizemos</button>}</form>
             : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{language === "pt" ? modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões." : modal === "edit" ? "Update the details for this date idea." : "Add a date idea with the details Nossia uses to find a good match."}</p><label className="form-label" htmlFor="idea-title">{language === "pt" ? "A vossa ideia" : "Your idea"}<input className="form-input" id="idea-title" autoFocus placeholder={language === "pt" ? "ex.: Ver as estrelas numa noite de verão" : "e.g. Stargazing on a summer night"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">{language === "pt" ? "Descrição" : "Description"}<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">{language === "pt" ? "Estado de espírito" : "Mood"}<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label><label className="form-label" htmlFor="idea-category">{language === "pt" ? "Categoria" : "Category"}<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item, language)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">{language === "pt" ? "Duração" : "Duration"}<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="90">1–2 {language === "pt" ? "horas" : "hours"}</option><option value="180">2–4 {language === "pt" ? "horas" : "hours"}</option><option value="300">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label><label className="form-label" htmlFor="idea-budget">{language === "pt" ? "Orçamento para dois" : "Budget for two"}<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">{language === "pt" ? "Gratuito" : "Free"}</option><option value="10">{language === "pt" ? "Até 10 €" : "Up to €10"}</option><option value="30">{language === "pt" ? "Até 30 €" : "Up to €30"}</option><option value="60">{language === "pt" ? "Até 60 €" : "Up to €60"}</option></select></label></div><label className="form-label" htmlFor="idea-travel">{language === "pt" ? "Tempo de viagem (ida)" : "Travel time (one way)"}<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">{language === "pt" ? "Desconhecido / sem limite" : "Unknown / no limit"}</option><option value="15">{language === "pt" ? "Até 15 min" : "Up to 15 min"}</option><option value="30">{language === "pt" ? "Até 30 min" : "Up to 30 min"}</option><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="120">{language === "pt" ? "Mais de 1 hora" : "Over 1 hour"}</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />{language === "pt" ? "Esta ideia pode ser feita em casa" : "This idea can be done at home"}</label><label className="form-label" htmlFor="idea-weather-setting">{language === "pt" ? "Adequação ao tempo" : "Weather suitability"}<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">{language === "pt" ? "Adequada a qualquer tempo" : "Suitable in any weather"}</option><option value="indoor">{language === "pt" ? "Interior" : "Indoor"}</option><option value="outdoor">{language === "pt" ? "Exterior" : "Outdoor"}</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? modal === "edit" ? "Guardar alterações" : "Guardar esta ideia" : modal === "edit" ? "Save changes" : "Save this idea"} <span>→</span></button></form>}
       </section></div>}
     </div>
