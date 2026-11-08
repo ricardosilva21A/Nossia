@@ -1,271 +1,146 @@
 # Nossia
 
-**Make time for us.**
+**English** · [Português](./README.pt.md)
 
-Nossia is a private web application designed for couples to discover activities, plan dates, and preserve memories of the experiences they share.
+A private, phone-first web app for couples: plan dates, keep memories, organise trips and find time together.
 
-The project combines activity recommendations, personalized planning, a shared experience diary, and contextual information to help couples spend meaningful time together.
+Live at [nossia.vercel.app](https://nossia.vercel.app). The app is currently in European Portuguese.
 
-> **Project status:** In development.
+> **Status:** in development, used by a small group.
 
-## Table of Contents
+## Contents
 
-- [Overview](#overview)
-- [Objectives](#objectives)
-- [Available in this release](#available-in-this-release)
-- [Technology Stack](#technology-stack)
-- [Architecture](#architecture)
-- [Getting Started](#getting-started)
-- [Environment Variables](#environment-variables)
-- [Development Workflow](#development-workflow)
-- [Documentation](#documentation)
-- [Security and Privacy](#security-and-privacy)
-- [Remaining Roadmap](#remaining-roadmap)
-- [License](#license)
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Project structure](#project-structure)
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [Database](#database)
+- [Admin](#admin)
+- [Deployment](#deployment)
+- [Security and privacy](#security-and-privacy)
+- [Contributing](#contributing)
+- [Roadmap](#roadmap)
 
-## Overview
+Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia-de-utilizacao.md)
 
-Nossia is a private web app for couples, with a login for each partner. Couples can collect date ideas, plan activities, save favourites and keep notes, ratings, and locations for dates they have experienced.
+## Features
 
-The first release stores a couple profile, date ideas, locations, and photo-album metadata in Supabase PostgreSQL. Supabase Auth protects the account, and database Row Level Security restricts records to that couple. Private photos are stored in Supabase Storage. OpenStreetMap powers date maps and place search.
+| Area | What it does |
+|---|---|
+| **Today** | Next date, seasonal and weather-aware suggestions, and an add box that understands text like "Jantar sexta às 20h". |
+| **Ideas** | A shared catalogue, favourites, a random draw, a "feeling" questionnaire and CSV/XLSX import. |
+| **Places** | Find restaurants, cafés and bars with OpenStreetMap, then split them into to try, approved and not again. |
+| **Agenda** | Planned dates, a calendar, work schedules, shared free time, commitments and tasks. |
+| **Trips** | Destination guides, plans per day, flight searches from the couple's airport and a world map of past trips with photos. |
+| **Memories** | Notes, photos, whether you'd repeat it, what you watched and what you ate. |
+| **Partners** | Each partner has their own account, joined with a single-use invite link. |
+| **Notifications** | Web push reminders and a private iCal feed for the iPhone calendar. |
+| **Account** | First-run guide, privacy policy and account deletion. |
+| **Admin** | Aggregate totals and catalogue management at `/admin`. |
 
-## Objectives
+## Tech stack
 
-- Make discovering date ideas simple and engaging.
-- Encourage couples to try new experiences.
-- Avoid repeatedly suggesting activities already completed, unless repetition is explicitly requested.
-- Keep plans, experiences, and memories organized in one place.
-- Provide a private, shared space for preserving memories.
-- Offer a responsive experience across desktop and mobile devices.
+- **Frontend:** React 19, TypeScript, Vite, Leaflet, Lucide
+- **Backend:** Supabase (Postgres with Row Level Security, Auth, Storage)
+- **Serverless:** Vercel Functions in [`api/`](./api)
+- **External services:** OpenStreetMap Nominatim, Open-Meteo, Web Push
 
-## Available in this release
+## Project structure
 
-- A couple space with both names and optional birthdays. The partner who signs up can create a single-use invite link (valid for 14 days) from the couple profile so the other partner gets their own login to the same dates, ideas and memories.
-- Required relationship anniversary and optional first-met, first-message, and first-date dates.
-- Edit the couple names and important dates from the profile button in the header, and upload a shared profile photo stored privately in Supabase Storage.
-- A prominent anniversary countdown and relationship-duration counter with a selectable days, months, or years metric. Anniversary planning starts with the couple's most common completed-date mood when available, then lets them refine the idea with Feeling.
-- The app is in European Portuguese for now. The English strings remain in the code for a later phase, but the language switch is hidden.
-- Shared date ideas, categories, favourites, and planned dates.
-- Add and edit date ideas, or permanently delete an idea and its attached stored photos.
-- Import date ideas from an `.xlsx` workbook or `.csv` file after reviewing valid ideas and rejected rows. Imports are limited to 2 MB and 200 data rows at a time.
-- One shared Portuguese idea catalog for every couple, plus private ideas each couple adds or imports. Ideas can belong to seasons (Natal, São Martinho, Carnaval, verão…): out of season they are hidden from suggestions and from the list unless searched for, and in season they come first. Favourites, plans and memories stay couple-specific, and planning an idea creates a separate date, so the same idea can be lived more than once. Catalog uploads are restricted to the configured catalog administrator and support up to 5,000 ideas per file.
-- A random date draw that chooses from unplanned ideas and prefers a different idea on each result.
-- Two recommendation modes: an instant random draw (up to three results per draw session) or an interactive, one-question-at-a-time Feeling flow matching mood, duration, budget, distance, and optional things to avoid. Matching ideas remain visible and update as answers change.
-- Date ideas include matching metadata for mood, duration in minutes, approximate budget for two, whether it can be done at home, and estimated one-way travel time.
-- Choosing a suggested date plans it for today; choosing another day is a separate action.
-- Completed-date memories with optional notes, ratings, and location.
-- Choose either partner's home as a planned or completed date location; statistics show the number of dates at home and which partner's home is most frequent.
-- Set or change the home location of a completed memory later from its Memories card without changing its date or other details.
-- A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
-- Suggestions (Today, random draw and Feeling) are ranked by season, the forecast for that day, whether the idea fits your shared free time, and the categories you tend to do, and Today says why an idea was picked. Today suggests for the next free weekend day.
-- Five tabs built for phones first, especially iPhone: Hoje; Ideias (all and favourites); Agenda (planned, calendar, week); Viagens; Nós (memories, map, numbers, settings). A soft cream, terracotta and sage palette, with safe-area padding, 16px inputs and 44px tap targets.
-- A world map of past trips, with each trip's cover photo as a pin that opens its memory: photos, a note and a cover. Trips already taken can be added afterwards.
-- Admin at `/admin`: totals and the public catalogue, for accounts with the `catalog_admin` flag. It can't see couples' data.
-- Plans can change: planned dates can be moved or cancelled, finished dates can be edited or undone, and commitments, tasks and trips can be edited. Things already done can be logged straight from the add box.
-- Memories ask whether you'd repeat it, what you watched or what you ate, instead of stars. Places split into ones to try, approved and not again.
-- Places, under Ideias: restaurants, cafés and bars from OpenStreetMap by distance and cuisine, three at a time. Save them, plan a date there with the map pin filled in, open them in Google Maps or look them up on TheFork, and each partner rates them separately.
-- Trips: a list of cities you want to visit with the best time to go, a link to compare flights from Porto, and trips with dates. Trips reach the calendars and count as busy, and each has a plan by day or still to fit in.
-- A Today page (`/hoje`, the default after sign-in) with the next date, a one-step way to plan a date from a few words, the time you are both free, a weekend suggestion and upcoming special dates.
-- One box to add dates, commitments and ideas from a sentence such as "sábado às 9 dentista": it works out the day, time and kind in the browser, and new ideas get a guessed emoji, category and duration.
-- Commitments for one partner or both, shown on Today, in the Agenda and in the calendar. They reach the calendar feed, and timed ones count as busy time.
-- Push notifications, turned on per device from the Agenda, with a preference per category: dates and commitments the evening before and shortly before, a prompt after a date, what the other partner adds, a Thursday nudge when the weekend is free and unplanned, and special dates. On iPhone the site must first be added to the home screen. An hourly job calls `api/notifications.ts`, which needs `VITE_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`.
-- An Agenda page (`/agenda`) with each partner's fixed weekly work hours, the time you are both free over the next 7 days, and couple tasks that can belong to one partner or both.
-- Planned dates can have an optional start time.
-- A private calendar feed per partner (`/api/calendar?token=…`) to subscribe to in the iPhone Calendar (or any app that reads `.ics`). It carries planned dates, that partner's open tasks and shared ones, the anniversary and birthdays. The feed endpoint is a Vercel function that reads `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (or `SUPABASE_URL` / `SUPABASE_ANON_KEY`); times use the Europe/Lisbon time zone.
-- An OpenStreetMap view for planned and completed dates. Choose a place from search results to save a private map pin.
-- A weather panel with a seven-day forecast for a manually selected city or GPS location. On first use, the app asks before requesting GPS; the choice is saved to the couple's shared profile.
-- Activity-specific weather-aware random and Feeling recommendations that consider rain probability, feels-like temperatures, wind, UV, daylight, and sunshine for relevant activities such as hikes, picnics, beaches, and photography. Weather changes suggestion ranking and draw odds but never excludes an idea; rain is not treated as a blanket reason to stay indoors. A planned date shows its forecast when available.
-- English and European Portuguese interfaces and an “Our stats” view with completed dates, distinct activities, unique places, average rating, estimated spend, dates this month, and favourite category. After five completed dates, the couple profile highlights the two most common moods.
-- Couple milestones and the relationship anniversary are visually separated from each partner's personal birthday. Within 30 days of the anniversary, the home page shows a reminder and a shared-experience gift idea.
-- A non-decaying couple companion on the Dates page earns 25 XP for every completed date and grows through five visual stages. Its progress is calculated from shared memories, so there is no weekly streak or loss of progress when the couple takes a break.
-- Private photo albums for completed dates, accessible while saving a memory or later from the Memories view, with uploads restricted to supported image formats up to 10 MB each.
-- Password reset by email, followed by a secure password update through the recovery link.
-- Replanning a completed date creates a separate planned entry and keeps the original memory.
-- A proposal prompt linking to the supplied interactive page.
-
-The couple profile is calculated from the mood tags on completed date ideas; it is not a psychological assessment. “Surprise me” dates are excluded from mood rankings.
-
-### Date idea fields and Feeling matching
-
-Use one row per idea when importing an existing list. The app accepts `.xlsx` and `.csv` files (comma- or semicolon-delimited CSV); download the CSV template from the import dialog. Header names are case-insensitive. Common Portuguese equivalents are also accepted for title, description, mood, duration, budget, at-home, travel time, and category.
-
-| Column | Required | Meaning / allowed values |
-|---|---:|---|
-| `title` | Yes | Short date-idea name. |
-| `description` | Yes | What the couple will do. |
-| `mood` | Yes | `Romantic`, `Fun`, `Relaxing`, `Adventure`, `Creative`, or `Surprise me`. |
-| `duration_minutes` | Yes | Estimated total time in minutes (for example, `90`). |
-| `budget_eur` | Yes | Estimated total cost for both people in euros (for example, `30`). |
-| `at_home` | Yes | `true` or `false`. |
-| `travel_minutes` | No | Estimated one-way travel time in minutes; leave blank if unknown. Use `0` for at-home activities. |
-| `category` | No | `Romantic`, `Adventure`, `Food & drink`, `Creative`, `Relaxing`, or `Culture`. When blank, it is derived from the mood. |
-| `weather_setting` | No | `any`, `indoor`, or `outdoor`. Defaults to `indoor` for ideas marked `at_home`, otherwise `any`. |
-| `emoji` | No | Optional display emoji. |
-
-Each row must include a title, description, supported mood, positive whole-number duration in minutes, non-negative budget in euros, and `true`/`false` value for `at_home`. The preview shows validation errors by row; only valid rows can be imported.
-
-Example:
-
-```csv
-title,description,mood,duration_minutes,budget_eur,at_home,travel_minutes,emoji
-"Sunset picnic","Pack a basket and watch the sunset together.",Romantic,150,30,false,30,🧺
-"Cook something new","Choose a cuisine and make dinner together.",Fun,90,10,true,0,🍝
+```text
+api/                  Vercel functions: calendar feed, notifications, account deletion
+public/               PWA manifest, service worker and icons
+src/App.tsx           Main application shell and views
+src/AdminPage.tsx     Admin page
+src/InfoPages.tsx     Privacy policy and in-app guide
+src/quickParse.ts     Understands text typed in the add box
+src/suggestions.ts    Ranks ideas by time, weather and season
+supabase/migrations/  Database schema, in filename order
+docs/                 User guides
 ```
 
-Feeling first considers unplanned ideas, then progressively applies the selected mood, duration, budget, distance, and optional exclusions. Matching suggestions are shown alongside the current question and can be chosen at any point. “At home” matches ideas marked `at_home`; the 30-minute and one-hour choices match ideas marked at home or with a known travel time within that limit. “No limit” does not filter by travel or budget. The anniversary shortcut starts with the couple's most common completed-date mood, if one exists, and the same Feeling flow can refine that recommendation. The days/months/years relationship counter remembers its selected metric on the current device. Random mode makes at most three draws in its current draw session and favours ideas not already shown.
+## Getting started
 
-Weather suggestions use the saved forecast location and remain optional. On first use, a consent prompt appears before requesting GPS; choosing “Not now” dismisses the prompt on that device, while a city can be searched manually or the location can be set later. The selected location is saved to the couple's shared profile. The seven-day Open-Meteo forecast informs per-activity suitability using rain, apparent temperature, wind, UV, daylight, and sunshine where relevant. Weather ranks suggestions and weights random draws, but never removes a date idea from the pool; an outdoor activity can still be chosen on a rainy day. Indoor ideas are treated as weather-insensitive, beach plans benefit from warmth, picnics from comfortable temperatures and light wind, hikes from safe temperatures and daylight, and cloud can be favourable for photography. The optional “things to avoid” answer is still available for immediate restrictions.
-
-## Technology Stack
-
-| Technology | Purpose |
-|---|---|
-| React | User interface |
-| TypeScript | Type safety |
-| Vite | Development server and build tooling |
-| CSS | Styling and responsive design |
-| Supabase Auth | Authentication |
-| Supabase PostgreSQL | Application data |
-| Supabase Storage | Private photo storage |
-| OpenStreetMap | Map tiles and place search |
-| Open-Meteo | Seven-day weather forecasts |
-| Git and GitHub | Version control and project management |
-| Vercel | Web application deployment |
-
-## Architecture
-
-Nossia follows a frontend-first architecture supported by Supabase services.
-
-- **Frontend:** React, TypeScript, and Vite.
-- **Authentication:** Supabase Auth.
-- **Database:** PostgreSQL managed by Supabase.
-- **File storage:** Private Supabase Storage bucket with couple-scoped access policies.
-- **Maps and place search:** OpenStreetMap tiles and a user-triggered place search.
-- **Weather:** Open-Meteo forecasts using couple-selected coordinates.
-- **Deployment:** Vercel, integrated with the GitHub repository.
-
-Database access must be protected by Row Level Security (RLS). Server-side secrets must never be exposed in client-side code.
-
-## Getting Started
-
-### Prerequisites
-
-Install the following tools:
-
-- Node.js LTS
-- npm
-- Git
-- A GitHub account
-- A Supabase project
-
-### Local development
+You need Node.js LTS, npm and a Supabase project.
 
 ```bash
 npm install
+```
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in the Supabase values in `.env.local`, apply the [migrations](#database), then:
+
+```bash
 npm run dev
 ```
 
-Copy `.env.example` to `.env.local` and add the Supabase project URL and publishable/anonymous key. The app displays setup guidance and does not pretend data is syncing when these settings are absent.
-
-### Database setup
-
-Apply the SQL migrations, in filename order, from the [`supabase/migrations`](./supabase/migrations) directory to your Supabase project using the Supabase SQL Editor or Supabase CLI:
-
-1. [`20261013000000_initial_couple_app.sql`](./supabase/migrations/20261013000000_initial_couple_app.sql)
-2. [`20261013230000_calendar_map_photo_albums.sql`](./supabase/migrations/20261013230000_calendar_map_photo_albums.sql)
-3. [`20261013233000_nossia_feeling_recommendations.sql`](./supabase/migrations/20261013233000_nossia_feeling_recommendations.sql)
-4. [`20261014000000_shared_date_idea_catalog.sql`](./supabase/migrations/20261014000000_shared_date_idea_catalog.sql)
-5. [`20261014010000_weather_preferences.sql`](./supabase/migrations/20261014010000_weather_preferences.sql)
-6. [`20261014020000_saved_home_locations.sql`](./supabase/migrations/20261014020000_saved_home_locations.sql)
-7. [`20261016010000_couple_profile_photo.sql`](./supabase/migrations/20261016010000_couple_profile_photo.sql)
-
-The initial migration creates the couple profile and date-ideas tables, row-level access policies, and an Auth trigger that creates the couple profile from sign-up metadata. The second migration adds date coordinates, the private photo-albums table, the `date-photos` Storage bucket, and couple-scoped policies for photo records and files. The third adds the metadata used by Feeling recommendations. The fourth creates the shared default-idea catalog, its administrator-only write policies, and links existing starter ideas to their templates. The fifth adds saved weather coordinates and indoor/outdoor metadata. The sixth adds a private per-date marker for either partner's home. The seventh adds the shared couple-profile photo path; it reuses the private `date-photos` bucket and its couple-scoped storage policies. If migrations one through six have already been applied, apply only the new seventh migration.
-
-To enable global catalog uploads for the app owner, set the `catalog_admin` flag in that owner's Supabase **app metadata**. Run this in the Supabase SQL Editor after replacing the email with the account's sign-in email:
-
-```sql
-update auth.users
-set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"catalog_admin": true}'::jsonb
-where email = 'YOUR_LOGIN_EMAIL';
-```
-
-The SQL policy checks this signed app-metadata claim, so changing browser-side data cannot grant catalog access. Sign out and back in after setting the flag so the new claim is included in the session. Only mark the app owner's account as an administrator.
-
-In Supabase Auth, configure the site URL and allowed redirect URLs for your local app and deployed domain. Password recovery returns to `/recover`, so allow `https://nossia.vercel.app/recover` (or `https://nossia.vercel.app/**`) in the redirect URLs. If the Vercel domain changes, update the allowed redirects and Site URL accordingly. The Supabase project and credentials do not need to change. Email confirmation can be enabled in the Supabase Auth settings.
-
-The app uses browser routes for `/signin`, `/signup`, `/recover`, and `/update-password`, plus `/dates`, `/planned`, `/memories`, `/calendar`, `/favorites`, `/map`, and `/insights` after sign-in. The Vercel rewrite serves the SPA entry point for direct links and page refreshes.
-
-### Deploying to Vercel
-
-Import the GitHub repository into Vercel and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the project's environment variables for each deployment environment. Redeploy after changing environment variables. Never use a Supabase service-role key in the frontend.
-
-Create a production build locally with:
+To check types and create a production build:
 
 ```bash
 npm run build
 ```
 
-## Environment Variables
+## Environment variables
 
-The application uses the following browser-safe client configuration:
+| Variable | Where | Purpose |
+|---|---|---|
+| `VITE_SUPABASE_URL` | Browser and server | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Browser and server | Public key; data is protected by RLS |
+| `VITE_VAPID_PUBLIC_KEY` | Browser and server | Web push public key |
+| `VAPID_PRIVATE_KEY` | Server only | Web push private key |
+| `CRON_SECRET` | Server only | Authorises the hourly reminder job |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server only | Sends reminders and deletes accounts |
 
-```dotenv
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-```
+**Never commit `.env.local` or any server-only value.** Never expose them with a `VITE_` prefix.
 
-Use the Supabase publishable/anonymous key only. The schema's Row Level Security policies are responsible for protecting private data.
+## Database
 
-**Never commit `.env.local`, database passwords, service-role keys, or other private credentials.** Only public client configuration intended for browser use may be exposed to the frontend. Access to private data must be enforced through database and storage policies.
+Apply every file in [`supabase/migrations`](./supabase/migrations), in filename order, using the Supabase SQL Editor or CLI.
 
-## Development Workflow
+In Supabase Auth, set the site URL and allow the `/recover` redirect for your local and deployed domains.
 
-1. Create an Issue describing the task.
-2. Associate it with the appropriate milestone and GitHub Project.
-3. Create a branch from the main development branch.
-4. Implement the change and run the relevant checks.
-5. Open a Pull Request with a description and testing information.
-6. Review and merge the change once the acceptance criteria are met.
+The hourly reminders need a scheduled `pg_cron` and `pg_net` job that calls `POST /api/notifications` with `Authorization: Bearer <CRON_SECRET>`.
 
-Use descriptive branch names, such as:
+## Admin
 
-- `feature/activity-draw`
-- `feature/experience-diary`
-- `fix/activity-filter`
-- `docs/project-architecture`
+1. Sign up in the app with a dedicated email.
+2. Run this in the Supabase SQL Editor:
 
-## Documentation
+   ```sql
+   update auth.users
+   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb) || '{"catalog_admin": true}'::jsonb
+   where email = 'YOUR_ADMIN_EMAIL';
+   ```
 
-The GitHub Wiki contains the detailed project documentation, including:
+3. Sign out and in again, then open `/admin`.
 
-- Product vision and requirements.
-- System architecture and data model.
-- Security and privacy policies.
-- User interface design.
-- Development phases and backlog.
-- Testing and deployment procedures.
-- Technical decision records.
+The flag is signed into the session, so it can't be set from the browser. The page shows only totals and the public catalogue, and admin accounts are left out of the totals.
 
-## Security and Privacy
+## Deployment
 
-Nossia is intended to store personal plans, notes, and photographs.
+Import the repository into Vercel and add the [environment variables](#environment-variables). Every push to `main` deploys to production. Apply a new migration **before** merging code that depends on it.
 
-The implementation must enforce:
+## Security and privacy
 
-- Authentication for private application areas.
-- Couple-level authorization for shared records.
-- Row Level Security on private database tables.
-- Restricted access to stored photographs through both database and Storage policies.
-- Secure handling of credentials and environment variables.
-- Explicit permission before accessing device location.
-- Place searches are sent to OpenStreetMap's Nominatim service only when a user chooses to search. The app asks before requesting GPS; coordinates are stored in the couple's shared profile and sent to Open-Meteo to retrieve the forecast.
-- Appropriate error handling without exposing sensitive information.
+- Row Level Security on every private table, scoped to the couple.
+- Photos in a private Storage bucket, served through short-lived signed URLs.
+- Deleting an account removes the couple's data and photos, unless a partner still uses it.
+- GPS is only requested when someone chooses to search nearby.
 
-## Remaining roadmap
+The policy shown to users is in the app at `/privacidade`. To report a security issue, please open a GitHub issue without sensitive details and ask for a private contact.
 
-1. Add persistent notifications and reminders.
-2. Add couple-profile editing and plan cancellation.
-3. Add a named AI companion that grows with shared experiences, uses both partners' interests, and recommends timely events and getaways; the current non-AI companion establishes its first visual and XP progression.
-4. Refine weather suitability by activity using precipitation amount, forecast timing, route/exposure, and user-selected activity metadata.
+## Contributing
 
-The app is intended to deploy as a Vercel web app connected to a Supabase project, with its source hosted on GitHub.
+1. Create a branch from `main`, such as `feature/activity-draw` or `fix/activity-filter`.
+2. Make the change and run `npm run build`.
+3. Open a Pull Request describing the change, how it was tested and any migration it needs.
+
+## Roadmap
+
+- Portuguese and English in the app
+- A yearly replay with the films, restaurants and places you loved
+- A companion character with clothes earned through dates

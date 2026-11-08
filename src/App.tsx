@@ -13,6 +13,8 @@ import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import { guessIdea, isWatchingAtHome, memoryKind, placeFromTitle, placeKindFromTitle, plain, watchedName } from "./quickParse";
 import { authErrorMessage } from "./authErrors";
+import { AccountSettings } from "./AccountSettings";
+import { Welcome } from "./Welcome";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
@@ -46,6 +48,7 @@ type DatePhoto = {
 };
 type Couple = {
   id: string;
+  home_airport: string;
   partner_one_name: string;
   partner_two_name: string;
   partner_one_birth_date: string | null;
@@ -531,6 +534,7 @@ function AuthScreen({ language, initialMode, onModeChange, recovery = false, onR
             <button className="modal-submit auth-submit" type="submit" disabled={loading || !isSupabaseConfigured || (mode === "join" && (!inviteChecked || !invite))}>{loading ? language === "pt" ? "Um momento…" : "One moment…" : mode === "join" ? language === "pt" ? "Criar a minha conta" : "Create my account" : mode === "sign-up" ? language === "pt" ? "Criar conta de casal" : "Create your couple account" : mode === "reset-request" ? language === "pt" ? "Enviar ligação de recuperação" : "Send recovery link" : mode === "password-update" ? language === "pt" ? "Atualizar palavra-passe" : "Update password" : language === "pt" ? "Iniciar sessão" : "Sign in"} <span>→</span></button>
           </form>
           {mode !== "password-update" && <p className="auth-switch">{mode === "sign-up" || mode === "join" ? language === "pt" ? "Já têm uma conta?" : "Already have an account?" : language === "pt" ? "Ainda não têm conta?" : "New around here?"} <button onClick={() => changeMode(mode === "sign-up" || mode === "reset-request" || mode === "join" ? "sign-in" : "sign-up")}>{mode === "sign-up" || mode === "reset-request" || mode === "join" ? language === "pt" ? "Iniciar sessão" : "Sign in" : language === "pt" ? "Criar conta" : "Create your account"}</button></p>}
+          {(mode === "sign-up" || mode === "join") && <p className="auth-legal">Ao criar conta, aceitas a <a href="/privacidade" target="_blank" rel="noopener noreferrer">política de privacidade</a>.</p>}
           {mode === "password-update" && <p className="auth-switch"><button onClick={() => changeMode("sign-in")}>{language === "pt" ? "Voltar ao início de sessão" : "Back to sign in"}</button></p>}
         </div>
       </main>
@@ -615,6 +619,7 @@ function App() {
   // The sub-section last opened in each tab, so going back to a tab returns there.
   const lastViewInSection = useRef<Partial<Record<Section, View>>>({});
   const [memoryNote, setMemoryNote] = useState("");
+  const [welcomeDone, setWelcomeDone] = useState(false);
   const [memoryDate, setMemoryDate] = useState("");
   const [memoryRepeat, setMemoryRepeat] = useState<boolean | null>(null);
   const [memoryWatched, setMemoryWatched] = useState("");
@@ -1835,6 +1840,17 @@ function App() {
     }
   }
 
+  async function saveAirport(code: string) {
+    if (!supabase || !couple) return;
+    const previous = couple.home_airport;
+    setCouple({ ...couple, home_airport: code });
+    const { error } = await supabase.from("couples").update({ home_airport: code }).eq("id", couple.id);
+    if (error) {
+      setCouple({ ...couple, home_airport: previous });
+      setDataError(`Não foi possível guardar o aeroporto: ${error.message}`);
+    }
+  }
+
   async function signOut() {
     if (!supabase) return;
     const { error } = await supabase.auth.signOut();
@@ -1978,11 +1994,11 @@ function App() {
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} language={language} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
-          {view === "trips" && <TripsPanel coupleId={couple.id} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
+          {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article>
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><AccountSettings airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
             <WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
@@ -2034,6 +2050,7 @@ function App() {
       </main>
 
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
+      {session.user.user_metadata.onboarded !== true && !welcomeDone && <Welcome airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onDone={() => setWelcomeDone(true)} />}
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setModal(null); setAnniversaryPlanDate(null); } }}><section className={`modal-card ${modal === "new" || modal === "edit" ? "idea-editor-modal" : ""} ${modal === "profile" ? "profile-modal" : ""} ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label={language === "pt" ? "Fechar" : "Close"} disabled={busy} onClick={() => { setModal(null); setAnniversaryPlanDate(null); }}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>
         <p className="section-kicker">{language === "pt" ? modal === "profile" ? "O VOSSO CASAL" : modal === "global-import" ? "CATÁLOGO GLOBAL DE IDEIAS" : modal === "import" ? "IMPORTAR IDEIAS" : modal === "plan" ? "UM PLANO SÓ PARA VOCÊS" : modal === "memory" ? "GUARDAR ESTE MOMENTO" : modal === "home-location" ? "ATUALIZAR LOCALIZAÇÃO" : modal === "draw" ? discoveryMode === "feeling" ? "A VOSSA SUGESTÃO PERSONALIZADA" : "O DATE DE HOJE ESTÁ DECIDIDO" : modal === "feeling" ? "ESCOLHER PELO FEELING" : modal === "album" ? "O VOSSO ÁLBUM PRIVADO" : modal === "location" ? "ADICIONAR ESTE LOCAL AO MAPA" : "MAIS UMA IDEIA ESPECIAL" : modal === "profile" ? "YOUR SHARED SPACE" : modal === "global-import" ? "GLOBAL DATE IDEA CATALOG" : modal === "import" ? "IMPORT DATE IDEAS" : modal === "plan" ? "A PLAN JUST FOR THE TWO OF YOU" : modal === "memory" ? "SAVE THIS LITTLE MOMENT" : modal === "home-location" ? "UPDATE DATE LOCATION" : modal === "draw" ? discoveryMode === "feeling" ? "YOUR FEELING MATCH" : "YOUR DATE NIGHT, DECIDED" : modal === "feeling" ? "CHOOSE BY FEELING" : modal === "album" ? "YOUR PRIVATE PHOTO ALBUM" : modal === "location" ? "ADD THIS PLACE TO YOUR MAP" : "ANOTHER LOVELY IDEA"}</p>
         <h2 id="modal-title">{language === "pt" ? modal === "profile" ? "Perfil do casal" : modal === "global-import" ? "Adicionar ideias para todos os casais" : modal === "import" ? "Importar ideias para o vosso casal" : modal === "plan" ? `Vamos combinar um date${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "Como foi o vosso date?" : modal === "home-location" ? `Onde aconteceu ${activeIdea?.title ?? "este date"}?` : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "Uma ideia à vossa medida" : "A vossa próxima aventura" : "Vamos encontrar uma ideia" : modal === "feeling" ? "O que vos apetece hoje?" : modal === "album" ? activeIdea ? `Álbum: ${activeIdea.title}` : "Álbum do date" : modal === "location" ? "Onde aconteceu?" : "O que gostariam de fazer?" : modal === "profile" ? "Your couple profile" : modal === "global-import" ? "Upload ideas for every couple" : modal === "import" ? "Import ideas for your couple" : modal === "plan" ? `Shall we make a date of it${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "How was your date?" : modal === "home-location" ? `Where did ${activeIdea?.title ?? "this date"} happen?` : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "A date idea for the two of you" : "Your next little adventure" : "Let’s find an idea" : modal === "feeling" ? "What do you feel like today?" : modal === "album" ? activeIdea ? `${activeIdea.title} album` : "Date album" : modal === "location" ? "Where did it happen?" : "What would you love to do?"}</h2>
