@@ -102,6 +102,35 @@ export type CoupleCommitment = {
   created_at: string;
 };
 
+export type CoupleDestination = {
+  id: string;
+  couple_id: string;
+  city: string;
+  country: string;
+  created_at: string;
+};
+
+export type CoupleTrip = {
+  id: string;
+  couple_id: string;
+  destination_id: string | null;
+  title: string;
+  start_date: string;
+  end_date: string;
+  created_at: string;
+};
+
+// day null means the item isn't on a particular day yet.
+export type TripItem = {
+  id: string;
+  trip_id: string;
+  couple_id: string;
+  title: string;
+  day: string | null;
+  done: boolean;
+  created_at: string;
+};
+
 export type GeocodedPlace = {
   displayName: string;
   latitude: number;

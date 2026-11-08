@@ -19,6 +19,7 @@ export type ReminderInput = {
   dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string }>;
   commitments: Array<{ id: string; title: string; event_date: string; starts_at: string | null; for_partner: PartnerSlot | null; created_by: string | null; created_at: string }>;
   blocks: Array<{ weekday: number; starts_at: string; ends_at: string }>;
+  trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
 };
 
 const timeZone = "Europe/Lisbon";
@@ -116,12 +117,17 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
     const saturday = addDays(today, 2);
     const sunday = addDays(today, 3);
     const planned = input.dates.some((date) => date.planned_for === saturday || date.planned_for === sunday);
-    const blocked = (date: string) => input.commitments.some((commitment) => commitment.event_date === date && !commitment.starts_at);
+    const blocked = (date: string) => input.commitments.some((commitment) => commitment.event_date === date && !commitment.starts_at)
+      || (input.trips ?? []).some((trip) => trip.start_date <= date && trip.end_date >= date);
     const freeDay = [saturday, sunday].find((date) => hasFreeTime(input.blocks, date) && !blocked(date));
     if (!planned && freeDay) reminders.push({ key: `nudge:${saturday}`, category: "nudges", title: "Ainda não há nada marcado para o fim de semana", body: `${freeDay === saturday ? "Sábado" : "Domingo"} estão livres. Vejam a sugestão da Nossia.`, url: "/hoje" });
   }
 
   if (morning) {
+    for (const trip of input.trips ?? []) {
+      const until = daysBetween(today, trip.start_date);
+      if (until === 7 || until === 1) reminders.push({ key: `trip:${trip.id}:${trip.start_date}:${until}`, category: "dates", title: until === 1 ? `Amanhã: viagem a ${trip.title}` : `Falta uma semana para ${trip.title}`, body: "Vejam o plano da viagem.", url: "/viagens" });
+    }
     const anniversary = nextYearly(input.couple.relationship_date, today);
     const untilAnniversary = daysBetween(today, anniversary);
     if (untilAnniversary === 7 || untilAnniversary === 1) reminders.push({ key: `anniversary:${anniversary}:${untilAnniversary}`, category: "special_dates", title: untilAnniversary === 1 ? "O aniversário de namoro é amanhã" : "Falta uma semana para o aniversário de namoro", body: "Já têm alguma coisa planeada?", url: "/hoje" });
@@ -208,14 +214,15 @@ export async function POST(request: Request) {
   if (membersError) return json({ error: membersError.message }, 500);
   const coupleIds = [...new Set((members ?? []).map((member) => member.couple_id as string))];
   const dateFloor = addDays(today, -1);
-  const [couples, dates, commitments, blocks, settings] = await Promise.all([
+  const [couples, dates, commitments, blocks, settings, trips] = await Promise.all([
     db.from("couples").select("*").in("id", coupleIds),
     db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
     db.from("work_schedule_blocks").select("*").in("couple_id", coupleIds),
     db.from("notification_settings").select("*").in("user_id", userIds),
+    db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", today),
   ]);
-  const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error;
+  const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error ?? trips.error;
   if (loadError) return json({ error: loadError.message }, 500);
 
   let sent = 0;
@@ -233,6 +240,7 @@ export async function POST(request: Request) {
       }),
       commitments: (commitments.data ?? []).filter((commitment) => commitment.couple_id === member.couple_id) as ReminderInput["commitments"],
       blocks: (blocks.data ?? []).filter((block) => block.couple_id === member.couple_id) as ReminderInput["blocks"],
+      trips: (trips.data ?? []).filter((trip) => trip.couple_id === member.couple_id) as ReminderInput["trips"],
     }, now).filter((reminder) => preferences?.[reminder.category] ?? true);
 
     let sentToUser = 0;

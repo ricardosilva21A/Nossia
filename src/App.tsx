@@ -5,23 +5,24 @@ import { isSupabaseConfigured, supabase } from "./lib/supabase";
 import { CalendarView, LocationSearch } from "./CalendarMap";
 import { CoupleCompanion } from "./CoupleCompanion";
 import { SchedulePanel, sharedFreeDays } from "./SchedulePanel";
+import { TripsPanel } from "./TripsPanel";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import { guessIdea } from "./quickParse";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
-import { ArrowRight, Bookmark, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Plane, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
-import type { Category, CoupleCommitment, CoupleDate, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, Mood, WeatherSetting, WorkScheduleBlock } from "./types";
+import type { Category, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, Mood, WeatherSetting, WorkScheduleBlock } from "./types";
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
-type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings";
-type Section = "today" | "ideas" | "agenda" | "us";
+type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips";
+type Section = "today" | "ideas" | "agenda" | "trips" | "us";
 type AuthMode = "sign-in" | "sign-up";
 type AuthFlow = AuthMode | "reset-request" | "password-update" | "join";
 type DiscoveryMode = "random" | "feeling";
@@ -70,11 +71,12 @@ const authPaths: Record<AuthFlow, string> = {
   "password-update": "/update-password",
   join: initialInviteCode ? `/join/${initialInviteCode}` : "/signup",
 };
-// Four tabs; pages that belong together sit under one tab as sub-sections.
+// Five tabs; pages that belong together sit under one tab as sub-sections.
 const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: View[] }> = [
   { id: "today", label: "Hoje", Icon: Home, views: ["today"] },
   { id: "ideas", label: "Ideias", Icon: Lightbulb, views: ["discover", "favorites"] },
   { id: "agenda", label: "Agenda", Icon: CalendarDays, views: ["planned", "calendar", "schedule"] },
+  { id: "trips", label: "Viagens", Icon: Plane, views: ["trips"] },
   { id: "us", label: "Nós", Icon: Heart, views: ["memories", "map", "insights", "settings"] },
 ];
 const subviewLabels: Record<View, string> = {
@@ -88,6 +90,7 @@ const subviewLabels: Record<View, string> = {
   map: "Mapa",
   insights: "Números",
   settings: "Definições",
+  trips: "Viagens",
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
 
@@ -114,6 +117,8 @@ function viewFromPath(pathname: string): View {
     agenda: "schedule",
     semana: "schedule",
     definicoes: "settings",
+    viagens: "trips",
+    trips: "trips",
     settings: "settings",
     favorites: "favorites",
     map: "map",
@@ -123,7 +128,7 @@ function viewFromPath(pathname: string): View {
 }
 
 function pathForView(view: View) {
-  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view}`;
+  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view}`;
 }
 
 function translateImportMessage(language: Language, message: string) {
@@ -542,6 +547,7 @@ function App() {
   const [mySlot, setMySlot] = useState<HomePartner | null>(null);
   const [workBlocks, setWorkBlocks] = useState<WorkScheduleBlock[]>([]);
   const [commitments, setCommitments] = useState<CoupleCommitment[]>([]);
+  const [trips, setTrips] = useState<CoupleTrip[]>([]);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1000));
   const [inviteLink, setInviteLink] = useState("");
@@ -641,13 +647,14 @@ function App() {
     } else {
       setCouplePhotoUrl(null);
     }
-    const [{ rows: savedIdeas, error: ideasError }, { rows: savedDates, error: datesError }, { data: savedFavorites, error: favoritesError }, { data: savedMembers, error: membersError }, { data: savedBlocks }, { data: savedCommitments }] = await Promise.all([
+    const [{ rows: savedIdeas, error: ideasError }, { rows: savedDates, error: datesError }, { data: savedFavorites, error: favoritesError }, { data: savedMembers, error: membersError }, { data: savedBlocks }, { data: savedCommitments }, { data: savedTrips }] = await Promise.all([
       loadAllRows<Idea>("ideas"),
       loadAllRows<CoupleDate>("couple_dates"),
       supabase.from("couple_idea_favorites").select("idea_id"),
       supabase.from("couple_members").select("partner_slot, user_id"),
       supabase.from("work_schedule_blocks").select("*").order("weekday").order("starts_at"),
       supabase.from("couple_commitments").select("*").order("event_date"),
+      supabase.from("couple_trips").select("*").order("start_date"),
     ]);
     if (ideasError || datesError) {
       loadedUser.current = null;
@@ -664,6 +671,7 @@ function App() {
     setMemberSlots((savedMembers ?? []).map((member) => member.partner_slot as HomePartner));
     setWorkBlocks((savedBlocks ?? []) as WorkScheduleBlock[]);
     setCommitments((savedCommitments ?? []) as CoupleCommitment[]);
+    setTrips((savedTrips ?? []) as CoupleTrip[]);
     setMySlot((savedMembers ?? []).find((member) => member.user_id === currentSession.user.id)?.partner_slot as HomePartner | undefined ?? null);
     const { data: savedPhotos, error: photosError } = await supabase.from("date_photos").select("*").order("created_at", { ascending: true });
     if (photosError) {
@@ -743,6 +751,7 @@ function App() {
         setMySlot(null);
         setWorkBlocks([]);
         setCommitments([]);
+        setTrips([]);
         setInviteLink("");
         setPhotos([]);
         setCatalogAvailable(false);
@@ -878,7 +887,12 @@ function App() {
   const upcomingDates = useMemo(() => plannedDates.filter((date) => !date.planned_for || date.planned_for >= localDateString()).sort((first, second) =>
     (first.planned_for ?? "9999").localeCompare(second.planned_for ?? "9999") || (first.planned_start_time ?? "").localeCompare(second.planned_start_time ?? "")), [plannedDates]);
   const overdueDates = useMemo(() => plannedDates.filter((date) => date.planned_for && date.planned_for < localDateString()), [plannedDates]);
-  const freeDays = useMemo(() => sharedFreeDays(workBlocks, plannedDates, commitments), [commitments, plannedDates, workBlocks]);
+  const freeDays = useMemo(() => sharedFreeDays(workBlocks, plannedDates, commitments, trips), [commitments, plannedDates, trips, workBlocks]);
+  const nextTrip = useMemo(() => {
+    const today = localDateString();
+    const trip = trips.filter((item) => item.start_date >= today).sort((first, second) => first.start_date.localeCompare(second.start_date))[0];
+    return trip ? { title: trip.title, days: Math.round((Date.parse(`${trip.start_date}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000) } : null;
+  }, [trips]);
   const suggestionDay = useMemo(() => chooseSuggestionDay(freeDays), [freeDays]);
   const suggestion = useMemo(() => {
     const ranked = rankIdeas(ideasForDate(ideas, suggestionDay.key), {
@@ -1667,6 +1681,7 @@ function App() {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
     settings: ["Definições", "Perfil, notificações, calendário do iPhone e localização."],
+    trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
     planned: ["Planeados", "O que já está marcado."],
     memories: ["Memórias", "Os dates que já fizeram, com notas e fotografias."],
@@ -1678,6 +1693,7 @@ function App() {
     today: [`Hi, ${couple?.partner_one_name} and ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideas", "Pick something to do together, or let Nossia choose."],
     settings: ["Settings", "Profile, notifications, iPhone calendar and location."],
+    trips: ["Trips", "Where you want to go, when to go, and the plan for each trip."],
     favorites: ["Favourites", "Ideas you saved for later."],
     planned: ["Planned", "What's already on the calendar."],
     memories: ["Memories", "Dates you've done, with notes and photos."],
@@ -1732,6 +1748,7 @@ function App() {
             partnerOneName={couple.partner_one_name}
             partnerTwoName={couple.partner_two_name}
             commitments={commitments}
+            nextTrip={nextTrip}
             onQuickAdd={quickAdd}
             onMoreDetails={openIdeaDetails}
             onPlanSuggestion={(idea, date) => void createDate(idea.idea_id, { planned_for: date })}
@@ -1787,11 +1804,12 @@ function App() {
             <div className="filters" aria-label={language === "pt" ? "Filtrar dates por categoria" : "Filter dates by category"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{language === "pt" ? ({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item] : item}</button>)}</div>
           </div>}
 
-          {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} language={language} />}
-          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
+          {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} language={language} />}
+          {view === "trips" && <TripsPanel coupleId={couple.id} trips={trips} onTripsChange={setTrips} />}
+          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
             <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article>
-            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
+            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
             <WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
           {view === "map" && <Suspense fallback={<div className="map-loading">{language === "pt" ? "A abrir o mapa…" : "Opening the map…"}</div>}><LazyMapView
@@ -1824,7 +1842,7 @@ function App() {
               : <div className="insights-profile"><span className="section-kicker">{language === "pt" ? "O VOSSO PERFIL DE CASAL" : "YOUR COUPLE PROFILE"}</span><h2>{language === "pt" ? `São um casal ${completedMoodStats.top.map((stat) => ({ Romantic: "romântico", Fun: "divertido", Relaxing: "tranquilo", Adventure: "aventureiro", Creative: "criativo" })[stat.mood as Exclude<Mood, "Surprise me">]).join(" e ")}` : `You’re a ${completedMoodStats.top.map((stat) => stat.mood).join(" & ")} couple`}</h2><p>{language === "pt" ? `Com base nos vossos ${completedMoodStats.total} dates concluídos, estes são os vossos moods mais frequentes:` : `Based on your ${completedMoodStats.total} completed dates, you’ve shared these kinds of moments the most:`}</p><div className="insights-moods">{completedMoodStats.moods.map((stat) => <div className="insights-mood" key={stat.mood}><div><strong>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[stat.mood] : stat.mood}</strong><span>{stat.count} {language === "pt" ? stat.count === 1 ? "date" : "dates" : stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
           </section>}
 
-          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && <section className="ideas-section">
+          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && view !== "trips" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? language === "pt" ? "A CAMINHO" : "COMING UP" : view === "memories" ? language === "pt" ? "O VOSSO ÁLBUM" : "YOUR LITTLE ALBUM" : language === "pt" ? "ESCOLHIDO A PENSAR NOS DOIS" : "PICKED WITH THE TWO OF YOU IN MIND"}</p><h2>{view === "planned" ? language === "pt" ? "Os vossos próximos dates" : "Your upcoming dates" : view === "memories" ? language === "pt" ? "Momentos que viveram juntos" : "Moments you've shared" : view === "favorites" ? language === "pt" ? "Guardados com carinho" : "Saved with love" : language === "pt" ? "Ideias para desfrutarem juntos" : "Ideas to enjoy together"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={language === "pt" ? "Pesquisar ideias de date" : "Search date ideas"} placeholder={language === "pt" ? "Encontrar uma ideia..." : "Find an idea..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
             <div className="filters" aria-label={language === "pt" ? "Filtrar por categoria" : "Filter by category"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{language === "pt" ? ({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item] : item}</button>)}</div>
 

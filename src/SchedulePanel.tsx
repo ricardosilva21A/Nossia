@@ -4,7 +4,7 @@ import { supabase } from "./lib/supabase";
 import { NotificationSettings } from "./NotificationSettings";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
-import type { CoupleCommitment, CoupleTask, DateIdea, HomePartner, WorkScheduleBlock } from "./types";
+import type { CoupleCommitment, CoupleTask, CoupleTrip, DateIdea, HomePartner, WorkScheduleBlock } from "./types";
 
 type Language = "en" | "pt";
 type ScheduleCouple = { id: string; partner_one_name: string; partner_two_name: string };
@@ -63,7 +63,7 @@ export function freeWindows(busy: FreeWindow[], from: number) {
 }
 
 // Shared free time for the next days, from both work schedules and timed planned dates.
-export function sharedFreeDays(blocks: WorkScheduleBlock[], plannedDates: DateIdea[], commitments: CoupleCommitment[] = [], length = 7, now = new Date()) {
+export function sharedFreeDays(blocks: WorkScheduleBlock[], plannedDates: DateIdea[], commitments: CoupleCommitment[] = [], trips: CoupleTrip[] = [], length = 7, now = new Date()) {
   return Array.from({ length }, (_, offset) => {
     const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
     const key = localDateKey(day);
@@ -77,7 +77,8 @@ export function sharedFreeDays(blocks: WorkScheduleBlock[], plannedDates: DateId
         : []),
     ];
     const from = offset === 0 ? Math.max(dayStart, Math.ceil((now.getHours() * 60 + now.getMinutes()) / 15) * 15) : dayStart;
-    return { day, key, windows: freeWindows(busyIntervals, from), dates: plannedDates.filter((date) => date.planned_for === key), commitments: commitments.filter((commitment) => commitment.event_date === key) };
+    const trip = trips.find((item) => item.start_date <= key && item.end_date >= key) ?? null;
+    return { day, key, trip, windows: trip ? [] : freeWindows(busyIntervals, from), dates: plannedDates.filter((date) => date.planned_for === key), commitments: commitments.filter((commitment) => commitment.event_date === key) };
   });
 }
 
@@ -87,7 +88,7 @@ export function describeWindows(windows: FreeWindow[], language: Language) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
   const pt = language === "pt";
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
@@ -119,7 +120,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     return () => { active = false; };
   }, [couple.id, pt]);
 
-  const nextDays = useMemo(() => sharedFreeDays(blocks, plannedDates, commitments), [blocks, commitments, plannedDates]);
+  const nextDays = useMemo(() => sharedFreeDays(blocks, plannedDates, commitments, trips), [blocks, commitments, plannedDates, trips]);
   const upcomingCommitments = useMemo(() => {
     const today = localDateKey(new Date());
     return commitments.filter((commitment) => commitment.event_date >= today).sort((first, second) => first.event_date.localeCompare(second.event_date) || (first.starts_at ?? "").localeCompare(second.starts_at ?? ""));
@@ -228,9 +229,9 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
         <div className="schedule-card-heading"><div><p className="section-kicker">{pt ? "PRÓXIMOS 7 DIAS" : "NEXT 7 DAYS"}</p><h2>{pt ? "Quando estão os dois livres" : "When you're both free"}</h2></div><button type="button" className="add-button" onClick={onFindDate}>{pt ? "Encontrar um date" : "Find a date"}</button></div>
         {loaded && blocks.length === 0 && <p className="schedule-hint">{pt ? "Adicionem o horário de trabalho de cada um, aqui em baixo, para verem só o tempo que têm em comum." : "Add each of your work schedules below to see only the time you share."}</p>}
         <ul className="free-time-list">
-          {nextDays.map(({ day, key, windows, dates, commitments: dayCommitments }) => <li key={key}>
+          {nextDays.map(({ day, key, trip, windows, dates, commitments: dayCommitments }) => <li key={key}>
             <strong>{formatDay(day)}</strong>
-            <span>{describeWindows(windows, language)}</span>
+            <span>{trip ? `Em viagem: ${trip.title}` : describeWindows(windows, language)}</span>
             {dates.map((date) => <em key={date.id}>{date.emoji} {date.title}{date.planned_start_time ? ` · ${date.planned_start_time.slice(0, 5)}` : ""}</em>)}
             {dayCommitments.map((commitment) => <em className="free-time-commitment" key={commitment.id}>{commitment.title}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""}</em>)}
           </li>)}

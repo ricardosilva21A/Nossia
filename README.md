@@ -58,7 +58,8 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - Set or change the home location of a completed memory later from its Memories card without changing its date or other details.
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - Suggestions (Today, random draw and Feeling) are ranked by season, the forecast for that day, whether the idea fits your shared free time, and the categories you tend to do, and Today says why an idea was picked. Today suggests for the next free weekend day.
-- Four tabs built for phones first, especially iPhone: Hoje; Ideias (all and favourites); Agenda (planned, calendar, week); Nós (memories, map, numbers, settings). A soft cream, terracotta and sage palette, with safe-area padding, 16px inputs and 44px tap targets.
+- Five tabs built for phones first, especially iPhone: Hoje; Ideias (all and favourites); Agenda (planned, calendar, week); Viagens; Nós (memories, map, numbers, settings). A soft cream, terracotta and sage palette, with safe-area padding, 16px inputs and 44px tap targets.
+- Trips: a list of cities you want to visit with the best time to go, a link to compare flights from Porto, and trips with dates. Trips reach the calendars and count as busy, and each has a plan by day or still to fit in.
 - A Today page (`/hoje`, the default after sign-in) with the next date, a one-step way to plan a date from a few words, the time you are both free, a weekend suggestion and upcoming special dates.
 - One box to add dates, commitments and ideas from a sentence such as "sábado às 9 dentista": it works out the day, time and kind in the browser, and new ideas get a guessed emoji, category and duration.
 - Commitments for one partner or both, shown on Today, in the Agenda and in the calendar. They reach the calendar feed, and timed ones count as busy time.
