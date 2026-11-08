@@ -118,6 +118,18 @@ export type CoupleTrip = {
   title: string;
   start_date: string;
   end_date: string;
+  latitude: number | null;
+  longitude: number | null;
+  cover_photo_path: string | null;
+  memory: string;
+  created_at: string;
+};
+
+export type TripPhoto = {
+  id: string;
+  couple_id: string;
+  trip_id: string;
+  storage_path: string;
   created_at: string;
 };
 

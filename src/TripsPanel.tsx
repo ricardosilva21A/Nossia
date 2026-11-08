@@ -42,7 +42,7 @@ function TripDatesForm({ city, busy, onSave, onCancel }: { city: string; busy: b
   </form>;
 }
 
-export function TripsPanel({ coupleId, trips, onTripsChange }: { coupleId: string; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void }) {
+export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { coupleId: string; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void; onOpenMemory: (id: string) => void }) {
   const [destinations, setDestinations] = useState<CoupleDestination[]>([]);
   const [items, setItems] = useState<TripItem[]>([]);
   const [city, setCity] = useState("");
@@ -205,6 +205,7 @@ export function TripsPanel({ coupleId, trips, onTripsChange }: { coupleId: strin
         })}
         {tripItems.length === 0 && <p className="schedule-hint">Ainda não há nada no plano. Acrescentem o que querem fazer, com ou sem dia marcado.</p>}
         <div className="panel-actions">
+          {trip.end_date < today && <button type="button" className="button button-primary" onClick={() => onOpenMemory(trip.id)}>Ver memória</button>}
           <a className="button button-ghost" href={flightsUrl(trip.title, monthNames[Number(trip.start_date.slice(5, 7)) - 1])} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a>
           <button type="button" className="button button-ghost" disabled={busy} onClick={() => void removeTrip(trip.id)}><Trash2 size={16} aria-hidden="true" />Apagar viagem</button>
         </div>

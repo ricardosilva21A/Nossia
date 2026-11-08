@@ -125,6 +125,7 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
 
   if (morning) {
     for (const trip of input.trips ?? []) {
+      if (trip.end_date === yesterday) reminders.push({ key: `trip-after:${trip.id}`, category: "dates", title: `Como foi a viagem a ${trip.title}?`, body: "Juntem as fotografias e guardem a memória.", url: "/mapa-mundo" });
       const until = daysBetween(today, trip.start_date);
       if (until === 7 || until === 1) reminders.push({ key: `trip:${trip.id}:${trip.start_date}:${until}`, category: "dates", title: until === 1 ? `Amanhã: viagem a ${trip.title}` : `Falta uma semana para ${trip.title}`, body: "Vejam o plano da viagem.", url: "/viagens" });
     }
@@ -220,7 +221,7 @@ export async function POST(request: Request) {
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
     db.from("work_schedule_blocks").select("*").in("couple_id", coupleIds),
     db.from("notification_settings").select("*").in("user_id", userIds),
-    db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", today),
+    db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", dateFloor),
   ]);
   const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error ?? trips.error;
   if (loadError) return json({ error: loadError.message }, 500);
