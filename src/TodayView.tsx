@@ -33,6 +33,7 @@ export function TodayView({
   partnerOneName,
   partnerTwoName,
   commitments,
+  nextTrip,
   onQuickAdd,
   onMoreDetails,
   onPlanSuggestion,
@@ -56,6 +57,7 @@ export function TodayView({
   partnerOneName: string;
   partnerTwoName: string;
   commitments: CoupleCommitment[];
+  nextTrip: { title: string; days: number } | null;
   onQuickAdd: (value: QuickAddValue) => Promise<boolean>;
   onMoreDetails: (title: string) => void;
   onPlanSuggestion: (idea: DateIdea, date: string) => void;
@@ -114,9 +116,10 @@ export function TodayView({
         <ul className="special-dates">{nextCommitments.map((commitment) => <li key={commitment.id}><strong>{commitment.title}</strong><span>{commitment.event_date === today ? "Hoje" : shortDay(commitment.event_date, language)}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""} · {partnerName(commitment.for_partner)}</span></li>)}</ul>
       </section>}
 
-      {(anniversary || birthdays.length > 0) && <section className="panel today-dates" aria-label={pt ? "Datas especiais" : "Special dates"}>
+      {(anniversary || birthdays.length > 0 || nextTrip) && <section className="panel today-dates" aria-label={pt ? "Datas especiais" : "Special dates"}>
         <p className="panel-label">{pt ? "Datas especiais" : "Special dates"}</p>
         <ul className="special-dates">
+          {nextTrip && <li><strong>{nextTrip.days === 0 ? "Hoje" : `${nextTrip.days} ${nextTrip.days === 1 ? "dia" : "dias"}`}</strong><span>Viagem a {nextTrip.title}</span></li>}
           {anniversary && <li><strong>{anniversary.days === 0 ? pt ? "Hoje" : "Today" : pt ? `${anniversary.days} dias` : `${anniversary.days} days`}</strong><span>{pt ? `Aniversário de namoro · ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}` : `Anniversary · ${anniversary.years} ${anniversary.years === 1 ? "year" : "years"}`}</span></li>}
           {birthdays.map((birthday) => <li key={birthday.name}><strong>{birthday.days === 0 ? pt ? "Hoje" : "Today" : pt ? `${birthday.days} dias` : `${birthday.days} days`}</strong><span>{pt ? `Anos de ${birthday.name}` : `${birthday.name}'s birthday`}</span></li>)}
         </ul>

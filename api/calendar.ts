@@ -35,6 +35,7 @@ export type CalendarFeed = {
     due_time: string | null;
     assigned_to: PartnerSlot | null;
   }>;
+  trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
   commitments?: Array<{
     id: string;
     title: string;
@@ -108,14 +109,14 @@ function nextDay(date: string) {
   return new Date(Date.UTC(year, month - 1, day + 1)).toISOString().slice(0, 10);
 }
 
-function event(fields: { uid: string; stamp: string; summary: string; date: string; time?: string | null; durationMinutes?: number; description?: string; location?: string | null; yearly?: boolean }) {
+function event(fields: { uid: string; stamp: string; summary: string; date: string; time?: string | null; durationMinutes?: number; endDate?: string; description?: string; location?: string | null; yearly?: boolean }) {
   const lines = ["BEGIN:VEVENT", `UID:${fields.uid}@nossia.app`, `DTSTAMP:${fields.stamp}`, `SUMMARY:${escapeText(fields.summary)}`];
   if (fields.time) {
     lines.push(`DTSTART;TZID=${timeZone}:${localDateTime(fields.date, fields.time)}`);
     lines.push(`DTEND;TZID=${timeZone}:${localDateTime(fields.date, fields.time, fields.durationMinutes ?? 60)}`);
   } else {
     lines.push(`DTSTART;VALUE=DATE:${compactDate(fields.date)}`);
-    lines.push(`DTEND;VALUE=DATE:${compactDate(nextDay(fields.date))}`);
+    lines.push(`DTEND;VALUE=DATE:${compactDate(nextDay(fields.endDate ?? fields.date))}`);
     lines.push("TRANSP:TRANSPARENT");
   }
   if (fields.yearly) lines.push("RRULE:FREQ=YEARLY");
@@ -166,6 +167,17 @@ export function buildCalendar(feed: CalendarFeed, language: Language, now = new 
       time: task.due_time,
       durationMinutes: 30,
       description: [pt ? `Tarefa para ${owner}` : `Task for ${owner}`, task.notes].filter(Boolean).join("\n\n"),
+    }));
+  }
+
+  for (const trip of feed.trips ?? []) {
+    lines.push(...event({
+      uid: `trip-${trip.id}`,
+      stamp,
+      summary: `✈️ ${trip.title}`,
+      date: trip.start_date,
+      endDate: trip.end_date,
+      description: pt ? "Viagem marcada na Nossia" : "Trip planned in Nossia",
     }));
   }
 

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Category, CoupleCommitment, DateIdea, GeocodedPlace } from "./types";
+import type { Category, CoupleCommitment, CoupleTrip, DateIdea, GeocodedPlace } from "./types";
 
 export type CalendarMapIdea = Pick<DateIdea, "id" | "title" | "category" | "status" | "planned_for" | "completed_at" | "location_name" | "latitude" | "longitude">;
 let lastPlaceSearchAt = 0;
@@ -104,7 +104,7 @@ export function LocationSearch({
   );
 }
 
-export function CalendarView({ ideas, commitments = [], language = "en" }: { ideas: CalendarMapIdea[]; commitments?: CoupleCommitment[]; language?: Language }) {
+export function CalendarView({ ideas, commitments = [], trips = [], language = "en" }: { ideas: CalendarMapIdea[]; commitments?: CoupleCommitment[]; trips?: CoupleTrip[]; language?: Language }) {
   const [month, setMonth] = useState(() => {
     const today = new Date();
     return new Date(today.getFullYear(), today.getMonth(), 1);
@@ -126,6 +126,7 @@ export function CalendarView({ ideas, commitments = [], language = "en" }: { ide
   const gridStart = new Date(month.getFullYear(), month.getMonth(), 1 - firstWeekday);
   const days = Array.from({ length: 42 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
   const selectedIdeas = eventsByDate.get(selectedDate) ?? [];
+  const selectedTrips = trips.filter((trip) => trip.start_date <= selectedDate && trip.end_date >= selectedDate);
   const selectedCommitments = commitments.filter((commitment) => commitment.event_date === selectedDate).sort((first, second) => (first.starts_at ?? "").localeCompare(second.starts_at ?? ""));
   const unscheduledIdeas = ideas.filter((idea) => idea.status === "planned" && !idea.planned_for);
 
@@ -154,11 +155,12 @@ export function CalendarView({ ideas, commitments = [], language = "en" }: { ide
           const dateKey = localDateKey(day);
           const dayEvents = eventsByDate.get(dateKey) ?? [];
           const hasCommitment = commitments.some((commitment) => commitment.event_date === dateKey);
+          const hasTrip = trips.some((trip) => trip.start_date <= dateKey && trip.end_date >= dateKey);
           return <button
             type="button"
             role="gridcell"
             key={dateKey}
-            className={`calendar-day ${day.getMonth() !== month.getMonth() ? "outside-month" : ""} ${dateKey === selectedDate ? "selected-day" : ""} ${dateKey === localDateKey(new Date()) ? "today-day" : ""}`}
+            className={`calendar-day ${hasTrip ? "trip-day" : ""} ${day.getMonth() !== month.getMonth() ? "outside-month" : ""} ${dateKey === selectedDate ? "selected-day" : ""} ${dateKey === localDateKey(new Date()) ? "today-day" : ""}`}
             onClick={() => setSelectedDate(dateKey)}
             aria-label={`${displayDate(dateKey, language)}${dayEvents.length ? `, ${dayEvents.length} ${language === "pt" ? "dates" : `date${dayEvents.length === 1 ? "" : "s"}`}` : ""}`}
             aria-pressed={dateKey === selectedDate}
@@ -170,6 +172,11 @@ export function CalendarView({ ideas, commitments = [], language = "en" }: { ide
       </div>
       <div className="calendar-day-details">
         <h3>{displayDate(selectedDate, language)}</h3>
+        {selectedTrips.map((trip) => <article className="calendar-event" key={trip.id}>
+          <span className="calendar-event-marker trip-marker" />
+          <div><strong>{trip.title}</strong><span>{displayDate(trip.start_date, language)} a {displayDate(trip.end_date, language)}</span></div>
+          <small>Viagem</small>
+        </article>)}
         {selectedCommitments.map((commitment) => <article className="calendar-event" key={commitment.id}>
           <span className="calendar-event-marker commitment-marker" />
           <div><strong>{commitment.title}</strong><span>{commitment.starts_at ? commitment.starts_at.slice(0, 5) : "Sem hora"}</span></div>
@@ -179,7 +186,7 @@ export function CalendarView({ ideas, commitments = [], language = "en" }: { ide
           <span className={idea.status === "completed" ? "calendar-event-marker completed-marker" : "calendar-event-marker"} />
           <div><strong>{idea.title}</strong><span>{displayCategory(idea.category, language)}{idea.location_name ? ` · ${idea.location_name}` : ""}</span></div>
           <small>{idea.status === "completed" ? language === "pt" ? "Memória" : "Memory" : language === "pt" ? "Planeado" : "Planned"}</small>
-        </article>) : selectedCommitments.length > 0 ? null : <p className="calendar-empty">{language === "pt" ? "Ainda não há nada planeado para este dia. Escolha outra data ou planeie um date a partir das ideias." : "Nothing planned for this day yet. Pick another date or plan a date from your ideas."}</p>}
+        </article>) : selectedCommitments.length > 0 || selectedTrips.length > 0 ? null : <p className="calendar-empty">{language === "pt" ? "Ainda não há nada planeado para este dia. Escolha outra data ou planeie um date a partir das ideias." : "Nothing planned for this day yet. Pick another date or plan a date from your ideas."}</p>}
       </div>
       {unscheduledIdeas.length > 0 && <div className="unscheduled-dates">
         <h3>{language === "pt" ? "Dates por agendar" : "Dates to decide"}</h3>

@@ -821,3 +821,39 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,te
 .chip,.special-dates li,.free-days li,.commitment-list li,.task-list li,.schedule-blocks li,.free-time-list li,.couple-chip{background:var(--lemon)}
 .heading-count,.companion-level,.companion-xp-row span:first-child,.milestone-card i,.insight-metric>span,.stat-icon{color:var(--ink)}
 .schedule-blocks button,.task-list button,.commitment-list button,.calendar-day.outside-month span{color:#75686b}
+.trips-page{display:grid;gap:22px;margin-bottom:28px}
+.trips-group{display:grid;gap:10px}
+.trips-group>h2{font-size:21px;margin:0}
+.destination-form,.trip-item-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.trip-item-form{grid-template-columns:minmax(0,1fr) 150px auto}
+.trip-card,.destination-card{background:var(--paper);border-radius:var(--radius-lg);overflow:hidden}
+.destination-card{padding:16px;display:grid;gap:8px}
+.trip-card-header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:16px;border:0;background:transparent;text-align:left;cursor:pointer;color:var(--ink);min-height:64px}
+.trip-flag{font-size:28px;line-height:1}
+.trip-card-title strong,.destination-heading strong{display:block;font-size:17px;font-weight:700}
+.trip-card-title small,.destination-heading small{display:block;font-size:13px;color:var(--ink-2)}
+.trip-chevron{color:var(--ink-3);transition:transform .15s}.trip-chevron.open{transform:rotate(180deg)}
+.trip-plan{display:grid;gap:12px;padding:0 16px 16px}
+.trip-plan h4{margin:0 0 6px;font-size:14px;font-weight:700;color:var(--ink);text-transform:capitalize}
+.trip-items{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.trip-items li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 10px;border-radius:14px;background:var(--lemon);font-size:14px}
+.trip-items input{width:20px;height:20px;accent-color:var(--accent)}
+.trip-items span{overflow-wrap:anywhere}
+.trip-item-done span{text-decoration:line-through;color:var(--ink-3)}
+.trip-items select{max-width:108px;min-height:36px;border:0;border-radius:10px;background:var(--paper);color:var(--ink);font:13px "DM Sans",sans-serif;padding:0 6px}
+.trip-items button{display:grid;place-items:center;width:40px;height:40px;border:0;background:transparent;color:#75686b;cursor:pointer;border-radius:10px}
+.trip-ideas p{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.trip-ideas .chip{height:auto;padding:8px 13px;text-align:left}
+.destination-heading{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center}
+.destination-best{margin:0;font-size:14px;line-height:1.5;color:var(--ink-2)}
+.destination-best strong{color:var(--ink)}
+.destination-booked{margin:0;font-size:13px;font-weight:600;color:#3f7a5e}
+.destination-card .panel-actions{margin-top:2px}
+.trip-dates-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.trip-dates-form .form-input{display:block;margin-top:5px}
+.trip-dates-form .panel-actions{grid-column:1/-1;margin-top:0}
+.calendar-day.trip-day{background:#e3efe8}
+.calendar-event-marker.trip-marker{background:var(--cobalt)}
+@media(max-width:760px){.side-nav{grid-template-columns:repeat(5,minmax(0,1fr));gap:2px}.nav-link{font-size:11px}.trip-item-form{grid-template-columns:1fr 1fr}.trip-item-form .form-input:first-child{grid-column:1/-1}.trip-items select{min-height:40px}}
+a.button{text-decoration:none}
+.trip-plan h4{text-transform:none}.trip-plan h4::first-letter{text-transform:uppercase}
