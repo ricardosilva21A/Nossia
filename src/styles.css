@@ -934,3 +934,4 @@ a.button{text-decoration:none}
 .trip-edit-form{display:grid;gap:8px;padding:12px;border-radius:14px;background:var(--lemon)}
 .trip-edit-form .form-input{display:block;margin-top:5px}
 .memory-undo{width:100%;margin-top:6px}
+.today-shortcuts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
