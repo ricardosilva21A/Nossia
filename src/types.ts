@@ -46,6 +46,7 @@ export type DateDetails = {
   latitude: number | null;
   longitude: number | null;
   home_partner: HomePartner | null;
+  place_id: string | null;
 };
 
 export type CoupleDate = DateDetails & {
@@ -129,6 +130,28 @@ export type TripItem = {
   day: string | null;
   done: boolean;
   created_at: string;
+};
+
+export type PlaceKind = "restaurant" | "cafe" | "bar";
+
+export type CouplePlace = {
+  id: string;
+  couple_id: string;
+  place_ref: string;
+  name: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  kind: PlaceKind;
+  created_at: string;
+};
+
+export type PlaceRating = {
+  place_id: string;
+  partner_slot: HomePartner;
+  rating: number;
+  comment: string;
+  updated_at: string;
 };
 
 export type GeocodedPlace = {
