@@ -59,6 +59,7 @@ The first release stores a couple profile, date ideas, locations, and photo-albu
 - A monthly calendar showing planned dates and completed memories, with unscheduled plans listed separately.
 - Suggestions (Today, random draw and Feeling) are ranked by season, the forecast for that day, whether the idea fits your shared free time, and the categories you tend to do, and Today says why an idea was picked. Today suggests for the next free weekend day.
 - Five tabs built for phones first, especially iPhone: Hoje; Ideias (all and favourites); Agenda (planned, calendar, week); Viagens; Nós (memories, map, numbers, settings). A soft cream, terracotta and sage palette, with safe-area padding, 16px inputs and 44px tap targets.
+- A world map of past trips, with each trip's cover photo as a pin that opens its memory: photos, a note and a cover. Trips already taken can be added afterwards.
 - Places, under Ideias: restaurants, cafés and bars from OpenStreetMap by distance and cuisine, three at a time. Save them, plan a date there with the map pin filled in, open them in Google Maps or look them up on TheFork, and each partner rates them separately.
 - Trips: a list of cities you want to visit with the best time to go, a link to compare flights from Porto, and trips with dates. Trips reach the calendars and count as busy, and each has a plan by day or still to fit in.
 - A Today page (`/hoje`, the default after sign-in) with the next date, a one-step way to plan a date from a few words, the time you are both free, a weekend suggestion and upcoming special dates.

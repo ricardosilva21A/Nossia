@@ -6,6 +6,7 @@ import { CalendarView, LocationSearch } from "./CalendarMap";
 import { CoupleCompanion } from "./CoupleCompanion";
 import { SchedulePanel, sharedFreeDays } from "./SchedulePanel";
 import { TripsPanel } from "./TripsPanel";
+import { TripWorld } from "./TripWorld";
 import { PlacesPanel } from "./PlacesPanel";
 import type { PlaceToPlan } from "./PlacesPanel";
 import { QuickAddBox } from "./QuickAddBox";
@@ -23,7 +24,7 @@ import type { Category, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, D
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
-type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "places";
+type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "tripMap" | "places";
 type Section = "today" | "ideas" | "agenda" | "trips" | "us";
 type AuthMode = "sign-in" | "sign-up";
 type AuthFlow = AuthMode | "reset-request" | "password-update" | "join";
@@ -78,7 +79,7 @@ const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: Vie
   { id: "today", label: "Hoje", Icon: Home, views: ["today"] },
   { id: "ideas", label: "Ideias", Icon: Lightbulb, views: ["discover", "favorites", "places"] },
   { id: "agenda", label: "Agenda", Icon: CalendarDays, views: ["planned", "calendar", "schedule"] },
-  { id: "trips", label: "Viagens", Icon: Plane, views: ["trips"] },
+  { id: "trips", label: "Viagens", Icon: Plane, views: ["trips", "tripMap"] },
   { id: "us", label: "Nós", Icon: Heart, views: ["memories", "map", "insights", "settings"] },
 ];
 const subviewLabels: Record<View, string> = {
@@ -92,7 +93,8 @@ const subviewLabels: Record<View, string> = {
   map: "Mapa",
   insights: "Números",
   settings: "Definições",
-  trips: "Viagens",
+  trips: "Planos",
+  tripMap: "Mapa-mundo",
   places: "Sítios",
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
@@ -121,6 +123,7 @@ function viewFromPath(pathname: string): View {
     semana: "schedule",
     definicoes: "settings",
     viagens: "trips",
+    "mapa-mundo": "tripMap",
     sitios: "places",
     trips: "trips",
     settings: "settings",
@@ -132,7 +135,7 @@ function viewFromPath(pathname: string): View {
 }
 
 function pathForView(view: View) {
-  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "places" ? "sitios" : view}`;
+  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "tripMap" ? "mapa-mundo" : view === "places" ? "sitios" : view}`;
 }
 
 function translateImportMessage(language: Language, message: string) {
@@ -554,6 +557,7 @@ function App() {
   const [workBlocks, setWorkBlocks] = useState<WorkScheduleBlock[]>([]);
   const [commitments, setCommitments] = useState<CoupleCommitment[]>([]);
   const [trips, setTrips] = useState<CoupleTrip[]>([]);
+  const [memoryTripId, setMemoryTripId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [suggestionSeed, setSuggestionSeed] = useState(() => Math.floor(Math.random() * 1000));
   const [inviteLink, setInviteLink] = useState("");
@@ -1694,6 +1698,7 @@ function App() {
     discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
     settings: ["Definições", "Perfil, notificações, calendário do iPhone e localização."],
     trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
+    tripMap: ["Mapa-mundo", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
     places: ["Sítios", "Restaurantes, cafés e bares para experimentar, e os que já são vossos."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
     planned: ["Planeados", "O que já está marcado."],
@@ -1707,6 +1712,7 @@ function App() {
     discover: ["Ideas", "Pick something to do together, or let Nossia choose."],
     settings: ["Settings", "Profile, notifications, iPhone calendar and location."],
     trips: ["Trips", "Where you want to go, when to go, and the plan for each trip."],
+    tripMap: ["World map", "The places you've been. Tap a photo to open the memory."],
     places: ["Places", "Restaurants, cafés and bars to try, and the ones that are already yours."],
     favorites: ["Favourites", "Ideas you saved for later."],
     planned: ["Planned", "What's already on the calendar."],
@@ -1820,7 +1826,8 @@ function App() {
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} language={language} />}
           {view === "places" && <PlacesPanel couple={couple} mySlot={mySlot} dates={ideas} busy={busy} onPlan={planAtPlace} />}
-          {view === "trips" && <TripsPanel coupleId={couple.id} trips={trips} onTripsChange={setTrips} />}
+          {view === "trips" && <TripsPanel coupleId={couple.id} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
+          {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
             <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article>
@@ -1857,7 +1864,7 @@ function App() {
               : <div className="insights-profile"><span className="section-kicker">{language === "pt" ? "O VOSSO PERFIL DE CASAL" : "YOUR COUPLE PROFILE"}</span><h2>{language === "pt" ? `São um casal ${completedMoodStats.top.map((stat) => ({ Romantic: "romântico", Fun: "divertido", Relaxing: "tranquilo", Adventure: "aventureiro", Creative: "criativo" })[stat.mood as Exclude<Mood, "Surprise me">]).join(" e ")}` : `You’re a ${completedMoodStats.top.map((stat) => stat.mood).join(" & ")} couple`}</h2><p>{language === "pt" ? `Com base nos vossos ${completedMoodStats.total} dates concluídos, estes são os vossos moods mais frequentes:` : `Based on your ${completedMoodStats.total} completed dates, you’ve shared these kinds of moments the most:`}</p><div className="insights-moods">{completedMoodStats.moods.map((stat) => <div className="insights-mood" key={stat.mood}><div><strong>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[stat.mood] : stat.mood}</strong><span>{stat.count} {language === "pt" ? stat.count === 1 ? "date" : "dates" : stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
           </section>}
 
-          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && view !== "trips" && view !== "places" && <section className="ideas-section">
+          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? language === "pt" ? "A CAMINHO" : "COMING UP" : view === "memories" ? language === "pt" ? "O VOSSO ÁLBUM" : "YOUR LITTLE ALBUM" : language === "pt" ? "ESCOLHIDO A PENSAR NOS DOIS" : "PICKED WITH THE TWO OF YOU IN MIND"}</p><h2>{view === "planned" ? language === "pt" ? "Os vossos próximos dates" : "Your upcoming dates" : view === "memories" ? language === "pt" ? "Momentos que viveram juntos" : "Moments you've shared" : view === "favorites" ? language === "pt" ? "Guardados com carinho" : "Saved with love" : language === "pt" ? "Ideias para desfrutarem juntos" : "Ideas to enjoy together"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={language === "pt" ? "Pesquisar ideias de date" : "Search date ideas"} placeholder={language === "pt" ? "Encontrar uma ideia..." : "Find an idea..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
             <div className="filters" aria-label={language === "pt" ? "Filtrar por categoria" : "Filter by category"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{language === "pt" ? ({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item] : item}</button>)}</div>
 
