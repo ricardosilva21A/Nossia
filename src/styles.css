@@ -919,3 +919,18 @@ a.button{text-decoration:none}
 .trip-memory-photos button{display:grid;place-items:center;min-width:40px;height:40px;border:0;border-radius:999px;background:#ffffffe6;color:var(--ink);cursor:pointer;font:600 12px "DM Sans",sans-serif;padding:0 6px}
 .trip-memory-upload{justify-self:start;position:relative;cursor:pointer}
 .trip-memory-upload input{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.edit-row{display:block!important}
+.edit-row form{display:grid;gap:8px}
+.edit-row-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.row-actions{display:flex;align-items:center;gap:0}
+.row-actions button{display:grid;place-items:center}
+.commitment-list .row-actions button,.task-list .row-actions button{border:0;background:transparent;color:#75686b;cursor:pointer;min-width:40px;min-height:40px;border-radius:10px;font-size:18px}
+.repeat-question{display:grid;gap:6px;margin-top:10px}
+.memory-details .repeat-yes{color:#3f7a5e;font-weight:700}
+.memory-details .repeat-no{color:#75686b;font-weight:700}
+.places-mode{margin-top:-4px}
+.places-approved{display:grid;gap:10px}
+.place-food{display:block;font-size:13px;color:var(--ink-2);margin-top:2px}
+.trip-edit-form{display:grid;gap:8px;padding:12px;border-radius:14px;background:var(--lemon)}
+.trip-edit-form .form-input{display:block;margin-top:5px}
+.memory-undo{width:100%;margin-top:6px}

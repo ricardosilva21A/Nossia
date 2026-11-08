@@ -62,13 +62,13 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
   useEffect(() => {
     if (!supabase) return;
     const client = supabase;
-    const missing = past.filter((trip) => trip.latitude === null && !located.current.has(trip.id));
+    const missing = past.filter((trip) => trip.latitude === null && !located.current.has(`${trip.id}:${trip.title}`));
     if (missing.length === 0) return;
     let active = true;
     void (async () => {
       for (const trip of missing) {
         if (!active) return;
-        located.current.add(trip.id);
+        located.current.add(`${trip.id}:${trip.title}`);
         try {
           const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&accept-language=pt-PT&q=${encodeURIComponent(trip.title)}`);
           const [match] = response.ok ? await response.json() as Array<{ lat: string; lon: string }> : [];
@@ -78,7 +78,7 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
             if (!saveError) onTripsChange((current) => current.map((item) => item.id === trip.id ? { ...item, ...position } : item));
           }
         } catch {
-          located.current.delete(trip.id);
+          located.current.delete(`${trip.id}:${trip.title}`);
         }
         await new Promise((resolve) => setTimeout(resolve, 1100));
       }

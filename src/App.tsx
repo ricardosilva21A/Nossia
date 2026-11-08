@@ -11,7 +11,7 @@ import { PlacesPanel } from "./PlacesPanel";
 import type { PlaceToPlan } from "./PlacesPanel";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
-import { guessIdea } from "./quickParse";
+import { guessIdea, memoryKind } from "./quickParse";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
@@ -216,6 +216,9 @@ const emptyDateDetails: DateDetails = {
   longitude: null,
   home_partner: null,
   place_id: null,
+  would_repeat: null,
+  watched_title: null,
+  food_notes: null,
 };
 
 // Ideas that already have a date appear through that date instead, so completed ideas are
@@ -223,6 +226,7 @@ const emptyDateDetails: DateDetails = {
 function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: Set<string>, coupleId: string | undefined): DateIdea[] {
   const ideasById = new Map(catalog.map((idea) => [idea.id, idea]));
   const datedIdeaIds = new Set(dates.map((date) => date.idea_id));
+  const plannedIdeaIds = new Set(dates.filter((date) => date.status === "planned").map((date) => date.idea_id));
   const fromIdea = (idea: Idea) => ({
     idea_id: idea.id,
     title: idea.title,
@@ -238,6 +242,7 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
     at_home: idea.at_home,
     weather_setting: idea.weather_setting,
     seasons: idea.seasons ?? [],
+    repeatable: idea.repeatable ?? false,
     favorite: favoriteIdeaIds.has(idea.id),
     is_own_idea: idea.created_by_couple_id !== null && idea.created_by_couple_id === coupleId,
   });
@@ -257,10 +262,13 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
       longitude: date.longitude,
       home_partner: date.home_partner,
       place_id: date.place_id,
+      would_repeat: date.would_repeat,
+      watched_title: date.watched_title,
+      food_notes: date.food_notes,
     }] : [];
   });
   const unplannedIdeas = catalog
-    .filter((idea) => !datedIdeaIds.has(idea.id))
+    .filter((idea) => idea.repeatable ? !plannedIdeaIds.has(idea.id) : !datedIdeaIds.has(idea.id))
     .map((idea) => ({ ...fromIdea(idea), ...emptyDateDetails, id: idea.id, status: "idea" as const }));
   return [...datedIdeas, ...unplannedIdeas];
 }
@@ -602,7 +610,12 @@ function App() {
   // The sub-section last opened in each tab, so going back to a tab returns there.
   const lastViewInSection = useRef<Partial<Record<Section, View>>>({});
   const [memoryNote, setMemoryNote] = useState("");
-  const [rating, setRating] = useState(0);
+  const [memoryDate, setMemoryDate] = useState("");
+  const [memoryRepeat, setMemoryRepeat] = useState<boolean | null>(null);
+  const [memoryWatched, setMemoryWatched] = useState("");
+  const [memoryFood, setMemoryFood] = useState("");
+  const [editingMemory, setEditingMemory] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(false);
   const [locationName, setLocationName] = useState("");
   const [locationLatitude, setLocationLatitude] = useState<number | null>(null);
   const [locationLongitude, setLocationLongitude] = useState<number | null>(null);
@@ -828,7 +841,6 @@ function App() {
     const categoryCounts = new Map<Category, number>();
     completedIdeas.forEach((idea) => categoryCounts.set(idea.category, (categoryCounts.get(idea.category) ?? 0) + 1));
     const topCategory = [...categoryCounts.entries()].sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
-    const ratedIdeas = completedIdeas.filter((idea) => idea.rating !== null);
     const locatedIdeas = completedIdeas.flatMap((idea) => idea.location_name?.trim() ? [idea.location_name.trim().toLocaleLowerCase("en-GB")] : []);
     const today = localDateString();
     const thisMonth = completedIdeas.filter((idea) => idea.completed_at?.slice(0, 7) === today.slice(0, 7)).length;
@@ -836,10 +848,9 @@ function App() {
       total: completedIdeas.length,
       uniqueActivities: uniqueActivities.size,
       topCategory,
-      averageRating: ratedIdeas.length ? ratedIdeas.reduce((total, idea) => total + (idea.rating ?? 0), 0) / ratedIdeas.length : null,
+      wouldRepeat: completedIdeas.filter((idea) => idea.would_repeat).length,
       uniquePlaces: new Set(locatedIdeas).size,
       estimatedSpend: completedIdeas.reduce((total, idea) => total + (idea.budget_eur ?? 0), 0),
-      ratedCount: ratedIdeas.length,
       thisMonth,
       homeDates: completedIdeas.filter((idea) => idea.home_partner !== null).length,
       homeByPartner: (["partner_one", "partner_two"] as const).map((partner) => ({
@@ -1275,6 +1286,7 @@ function App() {
   function openPlan(idea: DateIdea) {
     setAnniversaryPlanDate(null);
     setActiveIdeaId(idea.id);
+    setEditingPlan(false);
     setRepeatIdea(idea.status === "completed");
     setPlannedDate("");
     setPlannedTime("");
@@ -1284,6 +1296,20 @@ function App() {
     setPlannedLatitude(idea.status === "completed" ? idea.latitude : null);
     setPlannedLongitude(idea.status === "completed" ? idea.longitude : null);
     setPlannedHomePartner(homePartner);
+    setModal("plan");
+  }
+
+  function openEditPlan(idea: DateIdea) {
+    setAnniversaryPlanDate(null);
+    setActiveIdeaId(idea.id);
+    setEditingPlan(true);
+    setRepeatIdea(false);
+    setPlannedDate(idea.planned_for ?? "");
+    setPlannedTime(idea.planned_start_time?.slice(0, 5) ?? "");
+    setPlannedLocation(idea.location_name ?? "");
+    setPlannedLatitude(idea.latitude);
+    setPlannedLongitude(idea.longitude);
+    setPlannedHomePartner(idea.home_partner);
     setModal("plan");
   }
 
@@ -1373,26 +1399,53 @@ function App() {
   async function savePlan() {
     const currentIdea = ideas.find((idea) => idea.id === activeIdeaId);
     if (!currentIdea) return;
-    const saved = await createDate(currentIdea.idea_id, {
+    const details = {
       planned_for: plannedDate || null,
       planned_start_time: plannedTime || null,
       location_name: plannedLocation.trim() || null,
       latitude: plannedLatitude,
       longitude: plannedLongitude,
       home_partner: plannedHomePartner,
-    });
+    };
+    const saved = editingPlan ? await updateDate(currentIdea.id, details) : await createDate(currentIdea.idea_id, details);
     if (!saved) return;
+    setEditingPlan(false);
     setModal(null);
     setActiveIdeaId(null);
     setRepeatIdea(false);
     navigateView("planned");
   }
 
+  // The last thing watched for this idea, so carrying on with a series is one tap.
+  function lastWatched(ideaId: string) {
+    return [...dates].filter((date) => date.idea_id === ideaId && date.watched_title).sort((first, second) => (second.completed_at ?? "").localeCompare(first.completed_at ?? ""))[0]?.watched_title ?? "";
+  }
+
+  function openEditMemory(idea: DateIdea) {
+    setActiveIdeaId(idea.id);
+    setEditingMemory(true);
+    setMemoryDate(idea.completed_at ?? localDateString());
+    setMemoryNote(idea.memory ?? "");
+    setMemoryRepeat(idea.would_repeat);
+    setMemoryWatched(idea.watched_title ?? "");
+    setMemoryFood(idea.food_notes ?? "");
+    setMemoryHomePartner(idea.home_partner);
+    setLocationName(idea.location_name ?? "");
+    setLocationLatitude(idea.latitude);
+    setLocationLongitude(idea.longitude);
+    setModal("memory");
+  }
+
   async function markCompleted(id: string) {
     const idea = ideas.find((item) => item.id === id);
+    const today = localDateString();
     setActiveIdeaId(id);
+    setEditingMemory(false);
+    setMemoryDate(idea?.planned_for && idea.planned_for < today ? idea.planned_for : today);
     setMemoryNote("");
-    setRating(0);
+    setMemoryRepeat(null);
+    setMemoryWatched(idea ? lastWatched(idea.idea_id) : "");
+    setMemoryFood("");
     setMemoryHomePartner(idea?.home_partner ?? null);
     setLocationName(idea?.home_partner
       ? language === "pt"
@@ -1407,21 +1460,41 @@ function App() {
   async function saveMemory(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!activeIdeaId) return;
+    const current = ideas.find((idea) => idea.id === activeIdeaId);
     const saved = await updateDate(activeIdeaId, {
       status: "completed",
-      completed_at: localDateString(),
+      completed_at: memoryDate || localDateString(),
       planned_for: null,
       memory: memoryNote.trim() || null,
-      rating: rating || null,
+      would_repeat: memoryRepeat,
+      watched_title: memoryWatched.trim() || null,
+      food_notes: memoryFood.trim() || null,
       location_name: locationName.trim() || null,
       latitude: locationLatitude,
       longitude: locationLongitude,
       home_partner: memoryHomePartner,
     });
     if (!saved) return;
+    // What they thought of the date is what they think of the place.
+    if (supabase && current?.place_id && memoryRepeat !== null) {
+      const { error } = await supabase.from("couple_places").update({ verdict: memoryRepeat ? "liked" : "no" }).eq("id", current.place_id);
+      if (error) setDataError(`Não foi possível atualizar o sítio: ${error.message}`);
+    }
     setModal(null);
     setActiveIdeaId(null);
-    navigateView("memories");
+    if (!editingMemory) navigateView("memories");
+    setEditingMemory(false);
+  }
+
+  async function undoCompleted() {
+    const current = ideas.find((idea) => idea.id === activeIdeaId);
+    if (!current) return;
+    const saved = await updateDate(current.id, { status: "planned", planned_for: current.completed_at && current.completed_at > localDateString() ? current.completed_at : localDateString(), completed_at: null });
+    if (!saved) return;
+    setModal(null);
+    setActiveIdeaId(null);
+    setEditingMemory(false);
+    navigateView("planned");
   }
 
   async function openAlbum(idea: DateIdea) {
@@ -1610,6 +1683,7 @@ function App() {
       at_home: guess.atHome,
       travel_minutes: guess.atHome ? 0 : null,
       weather_setting: guess.weatherSetting,
+      repeatable: guess.repeatable,
     }).select("*").single();
     setBusy(false);
     if (error) {
@@ -1645,6 +1719,29 @@ function App() {
     const ideaId = await findOrCreateIdea(value.title);
     if (!ideaId) return false;
     if (value.kind === "idea") return true;
+    if (value.kind === "done") {
+      const { data, error } = await supabase.from("couple_dates").insert({ couple_id: couple.id, idea_id: ideaId, status: "completed", completed_at: value.date ?? localDateString() }).select("*").single();
+      if (error) {
+        setDataError(`Não foi possível guardar: ${error.message}`);
+        return false;
+      }
+      const saved = data as CoupleDate;
+      setDates((current) => [...current, saved]);
+      setActiveIdeaId(saved.id);
+      setEditingMemory(true);
+      setMemoryDate(saved.completed_at ?? localDateString());
+      setMemoryNote("");
+      setMemoryRepeat(null);
+      setMemoryWatched(lastWatched(ideaId));
+      setMemoryFood("");
+      setMemoryHomePartner(null);
+      setLocationName("");
+      setLocationLatitude(null);
+      setLocationLongitude(null);
+      setQuickAddOpen(false);
+      setModal("memory");
+      return true;
+    }
     return value.date ? createDate(ideaId, { planned_for: value.date, planned_start_time: value.startTime }) : false;
   }
 
@@ -1652,6 +1749,17 @@ function App() {
     const ideaId = await findOrCreateIdea(place.name, { category: "Food & drink", emoji: place.kind === "cafe" ? "☕" : place.kind === "bar" ? "🍸" : "🍽️", weatherSetting: "indoor", durationMinutes: place.kind === "cafe" ? 75 : 120 });
     if (!ideaId) return false;
     return createDate(ideaId, { planned_for: date, planned_start_time: time || null, location_name: place.name, latitude: place.latitude, longitude: place.longitude, place_id: place.placeId });
+  }
+
+  async function updateCommitment(id: string, patch: Partial<CoupleCommitment>) {
+    if (!supabase) return false;
+    const { data, error } = await supabase.from("couple_commitments").update(patch).eq("id", id).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível guardar o compromisso: ${error.message}`);
+      return false;
+    }
+    setCommitments((current) => current.map((commitment) => commitment.id === id ? data as CoupleCommitment : commitment));
+    return true;
   }
 
   async function removeCommitment(id: string) {
@@ -1774,6 +1882,8 @@ function App() {
             onPlanSuggestion={(idea, date) => void createDate(idea.idea_id, { planned_for: date })}
             onAnotherSuggestion={() => setSuggestionSeed((seed) => seed + 1 + Math.floor(Math.random() * 7))}
             onMarkDone={(id) => void markCompleted(id)}
+            onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
+            onOpenPlaces={() => navigateView("places")}
             onOpenIdeas={() => navigateView("discover")}
             onOpenPlanned={() => navigateView("planned")}
             onOpenAgenda={() => navigateView("schedule")}
@@ -1825,13 +1935,13 @@ function App() {
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} language={language} />}
-          {view === "places" && <PlacesPanel couple={couple} mySlot={mySlot} dates={ideas} busy={busy} onPlan={planAtPlace} />}
+          {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
-          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
+          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
             <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article>
-            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
+            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onQuickAdd={quickAdd} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} language={language} onFindDate={() => navigateView("discover")} />
             <WeatherPanel language={language} location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
           {view === "map" && <Suspense fallback={<div className="map-loading">{language === "pt" ? "A abrir o mapa…" : "Opening the map…"}</div>}><LazyMapView
@@ -1851,7 +1961,7 @@ function App() {
             <div className="insights-metrics">
               <article className="insight-metric"><span>✳</span><div><strong>{completedStats.uniqueActivities}</strong><small>{language === "pt" ? "atividades diferentes" : "different activities"}</small></div></article>
               <article className="insight-metric"><span>⌖</span><div><strong>{completedStats.uniquePlaces}</strong><small>{language === "pt" ? "locais visitados" : "places visited"}</small></div></article>
-              <article className="insight-metric"><span>★</span><div><strong>{completedStats.averageRating === null ? "—" : `${completedStats.averageRating.toFixed(1)} / 5`}</strong><small>{language === "pt" ? `avaliação média · ${completedStats.ratedCount} avaliações` : `average rating · ${completedStats.ratedCount} ratings`}</small></div></article>
+              <article className="insight-metric"><span>↻</span><div><strong>{completedStats.wouldRepeat}</strong><small>dates para repetir</small></div></article>
               <article className="insight-metric"><span>€</span><div><strong>{new Intl.NumberFormat(language === "pt" ? "pt-PT" : "en-GB", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(completedStats.estimatedSpend)}</strong><small>{language === "pt" ? "despesa estimada" : "estimated spend"}</small></div></article>
               <article className="insight-metric"><span>♡</span><div><strong>{completedStats.thisMonth}</strong><small>{language === "pt" ? "dates este mês" : "dates this month"}</small></div></article>
               <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? categoryLabel(completedStats.topCategory, language) : "—"}</strong><small>{language === "pt" ? "categoria favorita" : "favourite category"}</small></div></article>
@@ -1871,8 +1981,8 @@ function App() {
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
                 <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{language === "pt" ? ({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[idea.category] : idea.category}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? language === "pt" ? "Remover dos favoritos" : "Remove from favourites" : language === "pt" ? "Adicionar aos favoritos" : "Add to favourites"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">{language === "pt" ? "PLANEADO" : "PLANNED"}</span>}{idea.status === "completed" && <span className="completed-label">{language === "pt" ? "FEITO" : "DONE"}</span>}</div>
-                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{idea.is_own_idea && <div className="idea-management"><button type="button" aria-label={language === "pt" ? `Editar ${idea.title}` : `Edit ${idea.title}`} title={language === "pt" ? "Editar ideia" : "Edit idea"} onClick={() => openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={language === "pt" ? `Apagar ${idea.title}` : `Delete ${idea.title}`} title={language === "pt" ? "Apagar" : "Delete"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for, language)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
-                  {view === "memories" && (idea.memory || idea.location_name || idea.rating) && <div className="memory-details">{idea.rating && <span aria-label={`${idea.rating} out of 5 stars`}>{"★".repeat(idea.rating)}{"☆".repeat(5 - idea.rating)}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
+                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={language === "pt" ? `Editar ${idea.title}` : `Edit ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={language === "pt" ? `Apagar ${idea.title}` : `Delete ${idea.title}`} title={language === "pt" ? "Apagar" : "Delete"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for, language)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
+                  {view === "memories" && (idea.memory || idea.location_name || idea.would_repeat !== null || idea.watched_title || idea.food_notes) && <div className="memory-details">{idea.would_repeat !== null && <span className={idea.would_repeat ? "repeat-yes" : "repeat-no"}>{idea.would_repeat ? "Querem repetir" : "Não repetir"}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
                   <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>{language === "pt" ? "Marcar" : "Plan"}</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}><Check size={15} aria-hidden="true" />{language === "pt" ? "Já fizemos" : "We did it"}</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{language === "pt" ? "Álbum" : "Album"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? language === "pt" ? "Alterar casa" : "Change home" : language === "pt" ? "Definir casa" : "Set home"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>{language === "pt" ? "Repetir" : "Plan again"}</button></div>}</div>
                 </div>
               </article>)}
@@ -1951,11 +2061,11 @@ function App() {
               {feelingSuggestions.length > 12 && <p className="feeling-more-suggestions">{language === "pt" ? `Mais ${feelingSuggestions.length - 12} ideias disponíveis. Continuem a responder para filtrar.` : `${feelingSuggestions.length - 12} more ideas available. Keep answering to narrow them down.`}</p>}
             </aside>
           </div>
-          : modal === "plan" ? <><p className="modal-copy">{repeatIdea ? language === "pt" ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "This creates a new plan and keeps the original memory. To plan for today, choose “This date is for today” on the suggestion." : language === "pt" ? "Escolham uma data diferente para este date." : "Choose a different day for this date."}</p><label className="form-label" htmlFor="planned-date">{language === "pt" ? "Data" : "Date"}<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><label className="form-label" htmlFor="planned-time">{language === "pt" ? "Hora" : "Time"} <span>{language === "pt" ? "(opcional — aparece no calendário do telemóvel)" : "(optional — shows in your phone calendar)"}</span><input className="form-input" id="planned-time" type="time" value={plannedTime} onChange={(event) => setPlannedTime(event.target.value)} /></label><HomeLocationPicker id="planned-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={plannedHomePartner} value={plannedLocation} onHomePartnerChange={(partner) => { setPlannedHomePartner(partner); setPlannedLatitude(null); setPlannedLongitude(null); setPlannedLocation(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onPlaceSelect={(place) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nos dates planeados" : "Save to planned dates"} <span>→</span></button></>
+          : modal === "plan" ? <><p className="modal-copy">{editingPlan ? "Mudem o dia, a hora ou o sítio deste date." : repeatIdea ? language === "pt" ? "Isto cria um novo plano e mantém a memória original. Para hoje, escolha “Este date é para hoje” na sugestão." : "This creates a new plan and keeps the original memory. To plan for today, choose “This date is for today” on the suggestion." : language === "pt" ? "Escolham uma data diferente para este date." : "Choose a different day for this date."}</p><label className="form-label" htmlFor="planned-date">{language === "pt" ? "Data" : "Date"}<input className="form-input" id="planned-date" type="date" required value={plannedDate} onChange={(event) => setPlannedDate(event.target.value)} /></label><label className="form-label" htmlFor="planned-time">{language === "pt" ? "Hora" : "Time"} <span>{language === "pt" ? "(opcional — aparece no calendário do telemóvel)" : "(optional — shows in your phone calendar)"}</span><input className="form-input" id="planned-time" type="time" value={plannedTime} onChange={(event) => setPlannedTime(event.target.value)} /></label><HomeLocationPicker id="planned-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={plannedHomePartner} value={plannedLocation} onHomePartnerChange={(partner) => { setPlannedHomePartner(partner); setPlannedLatitude(null); setPlannedLongitude(null); setPlannedLocation(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setPlannedLocation(value); setPlannedLatitude(null); setPlannedLongitude(null); }} onPlaceSelect={(place) => { setPlannedLocation(place.displayName.slice(0, 160)); setPlannedLatitude(place.latitude); setPlannedLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || !plannedDate} onClick={() => void savePlan()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : editingPlan ? "Guardar alterações" : language === "pt" ? "Guardar nos dates planeados" : "Save to planned dates"} <span>→</span></button></>
           : modal === "album" ? <><p className="modal-copy">{language === "pt" ? "As fotografias são privadas e só estão disponíveis na vossa conta. Adicionem imagens JPG, PNG, WEBP ou GIF (até 10 MB cada)." : "Photos are private to your shared account. Add JPG, PNG, WEBP or GIF images (up to 10 MB each)."}</p>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{busy && <p className="album-loading">{language === "pt" ? "A carregar o álbum…" : "Loading your album…"}</p>}<div className="album-grid">{photos.filter((photo) => photo.date_id === activeIdeaId).map((photo) => photo.signed_url ? <a className="album-photo" key={photo.id} href={photo.signed_url} target="_blank" rel="noopener noreferrer"><img src={photo.signed_url} alt={`${activeIdea?.title ?? "Date"} memory`} loading="lazy" /></a> : <div className="album-photo-unavailable" key={photo.id}>{language === "pt" ? "Pré-visualização indisponível" : "Photo preview unavailable"}</div>)}</div><label className="photo-upload-button">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label></>
           : modal === "home-location" ? <><p className="modal-copy">{language === "pt" ? "Escolham em que casa aconteceu. Isto atualiza esta memória e as estatísticas, sem alterar a data nem o resto do registo." : "Choose whose home hosted this date. This updates the memory and statistics without changing its date or other details."}</p><label className="form-label" htmlFor="completed-home-location">{language === "pt" ? "Local do date" : "Date location"}<select className="form-input" id="completed-home-location" value={memoryHomePartner ?? "unset"} onChange={(event) => { const value = event.target.value; setMemoryHomePartner(value === "partner_one" || value === "partner_two" ? value : null); }}><option value="unset">{language === "pt" ? "Não indicar a casa" : "Don't mark as either home"}</option><option value="partner_one">{language === "pt" ? `Casa de ${couple.partner_one_name}` : `${couple.partner_one_name}'s home`}</option><option value="partner_two">{language === "pt" ? `Casa de ${couple.partner_two_name}` : `${couple.partner_two_name}'s home`}</option></select></label><button className="modal-submit" disabled={busy} onClick={() => void saveCompletedHomeLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar localização" : "Save location"} <span>→</span></button></>
           : modal === "location" ? <><p className="modal-copy">{language === "pt" ? "Pesquisem o local e escolham o resultado correto para o adicionar ao mapa." : "Search for the place, then select the right result to pin it on your map."}</p><LocationSearch language={language} value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar no mapa" : "Save map pin"} <span>→</span></button></>
-          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">{language === "pt" ? "Adicionem uma nota, uma avaliação ou o local que visitaram. Tudo é opcional. Podem adicionar fotografias agora ou mais tarde no álbum." : "Add a little note, a rating or where you went. Every detail is optional. You can add photos now or later from the album."}</p><label className="form-label">{language === "pt" ? "A vossa memória" : "Your memory"} <textarea className="form-input memory-input" maxLength={1000} placeholder={language === "pt" ? "Qual foi a vossa parte favorita?" : "What was your favourite part?"} value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><label className="form-label">{language === "pt" ? "Como avaliam o date?" : "How would you rate it?"}</label><div className="rating-picker" aria-label={language === "pt" ? "Escolher uma classificação de um a cinco" : "Choose a rating from one to five"}>{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} aria-label={`${value} stars`} aria-pressed={rating === value} className={value <= rating ? "chosen" : ""} onClick={() => setRating(value)}>★</button>)}</div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? "Guardar nas memórias" : "Save to our memories"} <span>→</span></button></form>
+          : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Tudo é opcional. Podem juntar fotografias agora ou mais tarde.</p><label className="form-label">Quando foi<input className="form-input" type="date" required max={todayDate} value={memoryDate} onChange={(event) => setMemoryDate(event.target.value)} /></label>{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "watch" && <label className="form-label">O que viram?<input className="form-input" list="watched-titles" maxLength={200} placeholder="Nome do filme, série ou anime" value={memoryWatched} onChange={(event) => setMemoryWatched(event.target.value)} /><datalist id="watched-titles">{[...new Set(dates.flatMap((date) => date.watched_title ? [date.watched_title] : []))].map((title) => <option key={title} value={title} />)}</datalist></label>}{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" && <label className="form-label">O que comeram e beberam?<textarea className="form-input memory-input" maxLength={1000} placeholder="Pratos e bebidas de que se querem lembrar" value={memoryFood} onChange={(event) => setMemoryFood(event.target.value)} /></label>}<label className="form-label">Como foi? <textarea className="form-input memory-input" maxLength={1000} placeholder="Gostaram? O que não querem esquecer?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" language={language} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? language === "pt" ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : `${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}'s home` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><div className="repeat-question"><span className="form-label">Querem repetir?</span><div className="chip-row" role="group" aria-label="Querem repetir?">{([[true, "Sim"], [false, "Não"]] as const).map(([value, label]) => <button type="button" key={label} className={`chip ${memoryRepeat === value ? "selected" : ""}`} aria-pressed={memoryRepeat === value} onClick={() => setMemoryRepeat(memoryRepeat === value ? null : value)}>{label}</button>)}</div></div><label className="photo-upload-button memory-photo-upload">＋ {language === "pt" ? "Adicionar fotografias" : "Add photos"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={language === "pt" ? "Fotografia do date enviada" : "Uploaded date memory"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : editingMemory ? "Guardar alterações" : "Guardar nas memórias"} <span>→</span></button>{editingMemory && <button type="button" className="button button-ghost memory-undo" disabled={busy} onClick={() => void undoCompleted()}>Afinal ainda não fizemos</button>}</form>
             : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{language === "pt" ? modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões." : modal === "edit" ? "Update the details for this date idea." : "Add a date idea with the details Nossia uses to find a good match."}</p><label className="form-label" htmlFor="idea-title">{language === "pt" ? "A vossa ideia" : "Your idea"}<input className="form-input" id="idea-title" autoFocus placeholder={language === "pt" ? "ex.: Ver as estrelas numa noite de verão" : "e.g. Stargazing on a summer night"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">{language === "pt" ? "Descrição" : "Description"}<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">{language === "pt" ? "Estado de espírito" : "Mood"}<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{language === "pt" ? ({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood] : mood}</option>)}</select></label><label className="form-label" htmlFor="idea-category">{language === "pt" ? "Categoria" : "Category"}<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item, language)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">{language === "pt" ? "Duração" : "Duration"}<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="90">1–2 {language === "pt" ? "horas" : "hours"}</option><option value="180">2–4 {language === "pt" ? "horas" : "hours"}</option><option value="300">{language === "pt" ? "Meio dia ou mais" : "Half a day or more"}</option></select></label><label className="form-label" htmlFor="idea-budget">{language === "pt" ? "Orçamento para dois" : "Budget for two"}<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">{language === "pt" ? "Gratuito" : "Free"}</option><option value="10">{language === "pt" ? "Até 10 €" : "Up to €10"}</option><option value="30">{language === "pt" ? "Até 30 €" : "Up to €30"}</option><option value="60">{language === "pt" ? "Até 60 €" : "Up to €60"}</option></select></label></div><label className="form-label" htmlFor="idea-travel">{language === "pt" ? "Tempo de viagem (ida)" : "Travel time (one way)"}<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">{language === "pt" ? "Desconhecido / sem limite" : "Unknown / no limit"}</option><option value="15">{language === "pt" ? "Até 15 min" : "Up to 15 min"}</option><option value="30">{language === "pt" ? "Até 30 min" : "Up to 30 min"}</option><option value="60">{language === "pt" ? "Até 1 hora" : "Up to 1 hour"}</option><option value="120">{language === "pt" ? "Mais de 1 hora" : "Over 1 hour"}</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />{language === "pt" ? "Esta ideia pode ser feita em casa" : "This idea can be done at home"}</label><label className="form-label" htmlFor="idea-weather-setting">{language === "pt" ? "Adequação ao tempo" : "Weather suitability"}<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">{language === "pt" ? "Adequada a qualquer tempo" : "Suitable in any weather"}</option><option value="indoor">{language === "pt" ? "Interior" : "Indoor"}</option><option value="outdoor">{language === "pt" ? "Exterior" : "Outdoor"}</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? language === "pt" ? "A guardar…" : "Saving…" : language === "pt" ? modal === "edit" ? "Guardar alterações" : "Guardar esta ideia" : modal === "edit" ? "Save changes" : "Save this idea"} <span>→</span></button></form>}
       </section></div>}
     </div>
