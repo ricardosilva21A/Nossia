@@ -3,12 +3,16 @@ import type { Category, DateIdea, Mood } from "./types";
 import { activityWeatherAdvice, activityWeatherReason } from "./weather";
 import type { DailyWeather } from "./weather";
 
+import { isHiddenByCouple, preferenceEffect } from "./preferences";
+import type { CoupleSignals } from "./preferences";
+
 export type SuggestionContext = {
   date: string;
   forecast: DailyWeather | undefined;
   // Longest stretch both are free that day, or null when unknown.
   freeMinutes: number | null;
   categoryCounts: Map<Category, number>;
+  signals?: CoupleSignals;
 };
 
 export type ScoredIdea = { idea: DateIdea; score: number; reasons: string[] };
@@ -61,11 +65,17 @@ export function scoreIdea(idea: DateIdea, context: SuggestionContext): ScoredIde
   }
 
   score += Math.min(10, (context.categoryCounts.get(idea.category) ?? 0) * 2);
+  if (context.signals) {
+    const effect = preferenceEffect(idea, context.signals);
+    score += effect.adjustment;
+    if (effect.reason) reasons.unshift(effect.reason);
+  }
   return { idea, score, reasons: reasons.slice(0, 3) };
 }
 
 export function rankIdeas(ideas: DateIdea[], context: SuggestionContext) {
   return ideas
+    .filter((idea) => !context.signals || !isHiddenByCouple(idea.idea_id, context.signals))
     .map((idea, index) => ({ scored: scoreIdea(idea, context), index }))
     .sort((first, second) => second.scored.score - first.scored.score || first.index - second.index)
     .map(({ scored }) => scored);

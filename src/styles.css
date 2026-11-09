@@ -1025,3 +1025,17 @@ a.button{text-decoration:none}
 @media(max-width:760px){.fab{bottom:calc(env(safe-area-inset-bottom) + 76px)}}
 .quick-preview{margin:0;font-size:14px;color:var(--ink-2)}
 @media(max-width:760px){.top-avatar{display:flex;width:44px;height:44px;font-size:15px}}
+.swipe-head{display:flex;align-items:center;justify-content:space-between}
+.swipe-screen{overflow-x:hidden}
+.swipe-card{position:relative;display:grid;align-content:center;justify-items:center;gap:8px;min-height:320px;margin:10px 0;padding:24px;text-align:center;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:0 8px 24px rgba(45,34,37,.08);touch-action:none;user-select:none;cursor:grab}
+.swipe-card h2{font-size:22px;margin:0}
+.swipe-card p{margin:0;color:var(--ink-2)}
+.swipe-emoji{font-size:56px}
+.swipe-badge{position:absolute;top:14px;padding:4px 12px;border-radius:9px;font-weight:700;border:2px solid currentColor}
+.swipe-badge.like{left:14px;color:var(--cobalt-ink)}
+.swipe-badge.pass{right:14px;color:var(--accent-ink)}
+.swipe-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.swipe-actions .button{min-height:50px;justify-content:center}
+.passed-ideas{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:4px}
+.passed-ideas li{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+.swipe-progress{margin:0;font-size:14px;font-weight:600;color:var(--ink-2)}

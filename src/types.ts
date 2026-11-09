@@ -28,6 +28,7 @@ export type IdeaDetails = {
   weather_setting: WeatherSetting;
   seasons: SeasonKey[];
   repeatable: boolean;
+  tags: string[];
 };
 
 // A shared catalog idea (created_by_couple_id is null) or a couple's private idea.

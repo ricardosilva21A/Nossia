@@ -18,6 +18,10 @@ In the box on **Hoje** (Today), write it the way you'd say it: "Jantar italiano 
 
 Browse the catalogue, save favourites, draw one at random, or answer a few questions to get suggestions that suit the weather and season.
 
+## Teaching Nossia
+
+On **Hoje**, a card sometimes asks you to swipe ideas: right if you like it, left to pass. Your partner never sees what you pass. What you both pass stops being suggested, and what you both like comes first. You can bring back anything you passed in **Definições** (Settings).
+
 ## Restaurants and places
 
 In **Explorar → Sítios** (Explore → Places), choose between trying somewhere new and going back to somewhere you liked. When you say you'd repeat a dinner, the restaurant moves to **Aprovados** (Approved), along with what you ate.

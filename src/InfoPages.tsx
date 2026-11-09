@@ -64,6 +64,8 @@ export function HelpPage() {
       <p>Na caixa do Hoje, escreve como dirias: “Jantar italiano sexta às 20h”. A Nossia percebe o dia e a hora. Escolhe se é um date, um compromisso, uma ideia para depois ou algo que já fizeram.</p>
       <h2>Ideias</h2>
       <p>Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época.</p>
+      <h2>Ensinar a Nossia</h2>
+      <p>No Hoje, de vez em quando aparece um cartão para dizeres se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas. O que os dois passam deixa de ser sugerido, e o que os dois gostam vem primeiro. Podes recuperar o que passaste nas Definições.</p>
       <h2>Restaurantes e sítios</h2>
       <p>Em Explorar, Sítios, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os Aprovados, com o que comeram.</p>
       <h2>Mudar de planos</h2>
