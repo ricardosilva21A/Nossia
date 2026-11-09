@@ -6,15 +6,10 @@ import { NotificationSettings } from "./NotificationSettings";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, CoupleTask, CoupleTrip, DateIdea, HomePartner, WorkScheduleBlock } from "./types";
-
-type Language = "en" | "pt";
 type ScheduleCouple = { id: string; partner_one_name: string; partner_two_name: string };
 type FreeWindow = { start: number; end: number };
 
-const weekdayLabels: Record<Language, string[]> = {
-  pt: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"],
-  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-};
+const weekdayLabels = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
 // The part of the day worth suggesting time together in.
 const dayStart = 8 * 60;
 const dayEnd = 23 * 60 + 30;
@@ -83,14 +78,13 @@ export function sharedFreeDays(blocks: WorkScheduleBlock[], plannedDates: DateId
   });
 }
 
-export function describeWindows(windows: FreeWindow[], language: Language) {
-  if (windows.length === 0) return language === "pt" ? "Sem tempo livre em comum" : "No shared free time";
-  if (windows.length === 1 && windows[0].start === dayStart && windows[0].end === dayEnd) return language === "pt" ? "Livres o dia todo" : "Free all day";
+export function describeWindows(windows: FreeWindow[]) {
+  if (windows.length === 0) return "Sem tempo livre em comum";
+  if (windows.length === 1 && windows[0].start === dayStart && windows[0].end === dayEnd) return "Livres o dia todo";
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onUpdateCommitment, onBlocksChange, language, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void; language: Language; onFindDate: () => void }) {
-  const pt = language === "pt";
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onUpdateCommitment, onBlocksChange, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void;  onFindDate: () => void }) {
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -116,12 +110,12 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     let active = true;
     void supabase.from("couple_tasks").select("*").order("created_at").then((taskResult) => {
       if (!active) return;
-      if (taskResult.error) setError(pt ? `Não foi possível carregar as tarefas: ${taskResult.error.message}` : `We couldn't load your tasks: ${taskResult.error.message}`);
+      if (taskResult.error) setError(`Não foi possível carregar as tarefas: ${taskResult.error.message}`);
       setTasks((taskResult.data ?? []) as CoupleTask[]);
       setLoaded(true);
     });
     return () => { active = false; };
-  }, [couple.id, pt]);
+  }, [couple.id]);
 
   const nextDays = useMemo(() => sharedFreeDays(blocks, plannedDates, commitments, trips), [blocks, commitments, plannedDates, trips]);
   const upcomingCommitments = useMemo(() => {
@@ -142,7 +136,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     const { data, error: saveError } = await supabase.from("work_schedule_blocks")
       .insert(weekdays.map((weekday) => ({ couple_id: couple.id, partner_slot: blockPartner, weekday, starts_at: blockStart, ends_at: blockEnd })))
       .select("*");
-    if (saveError) setError(pt ? `Não foi possível guardar o horário: ${saveError.message}` : `We couldn't save the schedule: ${saveError.message}`);
+    if (saveError) setError(`Não foi possível guardar o horário: ${saveError.message}`);
     else setBlocks((current) => [...current, ...data as WorkScheduleBlock[]]);
     setBusy(false);
   }
@@ -151,7 +145,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     if (!supabase) return;
     setBusy(true);
     const { error: removeError } = await supabase.from("work_schedule_blocks").delete().eq("id", id);
-    if (removeError) setError(pt ? `Não foi possível remover o horário: ${removeError.message}` : `We couldn't remove that block: ${removeError.message}`);
+    if (removeError) setError(`Não foi possível remover o horário: ${removeError.message}`);
     else setBlocks((current) => current.filter((block) => block.id !== id));
     setBusy(false);
   }
@@ -169,7 +163,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
       due_time: taskDate && taskTime ? taskTime : null,
       assigned_to: taskAssignee === "both" ? null : taskAssignee,
     }).select("*").single();
-    if (saveError) setError(pt ? `Não foi possível adicionar a tarefa: ${saveError.message}` : `We couldn't add the task: ${saveError.message}`);
+    if (saveError) setError(`Não foi possível adicionar a tarefa: ${saveError.message}`);
     else {
       setTasks((current) => [...current, data as CoupleTask]);
       setTaskTitle("");
@@ -184,7 +178,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     const { data, error: saveError } = await supabase.from("couple_tasks")
       .update({ done_at: task.done_at ? null : new Date().toISOString() })
       .eq("id", task.id).select("*").single();
-    if (saveError) setError(pt ? `Não foi possível atualizar a tarefa: ${saveError.message}` : `We couldn't update the task: ${saveError.message}`);
+    if (saveError) setError(`Não foi possível atualizar a tarefa: ${saveError.message}`);
     else setTasks((current) => current.map((item) => item.id === task.id ? data as CoupleTask : item));
   }
 
@@ -207,7 +201,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
   async function removeTask(id: string) {
     if (!supabase) return;
     const { error: removeError } = await supabase.from("couple_tasks").delete().eq("id", id);
-    if (removeError) setError(pt ? `Não foi possível apagar a tarefa: ${removeError.message}` : `We couldn't delete the task: ${removeError.message}`);
+    if (removeError) setError(`Não foi possível apagar a tarefa: ${removeError.message}`);
     else setTasks((current) => current.filter((task) => task.id !== id));
   }
 
@@ -216,10 +210,10 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     setBusy(true);
     setFeedMessage("");
     const { data, error: feedError } = await supabase.rpc("get_calendar_feed_token", { rotate });
-    if (feedError) setFeedMessage(pt ? `Não foi possível criar a ligação: ${feedError.message}` : `We couldn't create the link: ${feedError.message}`);
+    if (feedError) setFeedMessage(`Não foi possível criar a ligação: ${feedError.message}`);
     else {
-      setFeedUrl(`${window.location.origin}/api/calendar?token=${data as string}&lang=${language}`);
-      if (rotate) setFeedMessage(pt ? "Ligação nova criada. A antiga deixou de funcionar — subscrevam de novo no iPhone." : "New link created. The old one has stopped working — subscribe again on your iPhone.");
+      setFeedUrl(`${window.location.origin}/api/calendar?token=${data as string}`);
+      if (rotate) setFeedMessage("Ligação nova criada. A antiga deixou de funcionar — subscrevam de novo no iPhone.");
     }
     setBusy(false);
   }
@@ -227,30 +221,30 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
   async function copyFeed() {
     try {
       await navigator.clipboard.writeText(feedUrl);
-      setFeedMessage(pt ? "Ligação copiada." : "Link copied.");
+      setFeedMessage("Ligação copiada.");
     } catch {
-      setFeedMessage(pt ? "Não foi possível copiar. Selecionem a ligação e copiem-na manualmente." : "We couldn't copy it. Select the link and copy it manually.");
+      setFeedMessage("Não foi possível copiar. Selecionem a ligação e copiem-na manualmente.");
     }
   }
 
-  const formatDay = (day: Date) => new Intl.DateTimeFormat(pt ? "pt-PT" : "en-GB", { weekday: "long", day: "numeric", month: "short" }).format(day);
+  const formatDay = (day: Date) => new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "short" }).format(day);
   const formatDue = (task: CoupleTask) => task.due_date
-    ? `${new Intl.DateTimeFormat(pt ? "pt-PT" : "en-GB", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${task.due_date}T12:00:00`))}${task.due_time ? ` · ${task.due_time.slice(0, 5)}` : ""}`
-    : pt ? "Sem data" : "No date";
-  const assigneeLabel = (task: CoupleTask) => task.assigned_to ? partnerName(task.assigned_to) : pt ? "Os dois" : "Both";
+    ? `${new Intl.DateTimeFormat("pt-PT", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${task.due_date}T12:00:00`))}${task.due_time ? ` · ${task.due_time.slice(0, 5)}` : ""}`
+    : "Sem data";
+  const assigneeLabel = (task: CoupleTask) => task.assigned_to ? partnerName(task.assigned_to) : "Os dois";
 
   return (
-    <section className="schedule-page" aria-label={pt ? "Agenda do casal" : "Couple schedule"}>
+    <section className="schedule-page" aria-label={"Agenda do casal"}>
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
 
       {part === "week" && <>
       <article className="schedule-card free-time-card">
-        <div className="schedule-card-heading"><div><p className="section-kicker">{pt ? "PRÓXIMOS 7 DIAS" : "NEXT 7 DAYS"}</p><h2>{pt ? "Quando estão os dois livres" : "When you're both free"}</h2></div><button type="button" className="add-button" onClick={onFindDate}>{pt ? "Encontrar um date" : "Find a date"}</button></div>
-        {loaded && blocks.length === 0 && <p className="schedule-hint">{pt ? "Adicionem o horário de trabalho de cada um, aqui em baixo, para verem só o tempo que têm em comum." : "Add each of your work schedules below to see only the time you share."}</p>}
+        <div className="schedule-card-heading"><div><p className="section-kicker">{"PRÓXIMOS 7 DIAS"}</p><h2>{"Quando estão os dois livres"}</h2></div><button type="button" className="add-button" onClick={onFindDate}>{"Encontrar um date"}</button></div>
+        {loaded && blocks.length === 0 && <p className="schedule-hint">{"Adicionem o horário de trabalho de cada um, aqui em baixo, para verem só o tempo que têm em comum."}</p>}
         <ul className="free-time-list">
           {nextDays.map(({ day, key, trip, windows, dates, commitments: dayCommitments }) => <li key={key}>
             <strong>{formatDay(day)}</strong>
-            <span>{trip ? `Em viagem: ${trip.title}` : describeWindows(windows, language)}</span>
+            <span>{trip ? `Em viagem: ${trip.title}` : describeWindows(windows)}</span>
             {dates.map((date) => <em key={date.id}>{date.emoji} {date.title}{date.planned_start_time ? ` · ${date.planned_start_time.slice(0, 5)}` : ""}</em>)}
             {dayCommitments.map((commitment) => <em className="free-time-commitment" key={commitment.id}>{commitment.title}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""}</em>)}
           </li>)}
@@ -272,48 +266,48 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
 
       <div className="schedule-columns">
         <article className="schedule-card">
-          <p className="section-kicker">{pt ? "HORÁRIO DE TRABALHO" : "WORK SCHEDULE"}</p>
-          <h2>{pt ? "A semana de cada um" : "Each of your weeks"}</h2>
+          <p className="section-kicker">{"HORÁRIO DE TRABALHO"}</p>
+          <h2>{"A semana de cada um"}</h2>
           {(["partner_one", "partner_two"] as const).map((slot) => {
             const partnerBlocks = blocks.filter((block) => block.partner_slot === slot).sort((first, second) => first.weekday - second.weekday || first.starts_at.localeCompare(second.starts_at));
             return <div className="schedule-partner" key={slot}>
-              <h3>{partnerName(slot)}{slot === mySlot && <span>{pt ? " (tu)" : " (you)"}</span>}</h3>
-              {partnerBlocks.length === 0 ? <p className="schedule-hint">{pt ? "Ainda sem horário." : "No schedule yet."}</p> : <ul className="schedule-blocks">
-                {partnerBlocks.map((block) => <li key={block.id}><span>{weekdayLabels[language][block.weekday - 1]}</span><span>{block.starts_at.slice(0, 5)}–{block.ends_at.slice(0, 5)}{minutesOf(block.ends_at) < minutesOf(block.starts_at) ? pt ? " (dia seguinte)" : " (next day)" : ""}</span><button type="button" disabled={busy} aria-label={pt ? "Remover" : "Remove"} onClick={() => void removeBlock(block.id)}>×</button></li>)}
+              <h3>{partnerName(slot)}{slot === mySlot && <span>{" (tu)"}</span>}</h3>
+              {partnerBlocks.length === 0 ? <p className="schedule-hint">{"Ainda sem horário."}</p> : <ul className="schedule-blocks">
+                {partnerBlocks.map((block) => <li key={block.id}><span>{weekdayLabels[block.weekday - 1]}</span><span>{block.starts_at.slice(0, 5)}–{block.ends_at.slice(0, 5)}{minutesOf(block.ends_at) < minutesOf(block.starts_at) ? " (dia seguinte)" : ""}</span><button type="button" disabled={busy} aria-label={"Remover"} onClick={() => void removeBlock(block.id)}>×</button></li>)}
               </ul>}
             </div>;
           })}
           <form className="schedule-form" onSubmit={(event) => void addBlocks(event)}>
-            <label className="form-label">{pt ? "Quem" : "Who"}<select className="form-input" value={blockPartner} onChange={(event) => setBlockPartner(event.target.value as HomePartner)}><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select></label>
-            <label className="form-label">{pt ? "Dias" : "Days"}<select className="form-input" value={blockDays} onChange={(event) => setBlockDays(event.target.value)}><option value="weekdays">{pt ? "Segunda a sexta" : "Monday to Friday"}</option><option value="weekend">{pt ? "Fim de semana" : "Weekend"}</option>{weekdayLabels[language].map((label, index) => <option key={label} value={String(index + 1)}>{label}</option>)}</select></label>
-            <label className="form-label">{pt ? "Entrada" : "Start"}<input className="form-input" type="time" required value={blockStart} onChange={(event) => setBlockStart(event.target.value)} /></label>
-            <label className="form-label">{pt ? "Saída" : "End"}<input className="form-input" type="time" required value={blockEnd} onChange={(event) => setBlockEnd(event.target.value)} /></label>
-            <button className="modal-submit" type="submit" disabled={busy || blockStart === blockEnd}>{pt ? "Adicionar horário" : "Add hours"}</button>
+            <label className="form-label">{"Quem"}<select className="form-input" value={blockPartner} onChange={(event) => setBlockPartner(event.target.value as HomePartner)}><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select></label>
+            <label className="form-label">{"Dias"}<select className="form-input" value={blockDays} onChange={(event) => setBlockDays(event.target.value)}><option value="weekdays">{"Segunda a sexta"}</option><option value="weekend">{"Fim de semana"}</option>{weekdayLabels.map((label, index) => <option key={label} value={String(index + 1)}>{label}</option>)}</select></label>
+            <label className="form-label">{"Entrada"}<input className="form-input" type="time" required value={blockStart} onChange={(event) => setBlockStart(event.target.value)} /></label>
+            <label className="form-label">{"Saída"}<input className="form-input" type="time" required value={blockEnd} onChange={(event) => setBlockEnd(event.target.value)} /></label>
+            <button className="modal-submit" type="submit" disabled={busy || blockStart === blockEnd}>{"Adicionar horário"}</button>
           </form>
         </article>
 
         <article className="schedule-card">
-          <p className="section-kicker">{pt ? "COISAS A FAZER" : "TO DO"}</p>
-          <h2>{pt ? "Tarefas do casal" : "Couple tasks"} <span className="heading-count">{openTasks.length}</span></h2>
+          <p className="section-kicker">{"COISAS A FAZER"}</p>
+          <h2>{"Tarefas do casal"} <span className="heading-count">{openTasks.length}</span></h2>
           <form className="task-form" onSubmit={(event) => void addTask(event)}>
-            <input className="form-input task-title-input" required maxLength={200} aria-label={pt ? "Nova tarefa" : "New task"} placeholder={pt ? "ex.: Reservar o jantar de sábado" : "e.g. Book Saturday's dinner"} value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
+            <input className="form-input task-title-input" required maxLength={200} aria-label={"Nova tarefa"} placeholder={"ex.: Reservar o jantar de sábado"} value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} />
             <div className="task-form-row">
-              <input className="form-input" type="date" aria-label={pt ? "Data (opcional)" : "Date (optional)"} value={taskDate} onChange={(event) => setTaskDate(event.target.value)} />
-              <input className="form-input" type="time" aria-label={pt ? "Hora (opcional)" : "Time (optional)"} disabled={!taskDate} value={taskTime} onChange={(event) => setTaskTime(event.target.value)} />
-              <select className="form-input" aria-label={pt ? "Para quem" : "For whom"} value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value as HomePartner | "both")}><option value="both">{pt ? "Os dois" : "Both"}</option><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select>
-              <button className="modal-submit" type="submit" disabled={busy || !taskTitle.trim()}>{pt ? "Adicionar" : "Add"}</button>
+              <input className="form-input" type="date" aria-label={"Data (opcional)"} value={taskDate} onChange={(event) => setTaskDate(event.target.value)} />
+              <input className="form-input" type="time" aria-label={"Hora (opcional)"} disabled={!taskDate} value={taskTime} onChange={(event) => setTaskTime(event.target.value)} />
+              <select className="form-input" aria-label={"Para quem"} value={taskAssignee} onChange={(event) => setTaskAssignee(event.target.value as HomePartner | "both")}><option value="both">{"Os dois"}</option><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select>
+              <button className="modal-submit" type="submit" disabled={busy || !taskTitle.trim()}>{"Adicionar"}</button>
             </div>
           </form>
-          {openTasks.length === 0 ? <p className="schedule-hint">{loaded ? pt ? "Nada pendente. 🎉" : "Nothing pending. 🎉" : pt ? "A carregar…" : "Loading…"}</p> : <ul className="task-list">
+          {openTasks.length === 0 ? <p className="schedule-hint">{loaded ? "Nada pendente. 🎉" : "A carregar…"}</p> : <ul className="task-list">
             {openTasks.map((task) => taskDraft?.id === task.id ? <li key={task.id} className="edit-row"><form onSubmit={(event) => void saveTaskDraft(event)}>
               <input className="form-input" required maxLength={200} aria-label="Tarefa" value={taskDraft.title} onChange={(event) => setTaskDraft({ ...taskDraft, title: event.target.value })} />
               <div className="edit-row-fields"><input className="form-input" type="date" aria-label="Dia" value={taskDraft.due_date ?? ""} onChange={(event) => setTaskDraft({ ...taskDraft, due_date: event.target.value || null })} /><input className="form-input" type="time" aria-label="Hora" disabled={!taskDraft.due_date} value={taskDraft.due_time?.slice(0, 5) ?? ""} onChange={(event) => setTaskDraft({ ...taskDraft, due_time: event.target.value || null })} /><select className="form-input" aria-label="Para quem" value={taskDraft.assigned_to ?? "both"} onChange={(event) => setTaskDraft({ ...taskDraft, assigned_to: event.target.value === "both" ? null : event.target.value as HomePartner })}><option value="both">Os dois</option><option value="partner_one">{couple.partner_one_name}</option><option value="partner_two">{couple.partner_two_name}</option></select></div>
               <div className="panel-actions"><button className="button button-primary" type="submit">Guardar</button><button type="button" className="button button-ghost" onClick={() => setTaskDraft(null)}>Cancelar</button></div>
-            </form></li> : <li key={task.id}><input type="checkbox" checked={false} aria-label={pt ? `Marcar "${task.title}" como feita` : `Mark "${task.title}" as done`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{formatDue(task)} · {assigneeLabel(task)}</small></div><div className="row-actions"><button type="button" aria-label={`Alterar ${task.title}`} onClick={() => setTaskDraft(task)}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label="Apagar tarefa" onClick={() => void removeTask(task.id)}>×</button></div></li>)}
+            </form></li> : <li key={task.id}><input type="checkbox" checked={false} aria-label={`Marcar "${task.title}" como feita`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{formatDue(task)} · {assigneeLabel(task)}</small></div><div className="row-actions"><button type="button" aria-label={`Alterar ${task.title}`} onClick={() => setTaskDraft(task)}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label="Apagar tarefa" onClick={() => void removeTask(task.id)}>×</button></div></li>)}
           </ul>}
-          {doneTasks.length > 0 && <button type="button" className="task-done-toggle" onClick={() => setShowDone((shown) => !shown)}>{showDone ? pt ? "Esconder feitas" : "Hide done" : pt ? `Ver feitas (${doneTasks.length})` : `Show done (${doneTasks.length})`}</button>}
+          {doneTasks.length > 0 && <button type="button" className="task-done-toggle" onClick={() => setShowDone((shown) => !shown)}>{showDone ? "Esconder feitas" : `Ver feitas (${doneTasks.length})`}</button>}
           {showDone && <ul className="task-list done-tasks">
-            {doneTasks.map((task) => <li key={task.id}><input type="checkbox" checked aria-label={pt ? `Voltar a abrir "${task.title}"` : `Reopen "${task.title}"`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{assigneeLabel(task)}</small></div><button type="button" aria-label={pt ? "Apagar tarefa" : "Delete task"} onClick={() => void removeTask(task.id)}>×</button></li>)}
+            {doneTasks.map((task) => <li key={task.id}><input type="checkbox" checked aria-label={`Voltar a abrir "${task.title}"`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{assigneeLabel(task)}</small></div><button type="button" aria-label={"Apagar tarefa"} onClick={() => void removeTask(task.id)}>×</button></li>)}
           </ul>}
         </article>
       </div>
@@ -322,20 +316,18 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
 
       {part === "settings" && <>
       <article className="schedule-card calendar-sync-card">
-        <p className="section-kicker">{pt ? "CALENDÁRIO DO IPHONE" : "IPHONE CALENDAR"}</p>
-        <h2>{pt ? "Ver tudo no calendário do telemóvel" : "See it all in your phone's calendar"}</h2>
-        <p className="schedule-hint">{pt
-          ? "Os dates planeados, as tuas tarefas (e as dos dois), o aniversário de namoro e os anos de cada um aparecem sozinhos no Calendário do iPhone. Cada um faz isto no seu telemóvel, com a sua conta."
-          : "Planned dates, your tasks (and shared ones), your anniversary and both birthdays show up by themselves in the iPhone Calendar. Each of you does this on your own phone, signed in to your own account."}</p>
-        {!feedUrl ? <button type="button" className="modal-submit" disabled={busy || !mySlot} onClick={() => void loadFeed()}>{pt ? "Ligar ao calendário do iPhone" : "Connect to the iPhone calendar"}</button> : <>
-          <div className="calendar-sync-actions"><a className="modal-submit" href={feedUrl.replace(/^https?:/, "webcal:")}>{pt ? "Subscrever no iPhone" : "Subscribe on iPhone"}</a><button type="button" className="photo-upload-button" onClick={() => void copyFeed()}>{pt ? "Copiar ligação" : "Copy link"}</button></div>
+        <p className="section-kicker">{"CALENDÁRIO DO IPHONE"}</p>
+        <h2>{"Ver tudo no calendário do telemóvel"}</h2>
+        <p className="schedule-hint">{"Os dates planeados, as tuas tarefas (e as dos dois), o aniversário de namoro e os anos de cada um aparecem sozinhos no Calendário do iPhone. Cada um faz isto no seu telemóvel, com a sua conta."}</p>
+        {!feedUrl ? <button type="button" className="modal-submit" disabled={busy || !mySlot} onClick={() => void loadFeed()}>{"Ligar ao calendário do iPhone"}</button> : <>
+          <div className="calendar-sync-actions"><a className="modal-submit" href={feedUrl.replace(/^https?:/, "webcal:")}>{"Subscrever no iPhone"}</a><button type="button" className="photo-upload-button" onClick={() => void copyFeed()}>{"Copiar ligação"}</button></div>
           <ol className="calendar-sync-steps">
-            <li>{pt ? "Abram esta página no iPhone e toquem em “Subscrever no iPhone”, depois em “Subscrever”." : "Open this page on the iPhone, tap “Subscribe on iPhone”, then “Subscribe”."}</li>
-            <li>{pt ? "Ou: Definições → Calendário → Contas → Adicionar conta → Outra → Adicionar calendário subscrito, e colem a ligação." : "Or: Settings → Calendar → Accounts → Add Account → Other → Add Subscribed Calendar, and paste the link."}</li>
-            <li>{pt ? "O iPhone vai buscar as novidades sozinho, normalmente a cada hora." : "The iPhone fetches updates on its own, usually every hour."}</li>
+            <li>{"Abram esta página no iPhone e toquem em “Subscrever no iPhone”, depois em “Subscrever”."}</li>
+            <li>{"Ou: Definições → Calendário → Contas → Adicionar conta → Outra → Adicionar calendário subscrito, e colem a ligação."}</li>
+            <li>{"O iPhone vai buscar as novidades sozinho, normalmente a cada hora."}</li>
           </ol>
-          <input className="form-input" readOnly aria-label={pt ? "Ligação do calendário" : "Calendar link"} value={feedUrl} onFocus={(event) => event.currentTarget.select()} />
-          <button type="button" className="task-done-toggle" disabled={busy} onClick={() => void loadFeed(true)}>{pt ? "Gerar uma ligação nova (a antiga deixa de funcionar)" : "Create a new link (the old one stops working)"}</button>
+          <input className="form-input" readOnly aria-label={"Ligação do calendário"} value={feedUrl} onFocus={(event) => event.currentTarget.select()} />
+          <button type="button" className="task-done-toggle" disabled={busy} onClick={() => void loadFeed(true)}>{"Gerar uma ligação nova (a antiga deixa de funcionar)"}</button>
         </>}
         {feedMessage && <p className="form-alert config-alert" role="status">{feedMessage}</p>}
       </article>

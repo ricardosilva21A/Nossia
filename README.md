@@ -28,6 +28,7 @@ Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia
 
 | Area | What it does |
 |---|---|
+| **House** | Each partner's mascot in a shared home that reacts to the weather, season, work hours and dates. |
 | **Today** | Next date, seasonal and weather-aware suggestions, and an add box that understands text like "Jantar sexta às 20h". |
 | **Ideas** | A shared catalogue, favourites, a random draw, a "feeling" questionnaire and CSV/XLSX import. |
 | **Places** | Find restaurants, cafés and bars with OpenStreetMap, then split them into to try, approved and not again. |
@@ -76,6 +77,12 @@ Fill in the Supabase values in `.env.local`, apply the [migrations](#database), 
 
 ```bash
 npm run dev
+```
+
+To run the tests:
+
+```bash
+npm test
 ```
 
 To check types and create a production build:
@@ -141,6 +148,6 @@ The policy shown to users is in the app at `/privacidade`. To report a security 
 
 ## Roadmap
 
-- Portuguese and English in the app
+- English in the app, once the Portuguese version is complete
 - A yearly replay with the films, restaurants and places you loved
 - A companion character with clothes earned through dates

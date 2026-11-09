@@ -1,4 +1,4 @@
-type Language = "en" | "pt";
+
 
 const XP_PER_DATE = 25;
 const XP_PER_GROWTH = 100;
@@ -10,17 +10,17 @@ const GROWTH_STAGES = [
   { name: "Little companion", namePt: "Companheiro especial", message: "A lovely little reminder of your life together.", messagePt: "Um pequeno companheiro para celebrar a vossa vida a dois." },
 ] as const;
 
-export function CoupleCompanion({ completedDates, language }: { completedDates: number; language: Language }) {
+export function CoupleCompanion({ completedDates }: { completedDates: number;  }) {
   const xp = completedDates * XP_PER_DATE;
   const stageIndex = Math.min(Math.floor(xp / XP_PER_GROWTH), GROWTH_STAGES.length - 1);
   const stage = GROWTH_STAGES[stageIndex];
   const nextStageXp = (stageIndex + 1) * XP_PER_GROWTH;
   const progress = stageIndex === GROWTH_STAGES.length - 1 ? 100 : Math.min((xp - stageIndex * XP_PER_GROWTH) / XP_PER_GROWTH * 100, 100);
-  const stageName = language === "pt" ? stage.namePt : stage.name;
-  const stageMessage = language === "pt" ? stage.messagePt : stage.message;
+  const stageName = stage.namePt;
+  const stageMessage = stage.messagePt;
 
   return (
-    <section className="companion-card" aria-label={language === "pt" ? "O vosso companheiro" : "Your couple companion"}>
+    <section className="companion-card" aria-label={"O vosso companheiro"}>
       <div className={`companion-portrait companion-stage-${stageIndex + 1}`} aria-hidden="true">
         <svg viewBox="0 0 120 120" role="presentation">
           <ellipse className="companion-shadow" cx="60" cy="105" rx="31" ry="6" />
@@ -42,16 +42,16 @@ export function CoupleCompanion({ completedDates, language }: { completedDates: 
       </div>
       <div className="companion-content">
         <div className="companion-heading">
-          <div><span className="section-kicker">{language === "pt" ? "CRESCE COM A VOSSA HISTÓRIA" : "GROWING WITH YOUR STORY"}</span><h2>{language === "pt" ? "O vosso companheiro" : "Your little companion"}</h2></div>
-          <span className="companion-level">{language === "pt" ? `Nível ${stageIndex + 1}` : `Level ${stageIndex + 1}`}</span>
+          <div><span className="section-kicker">{"CRESCE COM A VOSSA HISTÓRIA"}</span><h2>{"O vosso companheiro"}</h2></div>
+          <span className="companion-level">{`Nível ${stageIndex + 1}`}</span>
         </div>
         <p className="companion-stage-name">{stageName}</p>
         <p className="companion-message">{stageMessage}</p>
-        <div className="companion-xp-row"><span>✦ {xp} XP</span><span>{completedDates} {language === "pt" ? completedDates === 1 ? "date concluído" : "dates concluídos" : completedDates === 1 ? "date completed" : "dates completed"}</span></div>
-        <div className="companion-progress" role="progressbar" aria-label={language === "pt" ? "Progresso de crescimento do companheiro" : "Companion growth progress"} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
+        <div className="companion-xp-row"><span>✦ {xp} XP</span><span>{completedDates} {completedDates === 1 ? "date concluído" : "dates concluídos"}</span></div>
+        <div className="companion-progress" role="progressbar" aria-label={"Progresso de crescimento do companheiro"} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${progress}%` }} /></div>
         <p className="companion-next-step">{stageIndex < GROWTH_STAGES.length - 1
-          ? language === "pt" ? `Mais ${Math.ceil((nextStageXp - xp) / XP_PER_DATE)} ${Math.ceil((nextStageXp - xp) / XP_PER_DATE) === 1 ? "date" : "dates"} para crescer.` : `${Math.ceil((nextStageXp - xp) / XP_PER_DATE)} more ${Math.ceil((nextStageXp - xp) / XP_PER_DATE) === 1 ? "date" : "dates"} to grow.`
-          : language === "pt" ? "O crescimento continua — nunca perde o progresso." : "Your XP keeps growing — progress never fades."}</p>
+          ? `Mais ${Math.ceil((nextStageXp - xp) / XP_PER_DATE)} ${Math.ceil((nextStageXp - xp) / XP_PER_DATE) === 1 ? "date" : "dates"} para crescer.`
+          : "O crescimento continua — nunca perde o progresso."}</p>
       </div>
       <span className="companion-decoration" aria-hidden="true">✧</span>
     </section>
