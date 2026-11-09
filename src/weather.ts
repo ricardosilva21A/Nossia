@@ -95,15 +95,7 @@ export type ActivityWeatherAdvice = {
   reasons: string[];
 };
 
-export function activityWeatherLabel(advice: ActivityWeatherAdvice, language: "en" | "pt") {
-  if (language === "en") {
-    return {
-      great: "Great fit for this activity",
-      good: "Weather looks comfortable",
-      mixed: "Check the conditions for this activity",
-      indoor: "This activity is indoors",
-    }[advice.label];
-  }
+export function activityWeatherLabel(advice: ActivityWeatherAdvice) {
   return {
     great: "Ótimo para esta atividade",
     good: "Tempo confortável para esta atividade",
@@ -112,8 +104,7 @@ export function activityWeatherLabel(advice: ActivityWeatherAdvice, language: "e
   }[advice.label];
 }
 
-export function activityWeatherReason(reason: string, language: "en" | "pt") {
-  if (language === "en") return reason;
+export function activityWeatherReason(reason: string) {
   const translations: Record<string, string> = {
     "This activity is indoors, so the forecast matters less.": "Esta atividade é em espaço interior; a previsão tem menos impacto.",
     "Rain is likely; consider a sheltered option.": "É provável que chova; considerem uma opção abrigada.",
@@ -255,17 +246,17 @@ export function weatherConditionFor(day: DailyWeather | undefined): WeatherCondi
   return "clear";
 }
 
-export function weatherLabel(day: DailyWeather, language: "en" | "pt") {
+export function weatherLabel(day: DailyWeather) {
   if ([51, 53, 55, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(day.weatherCode) || day.precipitationProbability >= 50) {
-    return language === "pt" ? "Possibilidade de chuva" : "Rain is possible";
+    return "Possibilidade de chuva";
   }
-  if ([71, 73, 75, 77, 85, 86].includes(day.weatherCode)) return language === "pt" ? "Possibilidade de neve" : "Snow is possible";
-  if (day.weatherCode === 0) return language === "pt" ? "Céu limpo" : "Clear skies";
-  if ([1, 2].includes(day.weatherCode)) return language === "pt" ? "Poucas nuvens" : "Partly cloudy";
-  if (day.weatherCode === 3) return language === "pt" ? "Nublado" : "Cloudy";
-  if (day.temperatureMin <= 0) return language === "pt" ? "Frio" : "Cold";
-  if (day.temperatureMax >= 35) return language === "pt" ? "Muito quente" : "Very hot";
-  return language === "pt" ? "Tempo ameno" : "Mild weather";
+  if ([71, 73, 75, 77, 85, 86].includes(day.weatherCode)) return "Possibilidade de neve";
+  if (day.weatherCode === 0) return "Céu limpo";
+  if ([1, 2].includes(day.weatherCode)) return "Poucas nuvens";
+  if (day.weatherCode === 3) return "Nublado";
+  if (day.temperatureMin <= 0) return "Frio";
+  if (day.temperatureMax >= 35) return "Muito quente";
+  return "Tempo ameno";
 }
 
 export function weatherEmoji(weatherCode: number) {

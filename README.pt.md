@@ -28,6 +28,7 @@ Guias: [Guia de utilização](./docs/guia-de-utilizacao.md) · [User guide](./do
 
 | Área | O que faz |
 |---|---|
+| **Casa** | A mascote de cada pessoa numa casa partilhada que reage ao tempo, à época, aos horários e aos dates. |
 | **Hoje** | Próximo date, sugestões de acordo com a época e o tempo, e uma caixa que percebe frases como "Jantar sexta às 20h". |
 | **Ideias** | Catálogo partilhado, favoritas, sorteio, perguntas para escolher pelo feeling e importação de CSV/XLSX. |
 | **Sítios** | Procura restaurantes, cafés e bares com o OpenStreetMap e separa-os em queremos ir, aprovados e não repetir. |
@@ -76,6 +77,12 @@ Preenche os valores do Supabase em `.env.local`, aplica as [migrações](#base-d
 
 ```bash
 npm run dev
+```
+
+Para correr os testes:
+
+```bash
+npm test
 ```
 
 Para verificar os tipos e criar a versão de produção:
@@ -141,6 +148,6 @@ A política apresentada aos utilizadores está na app, em `/privacidade`. Para r
 
 ## Próximos passos
 
-- Português e inglês na app
+- Inglês na app, depois de a versão portuguesa estar completa
 - Um resumo anual com os filmes, restaurantes e sítios de que mais gostaram
 - Uma personagem com roupas ganhas através de dates

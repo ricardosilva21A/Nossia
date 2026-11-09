@@ -49,7 +49,7 @@ export function scoreIdea(idea: DateIdea, context: SuggestionContext): ScoredIde
     const firstReason = advice.reasons[0];
     const rainLikely = context.forecast.precipitationProbability >= 40;
     if (advice.label === "indoor" && rainLikely) reasons.push("Deve chover, e isto é em interior");
-    else if ((advice.label === "great" || advice.label === "good") && firstReason) reasons.push(activityWeatherReason(firstReason, "pt"));
+    else if ((advice.label === "great" || advice.label === "good") && firstReason) reasons.push(activityWeatherReason(firstReason));
   }
 
   if (context.freeMinutes !== null && idea.duration_minutes !== null) {
