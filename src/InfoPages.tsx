@@ -43,7 +43,7 @@ export function PrivacyPage() {
       <h2>Durante quanto tempo</h2>
       <p>Guardamos os dados enquanto a conta existir. Se apagares a conta e não houver outra no casal, apagamos tudo, incluindo as fotografias. Se o teu par tiver conta, os dados partilhados do casal ficam com essa pessoa. As cópias de segurança do fornecedor podem demorar algum tempo a expirar.</p>
       <h2>Os vossos direitos</h2>
-      <p>Ao abrigo do RGPD, podem pedir acesso aos vossos dados, corrigi-los, apagá-los ou recebê-los num formato portátil. Muitos dados podem ser editados na própria aplicação, e a conta pode ser apagada em Nós, Definições. Também podem apresentar queixa à CNPD, a autoridade portuguesa de proteção de dados.</p>
+      <p>Ao abrigo do RGPD, podem pedir acesso aos vossos dados, corrigi-los, apagá-los ou recebê-los num formato portátil. Muitos dados podem ser editados na própria aplicação, e a conta pode ser apagada em Definições. Também podem apresentar queixa à CNPD, a autoridade portuguesa de proteção de dados.</p>
       <h2>Idade</h2>
       <p>A Nossia destina-se a maiores de 18 anos.</p>
       {contactEmail && <><h2>Contacto</h2><p>Para qualquer pedido sobre privacidade: <a href={`mailto:${contactEmail}`}>{contactEmail}</a></p></>}
@@ -57,7 +57,7 @@ export function HelpPage() {
       <h2>Começar</h2>
       <ol>
         <li>Cria a conta com os vossos nomes e a data da relação.</li>
-        <li>Em Nós, Definições, abre o Perfil do casal e cria a ligação de convite para o teu par.</li>
+        <li>Toca no avatar, em cima à direita, para abrir as Definições. Abre o Perfil do casal e cria a ligação de convite para o teu par.</li>
         <li>No iPhone, abre o site no Safari, toca em Partilhar e em <strong>Adicionar ao ecrã principal</strong>.</li>
       </ol>
       <h2>Marcar coisas depressa</h2>
@@ -65,7 +65,7 @@ export function HelpPage() {
       <h2>Ideias</h2>
       <p>Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época.</p>
       <h2>Restaurantes e sítios</h2>
-      <p>Em Ideias, Sítios, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os Aprovados, com o que comeram.</p>
+      <p>Em Explorar, Sítios, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os Aprovados, com o que comeram.</p>
       <h2>Mudar de planos</h2>
       <p>Usem o lápis no cartão para mudar o dia, a hora ou o sítio de um date, ou o × para o apagar. Compromissos, tarefas e viagens também se editam.</p>
       <h2>Depois de um date</h2>
@@ -75,11 +75,11 @@ export function HelpPage() {
       <h2>Agenda</h2>
       <p>Em Agenda, Semana, ponham os horários de trabalho para a Nossia mostrar quando estão os dois livres, e organizem compromissos e tarefas.</p>
       <h2>Viagens</h2>
-      <p>Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotografias e vejam-na no Mapa-mundo. O aeroporto de partida muda-se em Nós, Definições.</p>
+      <p>Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotografias e vejam-na no Mapa-mundo. O aeroporto de partida muda-se em Definições.</p>
       <h2>Notificações e calendário</h2>
-      <p>Em Nós, Definições, ativem as notificações. No iPhone, só funcionam com a Nossia no ecrã principal. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.</p>
+      <p>Em Definições, ativem as notificações. No iPhone, só funcionam com a Nossia no ecrã principal. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.</p>
       <h2>Apagar a conta</h2>
-      <p>Está em Nós, Definições. Lê a <a href="/privacidade">política de privacidade</a> para saberes o que acontece aos dados.</p>
+      <p>Está em Definições. Lê a <a href="/privacidade">política de privacidade</a> para saberes o que acontece aos dados.</p>
     </InfoPage>
   );
 }

@@ -28,6 +28,8 @@ const kinds: Array<{ value: QuickKind; label: string; button: string }> = [
   { value: "done", label: "Já fizemos", button: "Guardar e contar como foi" },
 ];
 
+const previewKinds: Record<QuickKind, string> = { date: "Date", commitment: "Compromisso", idea: "Ideia", done: "Já feito" };
+
 // One box for everything: type a sentence and the day, time and kind are worked out from it.
 export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind = "date", autoFocus = false, onSubmit, onMoreDetails }: {
   partnerOneName: string;
@@ -92,6 +94,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
   return (
     <form className="quick-add" onSubmit={(event) => void submit(event)}>
       <input className="form-input quick-add-input" required maxLength={160} autoFocus={autoFocus} aria-label="O que querem marcar" placeholder="ex.: Jantar italiano sexta às 20h" value={text} onChange={(event) => { setText(event.target.value); setMessage(""); }} />
+      {parsed.title && <p className="quick-preview" role="status"><strong>{previewKinds[kind]}</strong>{day && kind !== "idea" ? ` · ${longDay(day)}` : ""}{time && kind !== "idea" ? ` · ${time}` : ""}{kind === "commitment" ? ` · ${forPartner === "partner_one" ? partnerOneName : forPartner === "partner_two" ? partnerTwoName : "os dois"}` : ""}</p>}
       <div className="chip-row" role="group" aria-label="Tipo">
         {kinds.map((item) => <button type="button" key={item.value} className={`chip ${kind === item.value ? "selected" : ""}`} aria-pressed={kind === item.value} onClick={() => setChosenKind(item.value)}>{item.label}</button>)}
       </div>

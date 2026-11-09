@@ -1020,3 +1020,8 @@ a.button{text-decoration:none}
 .house-bubble::before{content:'';position:absolute;top:-8px;left:50%;width:14px;height:14px;background:var(--paper);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:translateX(-50%) rotate(45deg)}
 .house-bubble-title{margin:0 0 4px;font-size:16px}
 .settings-mascot .mascot{display:block;margin:6px 0}
+@media(max-width:760px){.side-nav{grid-template-columns:repeat(4,minmax(0,1fr))}.topbar{display:flex;justify-content:flex-end;height:auto;min-height:0;padding:calc(env(safe-area-inset-top) + 8px) 16px 0}.today-label{display:none}.content{padding-top:6px}}
+.fab{position:fixed;right:16px;bottom:24px;z-index:30;width:58px;height:58px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--accent);color:var(--ink);box-shadow:0 6px 18px rgba(45,34,37,.24);cursor:pointer}
+@media(max-width:760px){.fab{bottom:calc(env(safe-area-inset-bottom) + 76px)}}
+.quick-preview{margin:0;font-size:14px;color:var(--ink-2)}
+@media(max-width:760px){.top-avatar{display:flex;width:44px;height:44px;font-size:15px}}

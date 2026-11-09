@@ -5,7 +5,7 @@
 ## Começar
 
 1. Cria a conta com os vossos nomes e a data da relação.
-2. Em **Nós → Definições**, abre o **Perfil do casal** e cria a ligação de convite para o teu par.
+2. Em **Definições** (avatar), abre o **Perfil do casal** e cria a ligação de convite para o teu par.
 3. No iPhone, abre o site no Safari, toca em **Partilhar** e em **Adicionar ao ecrã principal**.
 
 ## Marcar coisas depressa
@@ -18,7 +18,7 @@ Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas 
 
 ## Restaurantes e sítios
 
-Em **Ideias → Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os **Aprovados**, com o que comeram.
+Em **Explorar → Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os **Aprovados**, com o que comeram.
 
 ## Mudar de planos
 
@@ -38,12 +38,12 @@ Em **Agenda → Semana**, ponham os horários de trabalho para a Nossia mostrar 
 
 ## Viagens
 
-Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotografias e vejam-na no **Mapa-mundo**. O aeroporto de partida muda-se em **Nós → Definições**.
+Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotografias e vejam-na no **Mapa-mundo**. O aeroporto de partida muda-se em **Definições** (avatar).
 
 ## Notificações e calendário
 
-Em **Nós → Definições**, ativem as notificações. No iPhone, só funcionam com a Nossia no ecrã principal. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.
+Em **Definições** (avatar), ativem as notificações. No iPhone, só funcionam com a Nossia no ecrã principal. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.
 
 ## Apagar a conta
 
-Está em **Nós → Definições**. Se o teu par tiver conta, os dados do casal ficam com essa pessoa. Se fores só tu, apagamos tudo, incluindo as fotografias.
+Está em **Definições** (avatar). Se o teu par tiver conta, os dados do casal ficam com essa pessoa. Se fores só tu, apagamos tudo, incluindo as fotografias.
