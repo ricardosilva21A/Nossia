@@ -974,3 +974,17 @@ a.button{text-decoration:none}
 .admin-emoji{width:76px}
 .admin-textarea{height:76px;padding:8px 11px}
 .admin-checks{display:flex;gap:18px;font-size:14px}
+.info-page{max-width:720px;margin:0 auto;padding:28px 16px calc(48px + env(safe-area-inset-bottom));color:var(--ink);line-height:1.6;font-size:16px}
+.info-page h1{font-size:28px;margin:22px 0 6px}
+.info-page h2{font-size:18px;margin:26px 0 6px}
+.info-page ul,.info-page ol{padding-left:22px}
+.info-page li{margin:5px 0}
+.info-page a:not(.brand){color:var(--accent-ink)}
+.info-updated{font-size:14px;color:var(--ink-3)}
+.auth-legal{font-size:13px;color:var(--ink-3);text-align:center;margin-top:10px}
+.auth-legal a{color:var(--accent-ink)}
+.welcome-card{max-height:90dvh;overflow:auto}
+.welcome-list{padding-left:20px;margin:10px 0;line-height:1.5}
+.welcome-list li{margin:7px 0}
+.welcome-inline{margin-top:10px}
+.welcome-actions{justify-content:flex-end;margin-top:18px}

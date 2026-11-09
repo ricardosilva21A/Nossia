@@ -64,7 +64,7 @@ export function guidesForSoon(now = new Date()) {
   return destinationGuides.filter((guide) => guide.months.some((month) => soon.includes(month)));
 }
 
-export function flightsUrl(city: string, month?: string) {
-  const query = `Voos do Porto para ${city}${month ? ` em ${month}` : ""}`;
+export function flightsUrl(airport: string, city: string, month?: string) {
+  const query = `Voos de ${airport} para ${city}${month ? ` em ${month}` : ""}`;
   return `https://www.google.com/travel/flights?q=${encodeURIComponent(query)}&hl=pt-PT&curr=EUR`;
 }

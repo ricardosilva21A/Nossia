@@ -42,7 +42,7 @@ function TripDatesForm({ city, busy, onSave, onCancel }: { city: string; busy: b
   </form>;
 }
 
-export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { coupleId: string; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void; onOpenMemory: (id: string) => void }) {
+export function TripsPanel({ coupleId, airport, trips, onTripsChange, onOpenMemory }: { coupleId: string; airport: string; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void; onOpenMemory: (id: string) => void }) {
   const [destinations, setDestinations] = useState<CoupleDestination[]>([]);
   const [items, setItems] = useState<TripItem[]>([]);
   const [city, setCity] = useState("");
@@ -155,7 +155,12 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
   async function removeTrip(id: string) {
     if (!supabase) return;
     const client = supabase;
+    const { data: photos } = await client.from("trip_photos").select("storage_path").eq("trip_id", id);
     if (await run(() => client.from("couple_trips").delete().eq("id", id), "Não foi possível apagar a viagem")) {
+      if (photos?.length) {
+        const { error: storageError } = await client.storage.from("date-photos").remove(photos.map((photo) => photo.storage_path as string));
+        if (storageError) setError(`A viagem foi apagada, mas ficaram fotografias por apagar: ${storageError.message}`);
+      }
       onTripsChange((current) => current.filter((trip) => trip.id !== id));
       setItems((current) => current.filter((item) => item.trip_id !== id));
     }
@@ -237,7 +242,7 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
         {tripItems.length === 0 && <p className="schedule-hint">Ainda não há nada no plano. Acrescentem o que querem fazer, com ou sem dia marcado.</p>}
         <div className="panel-actions">
           {trip.end_date < today && <button type="button" className="button button-primary" onClick={() => onOpenMemory(trip.id)}>Ver memória</button>}
-          <a className="button button-ghost" href={flightsUrl(trip.title, monthNames[Number(trip.start_date.slice(5, 7)) - 1])} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a>
+          <a className="button button-ghost" href={flightsUrl(airport, trip.title, monthNames[Number(trip.start_date.slice(5, 7)) - 1])} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a>
           <button type="button" className="button button-ghost" onClick={() => setTripDraft(trip)}><Pencil size={16} aria-hidden="true" />Editar</button>
           <button type="button" className="button button-ghost" disabled={busy} onClick={() => void removeTrip(trip.id)}><Trash2 size={16} aria-hidden="true" />Apagar viagem</button>
         </div>
@@ -272,7 +277,7 @@ export function TripsPanel({ coupleId, trips, onTripsChange, onOpenMemory }: { c
             {hasTrip && <p className="destination-booked">Já têm viagem marcada.</p>}
             {bookingFor === destination.id
               ? <TripDatesForm city={destination.city} busy={busy} onSave={(start, end) => void bookTrip(destination, start, end)} onCancel={() => setBookingFor(null)} />
-              : <div className="panel-actions"><button type="button" className="button button-secondary" onClick={() => setBookingFor(destination.id)}><CalendarPlus size={16} aria-hidden="true" />Marcar datas</button><a className="button button-ghost" href={flightsUrl(destination.city)} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a></div>}
+              : <div className="panel-actions"><button type="button" className="button button-secondary" onClick={() => setBookingFor(destination.id)}><CalendarPlus size={16} aria-hidden="true" />Marcar datas</button><a className="button button-ghost" href={flightsUrl(airport, destination.city)} target="_blank" rel="noopener noreferrer"><Plane size={16} aria-hidden="true" />Ver voos<ExternalLink size={14} aria-hidden="true" /></a></div>}
           </article>;
         })}
 
