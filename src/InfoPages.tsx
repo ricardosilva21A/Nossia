@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-const contactEmail = "";
+const contactEmail = "ricardosethsilva+nossia@gmail.com";
 
 function InfoPage({ title, children }: { title: string; children: ReactNode }) {
   return (
