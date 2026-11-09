@@ -3,8 +3,6 @@ import type { FormEvent } from "react";
 import { Pencil } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { NotificationSettings } from "./NotificationSettings";
-import { QuickAddBox } from "./QuickAddBox";
-import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, CoupleTask, CoupleTrip, DateIdea, HomePartner, WorkScheduleBlock } from "./types";
 type ScheduleCouple = { id: string; partner_one_name: string; partner_two_name: string };
 type FreeWindow = { start: number; end: number };
@@ -84,7 +82,7 @@ export function describeWindows(windows: FreeWindow[]) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, busy: appBusy, onQuickAdd, onRemoveCommitment, onUpdateCommitment, onBlocksChange, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onQuickAdd: (value: QuickAddValue) => Promise<boolean>; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void;  onFindDate: () => void }) {
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, onRemoveCommitment, onUpdateCommitment, onBlocksChange, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void;  onFindDate: () => void }) {
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -253,8 +251,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
 
       <article className="schedule-card commitments-card">
         <h2>Compromissos</h2>
-        <p className="schedule-hint">Jantar em casa da família, o dentista, uma reunião. Vão para o calendário e contam como tempo ocupado.</p>
-        <QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={appBusy} defaultKind="commitment" onSubmit={onQuickAdd} />
+        <p className="schedule-hint">Jantar em casa da família, o dentista, uma reunião. Vão para o calendário e contam como tempo ocupado. Adicionem-nos com o botão +.</p>
         {upcomingCommitments.length > 0 && <ul className="commitment-list">
           {upcomingCommitments.map((commitment) => commitmentDraft?.id === commitment.id ? <li key={commitment.id} className="edit-row"><form onSubmit={(event) => { event.preventDefault(); if (commitmentDraft.title.trim() && commitmentDraft.event_date) void onUpdateCommitment(commitment.id, { title: commitmentDraft.title.trim(), event_date: commitmentDraft.event_date, starts_at: commitmentDraft.starts_at || null, ends_at: commitmentDraft.starts_at && commitmentDraft.ends_at && commitmentDraft.ends_at > commitmentDraft.starts_at ? commitmentDraft.ends_at : null, for_partner: commitmentDraft.for_partner }).then((saved) => { if (saved) setCommitmentDraft(null); }); }}>
             <input className="form-input" required maxLength={200} aria-label="Compromisso" value={commitmentDraft.title} onChange={(event) => setCommitmentDraft({ ...commitmentDraft, title: event.target.value })} />

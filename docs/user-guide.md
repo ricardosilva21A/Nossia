@@ -7,7 +7,7 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 ## Getting started
 
 1. Create the account with your names and relationship date.
-2. In **Nós → Definições** (Us → Settings), open **Perfil do casal** (Couple profile) and create the invite link for your partner.
+2. In **Definições** (avatar) (Settings, under the avatar at the top right), open **Perfil do casal** (Couple profile) and create the invite link for your partner.
 3. On iPhone, open the site in Safari, tap **Share** and then **Add to Home Screen**.
 
 ## Adding things quickly
@@ -20,7 +20,7 @@ Browse the catalogue, save favourites, draw one at random, or answer a few quest
 
 ## Restaurants and places
 
-In **Ideias → Sítios** (Ideas → Places), choose between trying somewhere new and going back to somewhere you liked. When you say you'd repeat a dinner, the restaurant moves to **Aprovados** (Approved), along with what you ate.
+In **Explorar → Sítios** (Explore → Places), choose between trying somewhere new and going back to somewhere you liked. When you say you'd repeat a dinner, the restaurant moves to **Aprovados** (Approved), along with what you ate.
 
 ## Changing plans
 
@@ -40,12 +40,12 @@ In **Agenda → Semana** (Week), add your work hours so Nossia can show when you
 
 ## Trips
 
-Plan destinations and what to do each day. After a trip, add photos and see it on **Mapa-mundo** (World map). Change your departure airport in **Nós → Definições**.
+Plan destinations and what to do each day. After a trip, add photos and see it on **Mapa-mundo** (World map). Change your departure airport in **Definições** (avatar).
 
 ## Notifications and calendar
 
-Turn on notifications in **Nós → Definições**. On iPhone they only work with Nossia on the Home Screen. In the same settings, you can subscribe to your dates in the iPhone calendar.
+Turn on notifications in **Definições** (avatar). On iPhone they only work with Nossia on the Home Screen. In the same settings, you can subscribe to your dates in the iPhone calendar.
 
 ## Deleting your account
 
-It's in **Nós → Definições**. If your partner has an account, the couple's data stays with them. If it's only you, everything is deleted, including photos.
+It's in **Definições** (avatar). If your partner has an account, the couple's data stays with them. If it's only you, everything is deleted, including photos.
