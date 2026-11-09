@@ -22,6 +22,9 @@ import { Onboarding } from "./Onboarding";
 import { Mascot as MascotArt } from "./Mascot";
 import type { Mascot } from "./mascots";
 import { decideHouse } from "./house";
+import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
+import type { CoupleSignals, Vote } from "./preferences";
+import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
@@ -192,6 +195,7 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
     at_home: idea.at_home,
     weather_setting: idea.weather_setting,
     seasons: idea.seasons ?? [],
+    tags: idea.tags ?? [],
     repeatable: idea.repeatable ?? false,
     favorite: favoriteIdeaIds.has(idea.id),
     is_own_idea: idea.created_by_couple_id !== null && idea.created_by_couple_id === coupleId,
@@ -358,6 +362,9 @@ function App() {
   const [memoryNote, setMemoryNote] = useState("");
   const [mascots, setMascots] = useState<Mascot[] | null>(null);
   const [syncTick, setSyncTick] = useState(0);
+  const [votes, setVotes] = useState<Vote[]>([]);
+  const [signals, setSignals] = useState<CoupleSignals>(noSignals);
+  const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
   const [partnerJoined, setPartnerJoined] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [editingMascot, setEditingMascot] = useState(false);
@@ -616,6 +623,7 @@ function App() {
     const favoriteShown = new Set<string>();
     const today = localDateString();
     const matching = ideas.filter((idea) => {
+      if (idea.status === "idea" && isHiddenByCouple(idea.idea_id, signals)) return false;
       // An idea repeated several times is still one favourite.
       if (view === "favorites") {
         if (!idea.favorite || favoriteShown.has(idea.idea_id)) return false;
@@ -646,6 +654,7 @@ function App() {
       date: today,
       forecast: weatherForecast.find((day) => day.date === today),
       freeMinutes: null,
+      signals,
       categoryCounts: completedCategoryCounts(ideas),
     };
   }, [ideas, weatherForecast]);
@@ -672,9 +681,11 @@ function App() {
       forecast: weatherForecast.find((day) => day.date === suggestionDay.key),
       freeMinutes: workBlocks.length ? longestWindow(suggestionDay.windows) : null,
       categoryCounts: completedCategoryCounts(ideas),
+      signals,
     }).slice(0, 12);
     return ranked.length ? ranked[suggestionSeed % ranked.length] : null;
-  }, [ideas, suggestionDay, suggestionSeed, weatherForecast, workBlocks.length]);
+  }, [ideas, signals, suggestionDay, suggestionSeed, weatherForecast, workBlocks.length]);
+  const deckAvailable = useMemo(() => buildDeck(ideas, votes, localDateString(), new Date()), [ideas, votes]);
   const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
   const anniversary = couple ? nextAnniversary(couple.relationship_date) : null;
@@ -1618,6 +1629,44 @@ function App() {
     };
   }, [couple?.id, session?.user.id, loadCoupleData]);
 
+  const loadSignals = useCallback(async () => {
+    if (!supabase) return;
+    const { data } = await supabase.rpc("couple_idea_signals");
+    if (data) setSignals(data as CoupleSignals);
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !couple?.id) return;
+    let active = true;
+    void supabase.from("idea_votes").select("idea_id, vote, updated_at").then(({ data, error }) => {
+      if (!active) return;
+      if (error) setDataError(`Não foi possível carregar as tuas escolhas: ${error.message}`);
+      else setVotes(data as Vote[]);
+    });
+    void loadSignals();
+    return () => { active = false; };
+  }, [couple?.id, syncTick, loadSignals]);
+
+  async function saveVote(idea: DateIdea, vote: "like" | "pass") {
+    if (!supabase || !couple || !session) return false;
+    const updated_at = new Date().toISOString();
+    const { error } = await supabase.from("idea_votes").upsert({ user_id: session.user.id, couple_id: couple.id, idea_id: idea.idea_id, vote, updated_at }, { onConflict: "user_id,idea_id" });
+    if (error) return false;
+    setVotes((current) => [...current.filter((item) => item.idea_id !== idea.idea_id), { idea_id: idea.idea_id, vote, updated_at }]);
+    return true;
+  }
+
+  async function restoreVote(ideaId: string) {
+    if (!supabase || !session) return;
+    const { error } = await supabase.from("idea_votes").delete().eq("user_id", session.user.id).eq("idea_id", ideaId);
+    if (error) {
+      setDataError(`Não foi possível recuperar a ideia: ${error.message}`);
+      return;
+    }
+    setVotes((current) => current.filter((item) => item.idea_id !== ideaId));
+    void loadSignals();
+  }
+
   async function saveAirport(code: string) {
     if (!supabase || !couple) return;
     const previous = couple.home_airport;
@@ -1691,6 +1740,8 @@ function App() {
             weatherKnown={couple.weather_latitude !== null}
             scene={decideHouse({ now: new Date(), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates })}
             mascots={mascots ?? []}
+            deckSize={deckAvailable.length}
+            onOpenDeck={() => setOpenDeck(deckAvailable)}
             onOpenFridge={() => navigateView("tripMap")}
             onOpenCalendar={() => navigateView("calendar")}
             onOpenWindow={() => navigateView("settings")}
@@ -1765,7 +1816,7 @@ function App() {
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><AccountSettings airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
@@ -1816,6 +1867,7 @@ function App() {
       </main>
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
+      {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
       {couple && mySlot && mascots && (onboardingOpen || editingMascot || !mascots.some((item) => item.user_id === session.user.id)) && <Onboarding coupleId={couple.id} userId={session.user.id} slot={mySlot} defaultName={mySlot === "partner_one" ? couple.partner_one_name : couple.partner_two_name} existing={editingMascot ? mascots.find((item) => item.user_id === session.user.id) ?? null : null} askInvite={!editingMascot && !partnerJoined} onSaved={(saved) => { setMascots((current) => [...(current ?? []).filter((item) => item.user_id !== saved.user_id), saved]); if (!editingMascot && !partnerJoined) setOnboardingOpen(true); }} onDone={() => { setOnboardingOpen(false); setEditingMascot(false); }} />}
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setModal(null); setAnniversaryPlanDate(null); } }}><section className={`modal-card ${modal === "new" || modal === "edit" ? "idea-editor-modal" : ""} ${modal === "profile" ? "profile-modal" : ""} ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label={"Fechar"} disabled={busy} onClick={() => { setModal(null); setAnniversaryPlanDate(null); }}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>

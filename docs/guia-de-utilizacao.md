@@ -16,6 +16,10 @@ Na caixa do **Hoje**, escreve como dirias: "Jantar italiano sexta às 20h". A No
 
 Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época.
 
+## Ensinar a Nossia
+
+No **Hoje**, de vez em quando aparece um cartão para dizeres se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas. O que os dois passam deixa de ser sugerido, e o que os dois gostam vem primeiro. Podes recuperar o que passaste nas **Definições**.
+
 ## Restaurantes e sítios
 
 Em **Explorar → Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os **Aprovados**, com o que comeram.

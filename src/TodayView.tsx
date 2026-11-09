@@ -32,6 +32,8 @@ export function TodayView({
   weather,
   scene,
   mascots,
+  deckSize,
+  onOpenDeck,
   onOpenFridge,
   onOpenCalendar,
   onOpenWindow,
@@ -63,6 +65,8 @@ export function TodayView({
   weather: ReactNode;
   scene: HouseScene;
   mascots: Mascot[];
+  deckSize: number;
+  onOpenDeck: () => void;
   onOpenFridge: () => void;
   onOpenCalendar: () => void;
   onOpenWindow: () => void;
@@ -118,6 +122,12 @@ export function TodayView({
         <p className="panel-label">O que querem marcar?</p><div className="today-shortcuts"><button type="button" className="button button-ghost" onClick={onOpenPlaces}><UtensilsCrossed size={16} aria-hidden="true" />Jantar fora</button><button type="button" className="button button-ghost" onClick={onLogWatched}><Popcorn size={16} aria-hidden="true" />Vimos um filme ou série</button></div>
         <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
       </section>
+
+      {deckSize > 0 && <section className="panel today-swipes" aria-label="Escolher ideias">
+        <p className="panel-label">A mascote quer conhecer-te</p>
+        <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia" : "ideias"} para dizeres se te apetece ou não. Assim só recebem sugestões a sério.</p>
+        <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Começar</button></div>
+      </section>}
 
       {nextCommitments.length > 0 && <section className="panel today-commitments" aria-label="Compromissos">
         <div className="panel-heading"><p className="panel-label">Próximos compromissos</p><button type="button" className="button button-ghost" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button></div>
