@@ -49,6 +49,7 @@ export type DateDetails = {
   longitude: number | null;
   home_partner: HomePartner | null;
   place_id: string | null;
+  event_id: string | null;
   would_repeat: boolean | null;
   watched_title: string | null;
   food_notes: string | null;

@@ -20,6 +20,10 @@ Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas 
 
 No **Hoje**, de vez em quando aparece um cartão para dizeres se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas. O que os dois passam deixa de ser sugerido, e o que os dois gostam vem primeiro. Podes recuperar o que passaste nas **Definições**.
 
+## Eventos
+
+Em **Explorar → Eventos** aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas **Definições**. **Marcar** põe o evento na Agenda com o local e a hora, e **Bilhetes e info** abre o site do organizador. Em **Vale a viagem** aparecem eventos grandes mais longe, só em dias em que estão os dois livres, com o tempo de carro. Os que ficam longe demais para ir e voltar no mesmo dia podem virar uma viagem.
+
 ## Restaurantes e sítios
 
 Em **Explorar → Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os **Aprovados**, com o que comeram.

@@ -22,6 +22,10 @@ Browse the catalogue, save favourites, draw one at random, or answer a few quest
 
 On **Hoje**, a card sometimes asks you to swipe ideas: right if you like it, left to pass. Your partner never sees what you pass. What you both pass stops being suggested, and what you both like comes first. You can bring back anything you passed in **Definições** (Settings).
 
+## Events
+
+**Explorar → Eventos** (Explore → Events) lists events within 60 km of your municipality, which you set in **Definições** (Settings). **Marcar** adds the event to the Agenda with its place and time, and **Bilhetes e info** opens the organiser's site. **Vale a viagem** (Worth the trip) lists big events further away, only on days you're both free, with the drive time. Those too far for a day out can become a trip.
+
 ## Restaurants and places
 
 In **Explorar → Sítios** (Explore → Places), choose between trying somewhere new and going back to somewhere you liked. When you say you'd repeat a dinner, the restaurant moves to **Aprovados** (Approved), along with what you ate.

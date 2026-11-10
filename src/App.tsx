@@ -25,6 +25,9 @@ import { decideHouse } from "./house";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
+import { EventsPanel } from "./EventsPanel";
+import { eventsNear } from "./events";
+import type { LocalEvent, Origin } from "./events";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
@@ -37,7 +40,7 @@ import type { CouplePlace, Category, CoupleCommitment, CoupleDate, CoupleTrip, D
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
-type View = "today" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "tripMap" | "places";
+type View = "today" | "events" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "tripMap" | "places";
 type Section = "today" | "explore" | "agenda" | "us";
 
 type DiscoveryMode = "random" | "feeling";
@@ -68,6 +71,9 @@ type Couple = {
   first_date_date: string | null;
   weather_location_name: string | null;
   weather_latitude: number | null;
+  municipality: string | null;
+  municipality_latitude: number | null;
+  municipality_longitude: number | null;
   weather_longitude: number | null;
   couple_photo_path: string | null;
 };
@@ -79,7 +85,7 @@ const categories: Array<Category | "All"> = ["All", "Romantic", "Adventure", "Fo
 // Four tabs; pages that belong together sit under one tab as sub-sections. Settings open from the avatar.
 const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: View[] }> = [
   { id: "today", label: "Hoje", Icon: Home, views: ["today"] },
-  { id: "explore", label: "Explorar", Icon: Lightbulb, views: ["discover", "places", "favorites"] },
+  { id: "explore", label: "Explorar", Icon: Lightbulb, views: ["discover", "events", "places", "favorites"] },
   { id: "agenda", label: "Agenda", Icon: CalendarDays, views: ["planned", "calendar", "schedule", "trips"] },
   { id: "us", label: "Nós", Icon: Heart, views: ["memories", "map", "tripMap", "insights"] },
 ];
@@ -97,6 +103,7 @@ const subviewLabels: Record<View, string> = {
   trips: "Viagens",
   tripMap: "Mapa-mundo",
   places: "Sítios",
+  events: "Eventos",
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
 
@@ -119,6 +126,8 @@ function viewFromPath(pathname: string): View {
     viagens: "trips",
     "mapa-mundo": "tripMap",
     sitios: "places",
+    eventos: "events",
+    events: "events",
     trips: "trips",
     settings: "settings",
     favorites: "favorites",
@@ -129,7 +138,7 @@ function viewFromPath(pathname: string): View {
 }
 
 function pathForView(view: View) {
-  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "tripMap" ? "mapa-mundo" : view === "places" ? "sitios" : view}`;
+  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "tripMap" ? "mapa-mundo" : view === "places" ? "sitios" : view === "events" ? "eventos" : view}`;
 }
 
 function translateImportMessage(message: string) {
@@ -169,6 +178,7 @@ const emptyDateDetails: DateDetails = {
   longitude: null,
   home_partner: null,
   place_id: null,
+  event_id: null,
   would_repeat: null,
   watched_title: null,
   food_notes: null,
@@ -216,6 +226,7 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
       longitude: date.longitude,
       home_partner: date.home_partner,
       place_id: date.place_id,
+      event_id: date.event_id ?? null,
       would_repeat: date.would_repeat,
       watched_title: date.watched_title,
       food_notes: date.food_notes,
@@ -365,6 +376,7 @@ function App() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
   const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
+  const [events, setEvents] = useState<LocalEvent[]>([]);
   const [partnerJoined, setPartnerJoined] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [editingMascot, setEditingMascot] = useState(false);
@@ -394,7 +406,7 @@ function App() {
   }
 
   function navigateView(nextView: View, replace = false) {
-    lastViewInSection.current[sectionOf(nextView).id] = nextView;
+    if (nextView !== "settings") lastViewInSection.current[sectionOf(nextView).id] = nextView;
     const path = pathForView(nextView);
     if (window.location.pathname !== path) {
       window.history[replace ? "replaceState" : "pushState"]({}, "", path);
@@ -685,6 +697,19 @@ function App() {
     }).slice(0, 12);
     return ranked.length ? ranked[suggestionSeed % ranked.length] : null;
   }, [ideas, signals, suggestionDay, suggestionSeed, weatherForecast, workBlocks.length]);
+  const eventOrigin: Origin | null = couple?.municipality_latitude != null && couple.municipality_longitude != null
+    ? { municipality: couple.municipality, latitude: couple.municipality_latitude, longitude: couple.municipality_longitude }
+    : couple?.weather_latitude != null && couple.weather_longitude != null ? { municipality: null, latitude: couple.weather_latitude, longitude: couple.weather_longitude } : null;
+  const nextNearbyEvent = useMemo(() => {
+    const today = localDateString();
+    const weekAhead = localDateString(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+    const found = eventsNear(events, eventOrigin, today).find(({ event }) => event.starts_on <= weekAhead);
+    return found ? { title: found.event.title, date: found.event.starts_on < today ? today : found.event.starts_on } : null;
+  }, [events, eventOrigin?.latitude, eventOrigin?.longitude, eventOrigin?.municipality]);
+  const eventHorizon = useMemo(() => {
+    const days = sharedFreeDays(workBlocks, plannedDates, commitments, trips, 60);
+    return { free: new Set(days.filter((day) => day.dates.length === 0 && longestWindow(day.windows) >= 360).map((day) => day.key)), end: days[days.length - 1].key };
+  }, [commitments, plannedDates, trips, workBlocks]);
   const deckAvailable = useMemo(() => buildDeck(ideas, votes, localDateString(), new Date()), [ideas, votes]);
   const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
@@ -1647,6 +1672,74 @@ function App() {
     return () => { active = false; };
   }, [couple?.id, syncTick, loadSignals]);
 
+  useEffect(() => {
+    if (!supabase || !couple?.id) return;
+    let active = true;
+    void supabase.from("events").select("*").eq("status", "approved").gte("ends_on", localDateString()).order("starts_on").then(({ data }) => {
+      if (active && data) setEvents(data as LocalEvent[]);
+    });
+    return () => { active = false; };
+  }, [couple?.id, syncTick]);
+
+  async function saveMunicipality(name: string) {
+    if (!supabase || !couple) return false;
+    const trimmed = name.trim();
+    let position = { municipality_latitude: null as number | null, municipality_longitude: null as number | null };
+    if (trimmed) {
+      try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=pt&accept-language=pt-PT&q=${encodeURIComponent(trimmed)}`);
+        const [match] = response.ok ? await response.json() as Array<{ lat: string; lon: string }> : [];
+        if (!match) {
+          setDataError(`Não encontrámos “${trimmed}”. Experimentem o nome do concelho, por exemplo Guimarães.`);
+          return false;
+        }
+        position = { municipality_latitude: Number(match.lat), municipality_longitude: Number(match.lon) };
+      } catch {
+        setDataError("Sem ligação para encontrar o concelho. Tentem outra vez.");
+        return false;
+      }
+    }
+    const patch = { municipality: trimmed || null, ...position };
+    const { error } = await supabase.from("couples").update(patch).eq("id", couple.id);
+    if (error) {
+      setDataError(`Não foi possível guardar o concelho: ${error.message}`);
+      return false;
+    }
+    setCouple({ ...couple, ...patch });
+    return true;
+  }
+
+  async function planEvent(event: LocalEvent, date: string) {
+    const ideaId = await findOrCreateIdea(event.title, { category: event.category, emoji: "🎟️", weatherSetting: event.indoor ? "indoor" : "outdoor" });
+    if (!ideaId) return false;
+    return createDate(ideaId, {
+      planned_for: date,
+      planned_start_time: event.start_time,
+      location_name: [event.venue, event.municipality].filter(Boolean).join(", ") || null,
+      latitude: event.latitude,
+      longitude: event.longitude,
+      event_id: event.id,
+    });
+  }
+
+  async function planEventTrip(event: LocalEvent, date: string) {
+    if (!supabase || !couple) return false;
+    const next = new Date(`${date}T12:00:00`);
+    next.setDate(next.getDate() + 1);
+    const end = localDateString(next);
+    const { data, error } = await supabase.from("couple_trips").insert({ couple_id: couple.id, title: event.municipality || event.title, start_date: date, end_date: end }).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível criar a viagem: ${error.message}`);
+      return false;
+    }
+    const trip = data as CoupleTrip;
+    const { error: itemError } = await supabase.from("trip_items").insert({ trip_id: trip.id, couple_id: couple.id, title: `${event.title}${event.start_time ? ` às ${event.start_time.slice(0, 5)}` : ""}`, day: date });
+    if (itemError) setDataError(`A viagem foi criada, mas não foi possível juntar o evento ao plano: ${itemError.message}`);
+    setTrips((current) => [...current, trip]);
+    navigateView("trips");
+    return true;
+  }
+
   async function saveVote(idea: DateIdea, vote: "like" | "pass") {
     if (!supabase || !couple || !session) return false;
     const updated_at = new Date().toISOString();
@@ -1692,6 +1785,7 @@ function App() {
     trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
     tripMap: ["Mapa-mundo", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
     places: ["Sítios", "Restaurantes, cafés e bares para experimentar, e os que já são vossos."],
+    events: ["Eventos", "O que está a acontecer perto de vocês."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
     planned: ["Planeados", "O que já está marcado."],
     memories: ["Memórias", "Os dates que já fizeram, com notas e fotografias."],
@@ -1753,6 +1847,8 @@ function App() {
             partnerTwoName={couple.partner_two_name}
             commitments={commitments}
             nextTrip={nextTrip}
+            nextEvent={nextNearbyEvent}
+            onOpenEvents={() => navigateView("events")}
             onQuickAdd={quickAdd}
             onMoreDetails={openIdeaDetails}
             onPlanSuggestion={(idea, date) => void createDate(idea.idea_id, { planned_for: date })}
@@ -1811,12 +1907,13 @@ function App() {
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
+          {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
