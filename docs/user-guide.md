@@ -55,6 +55,8 @@ Plan destinations and what to do each day. After a trip, add photos and see it o
 
 In **Agenda → Viagens** (Trips), Nossia shows upcoming long weekends and bridges worth taking, for example: a Tuesday holiday becomes four days off by taking the Monday. It accounts for each person's hours, including weekend work, and your municipality's holiday, and sends a notification three weeks before.
 
+In **Definições** → **As minhas férias** (My holidays), each person says how they take holidays: whenever they like, with days per year and months to avoid, or on fixed company dates. Nossia then shows how many days the other needs to take to join them, and stops suggesting bridges in months someone avoids.
+
 ## Notifications and calendar
 
 Turn on notifications in **Definições** (avatar). On iPhone they only work with Nossia on the Home Screen. In the same settings, you can subscribe to your dates in the iPhone calendar.

@@ -5,8 +5,16 @@
 type Slot = "partner_one" | "partner_two";
 export type Holiday = { date: string; name: string };
 export type WorkBlock = { partner_slot: Slot; weekday: number };
+// Each person's holidays: fixed periods they're away, and months a flexible person can't take leave.
+export type VacationRules = {
+  away?: Partial<Record<Slot, Array<{ starts_on: string; ends_on: string }>>>;
+  avoidMonths?: Partial<Record<Slot, number[]>>;
+};
+
 export type Opportunity = {
-  holiday: Holiday;
+  holiday: Holiday | null;
+  awayFor?: Slot;
+  awkward?: Slot[];
   start: string;
   end: string;
   days: number;
@@ -92,21 +100,27 @@ export function holidaysFor(year: number, municipality?: string | null): Holiday
 }
 
 // Who works that day. Without any hours set, assume Monday to Friday.
-function workers(day: string, blocks: WorkBlock[], holidays: Set<string>): Slot[] {
+const isAway = (slot: Slot, day: string, rules: VacationRules) => (rules.away?.[slot] ?? []).some((period) => period.starts_on <= day && period.ends_on >= day);
+const avoids = (slot: Slot, day: string, rules: VacationRules) => (rules.avoidMonths?.[slot] ?? []).includes(Number(day.slice(5, 7)));
+
+function workers(day: string, blocks: WorkBlock[], holidays: Set<string>, rules: VacationRules = {}): Slot[] {
   if (holidays.has(day)) return [];
   const weekday = new Date(`${day}T12:00:00`).getDay() || 7;
   return (["partner_one", "partner_two"] as Slot[]).filter((slot) => {
+    if (isAway(slot, day, rules)) return false;
     const own = blocks.filter((block) => block.partner_slot === slot);
     return own.length ? own.some((block) => block.weekday === weekday) : weekday <= 5;
   });
 }
 
 // Long weekends and bridges from holidays between two days, at most two days of leave each.
-export function findOpportunities(from: string, until: string, blocks: WorkBlock[], municipality?: string | null): Opportunity[] {
+export function findOpportunities(from: string, until: string, blocks: WorkBlock[], municipality?: string | null, rules: VacationRules = {}): Opportunity[] {
   const years = [Number(from.slice(0, 4)), Number(until.slice(0, 4))];
   const holidays = [...new Set(years)].flatMap((year) => holidaysFor(year, municipality));
   const holidayDays = new Set(holidays.map((holiday) => holiday.date));
-  const off = (day: string) => workers(day, blocks, holidayDays).length === 0;
+  const off = (day: string) => workers(day, blocks, holidayDays, rules).length === 0;
+  // A day of leave in a month someone can't take it doesn't count as possible.
+  const canTake = (day: string) => workers(day, blocks, holidayDays, rules).every((slot) => !avoids(slot, day, rules));
   const found: Opportunity[] = [];
 
   for (const holiday of holidays) {
@@ -122,6 +136,7 @@ export function findOpportunities(from: string, until: string, blocks: WorkBlock
       const leave: string[] = [];
       let day = addDays(edge, step);
       while (!off(day) && leave.length < maxLeaveDays) {
+        if (!canTake(day)) return null;
         leave.push(day);
         day = addDays(day, step);
       }
@@ -142,7 +157,34 @@ export function findOpportunities(from: string, until: string, blocks: WorkBlock
       .filter((option) => option.leave.length === 0 ? option.days >= 3 : option.days - baseDays > option.leave.length);
     const best = options.sort((first, second) => second.days - first.days || first.leave.length - second.leave.length)[0];
     if (!best || found.some((item) => item.start === best.start && item.end === best.end)) continue;
-    found.push({ holiday, start: best.start, end: best.end, days: best.days, leave: best.leave.sort().map((date) => ({ date, who: workers(date, blocks, holidayDays) })) });
+    found.push({ holiday, start: best.start, end: best.end, days: best.days, leave: best.leave.sort().map((date) => ({ date, who: workers(date, blocks, holidayDays, rules) })) });
+  }
+  return found;
+}
+
+// When one partner has fixed holidays, what the other would need to take to join them.
+export function findVacationWindows(from: string, until: string, blocks: WorkBlock[], municipality: string | null | undefined, rules: VacationRules): Opportunity[] {
+  const years = [Number(from.slice(0, 4)), Number(until.slice(0, 4))];
+  const holidayDays = new Set([...new Set(years)].flatMap((year) => holidaysFor(year, municipality)).map((holiday) => holiday.date));
+  const found: Opportunity[] = [];
+  for (const slot of ["partner_one", "partner_two"] as Slot[]) {
+    for (const period of rules.away?.[slot] ?? []) {
+      if (period.ends_on < from || period.starts_on > until) continue;
+      const other: Slot = slot === "partner_one" ? "partner_two" : "partner_one";
+      const leaveDays: string[] = [];
+      for (let day = period.starts_on < from ? from : period.starts_on; day <= period.ends_on; day = addDays(day, 1)) {
+        if (workers(day, blocks, holidayDays, rules).includes(other)) leaveDays.push(day);
+      }
+      // Stretch to the free days either side, usually the weekends.
+      const offForBoth = (day: string) => workers(day, blocks, holidayDays, rules).length === 0;
+      let start = period.starts_on < from ? from : period.starts_on;
+      let end = period.ends_on;
+      while (offForBoth(addDays(start, -1)) && addDays(start, -1) >= from) start = addDays(start, -1);
+      while (offForBoth(addDays(end, 1))) end = addDays(end, 1);
+      if (found.some((item) => item.start === start && item.end === end)) continue;
+      const awkward = leaveDays.some((day) => avoids(other, day, rules)) ? [other] : [];
+      found.push({ holiday: null, awayFor: slot, awkward, start, end, days: daysBetween(start, end) + 1, leave: leaveDays.map((date) => ({ date, who: [other] })) });
+    }
   }
   return found;
 }
@@ -154,8 +196,18 @@ export function daysBetween(first: string, second: string) {
 const weekdayName = (day: string) => new Intl.DateTimeFormat("pt-PT", { weekday: "long" }).format(new Date(`${day}T12:00:00`));
 const shortDate = (day: string) => new Intl.DateTimeFormat("pt-PT", { day: "numeric", month: "long" }).format(new Date(`${day}T12:00:00`));
 
+const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
 export function describeOpportunity(opportunity: Opportunity, names: Record<Slot, string>) {
   const { holiday, leave, days } = opportunity;
+  if (!holiday) {
+    const away = opportunity.awayFor as Slot;
+    const range = `de ${shortDate(opportunity.start)} a ${shortDate(opportunity.end)}`;
+    if (!leave.length) return `Estão os dois de férias ${range}: ${days} dias seguidos.`;
+    const other = leave[0].who[0];
+    const note = opportunity.awkward?.length ? ` Atenção: ${monthNames[Number(leave[0].date.slice(5, 7)) - 1]} é um mês difícil para ${names[other]}.` : "";
+    return `${names[away]} tem férias. Se ${names[other]} tirar ${leave.length} ${leave.length === 1 ? "dia" : "dias"}, têm ${days} dias seguidos, ${range}.${note}`;
+  }
   const when = `${shortDate(holiday.date)} (${holiday.name}) é ${weekdayName(holiday.date)}`;
   if (!leave.length) return `${when}: têm ${days} dias seguidos sem tirar férias.`;
   const both = leave.every((day) => day.who.length === 2);
