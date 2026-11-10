@@ -53,7 +53,7 @@ Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotogr
 
 Em **Agenda → Viagens**, a Nossia mostra os próximos fins de semana prolongados e as pontes que valem a pena, por exemplo: "8 de dezembro é terça-feira: tirando segunda-feira, têm 4 dias seguidos". Conta com o horário de cada um, incluindo quem trabalha ao fim de semana, e com o feriado do vosso concelho. Avisa também por notificação três semanas antes.
 
-Nas **Definições**, em **As minhas férias**, cada um diz como tira férias: **Quando quero**, com os dias por ano e os meses difíceis, ou **Marcadas pela empresa**, com os períodos. A Nossia mostra, por exemplo: "Marta tem férias. Se Ricardo tirar 5 dias, têm 9 dias seguidos", e deixa de sugerir pontes em meses difíceis.
+Nas **Definições**, em **As minhas férias**, cada um diz como tira férias: **Quando quero**, com os dias por ano e os meses difíceis, ou **Marcadas pela empresa**, com os períodos. A Nossia mostra, por exemplo: "Marta tem férias. Se Ricardo tirar 5 dias, têm 9 dias seguidos", e deixa de sugerir pontes em meses difíceis. Cada oportunidade sugere destinos que cabem nesses dias e estão em boa altura, deixando de fora os sítios onde já foram.
 
 ## Notificações e calendário
 

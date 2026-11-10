@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
+import { destinationsFor } from "./destinations";
 import { addDays, describeOpportunity, findOpportunities, findVacationWindows } from "./holidays";
 import type { VacationRules, WorkBlock } from "./holidays";
 
 const shortDay = (day: string) => new Intl.DateTimeFormat("pt-PT", { weekday: "short", day: "numeric", month: "short" }).format(new Date(`${day}T12:00:00`));
 
-export function Opportunities({ today, blocks, municipality, rules, names, busy, onCreateTrip }: {
+export function Opportunities({ today, blocks, municipality, rules, names, visited, busy, onCreateTrip }: {
   today: string;
   blocks: WorkBlock[];
   municipality: string | null;
   rules: VacationRules;
+  visited: string[];
   names: { partner_one: string; partner_two: string };
   busy: boolean;
   onCreateTrip: (title: string, start: string, end: string) => Promise<boolean>;
@@ -31,6 +33,10 @@ export function Opportunities({ today, blocks, municipality, rules, names, busy,
       <ul>{list.map((item) => <li key={item.start}>
         <p>{describeOpportunity(item, names)}</p>
         <small>{shortDay(item.start)} a {shortDay(item.end)}</small>
+        {item.days >= 2 && (() => {
+          const ideas = destinationsFor(item.days, item.start, [...visited, municipality ?? ""]);
+          return ideas.length > 0 && <div className="chip-row opportunity-ideas" role="group" aria-label="Destinos que cabem">{ideas.map((guide) => <button type="button" key={guide.city} className="chip" onClick={() => { setOpenStart(item.start); setCity(guide.city); }}>{guide.flag} {guide.city}</button>)}</div>;
+        })()}
         {openStart === item.start ? <form className="opportunity-form" onSubmit={(event) => { event.preventDefault(); if (city.trim()) void onCreateTrip(city.trim(), item.start, item.end).then((saved) => { if (saved) { setOpenStart(null); setCity(""); } }); }}>
           <input className="form-input" required maxLength={120} aria-label="Para onde" placeholder="Para onde? ex.: Lisboa" value={city} onChange={(event) => setCity(event.target.value)} />
           <button className="button button-primary" type="submit" disabled={busy}>Criar viagem</button>
