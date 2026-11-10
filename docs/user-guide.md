@@ -7,8 +7,9 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 ## Getting started
 
 1. Create the account with your names and relationship date.
-2. In **Definições** (avatar) (Settings, under the avatar at the top right), open **Perfil do casal** (Couple profile) and create the invite link for your partner.
-3. On iPhone, open the site in Safari, tap **Share** and then **Add to Home Screen**.
+2. Create your mascot and tell it your birthday. Your partner does the same when they join.
+3. In **Definições** (Settings, under the avatar at the top right), open **Perfil do casal** (Couple profile) and create the invite link for your partner.
+4. On iPhone, open the site in Safari, tap **Share** and then **Add to Home Screen**.
 
 ## Adding things quickly
 

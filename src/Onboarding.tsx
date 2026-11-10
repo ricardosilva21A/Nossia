@@ -12,12 +12,15 @@ type Props = {
   defaultName: string;
   existing: Mascot | null;
   askInvite: boolean;
+  birthDate: string | null;
+  onSaveBirthday: (date: string) => Promise<boolean>;
   onSaved: (mascot: Mascot) => void;
   onDone: () => void;
 };
 
-export function Onboarding({ coupleId, userId, slot, defaultName, existing, askInvite, onSaved, onDone }: Props) {
-  const [step, setStep] = useState<"mascot" | "invite">("mascot");
+export function Onboarding({ coupleId, userId, slot, defaultName, existing, askInvite, birthDate, onSaveBirthday, onSaved, onDone }: Props) {
+  const [step, setStep] = useState<"mascot" | "birthday" | "invite">("mascot");
+  const [birthday, setBirthday] = useState("");
   const [look, setLook] = useState<MascotLook>(existing ?? { name: defaultName, ears: "round", color: colorOptions[0], pattern: "none" });
   const [inviteLink, setInviteLink] = useState("");
   const [note, setNote] = useState("");
@@ -45,8 +48,24 @@ export function Onboarding({ coupleId, userId, slot, defaultName, existing, askI
       return;
     }
     onSaved(data as Mascot);
+    if (existing) onDone();
+    else if (!birthDate) setStep("birthday");
+    else afterBirthday();
+  }
+
+  function afterBirthday() {
     if (askInvite) setStep("invite");
     else onDone();
+  }
+
+  async function saveBirthday() {
+    if (!birthday) return;
+    setBusy(true);
+    setError("");
+    const saved = await onSaveBirthday(birthday);
+    setBusy(false);
+    if (saved) afterBirthday();
+    else setError("Não foi possível guardar. Tenta outra vez ou salta este passo.");
   }
 
   async function createInvite() {
@@ -87,6 +106,13 @@ export function Onboarding({ coupleId, userId, slot, defaultName, existing, askI
           <div className="chip-row" role="group" aria-label="Padrão">{patternOptions.map((option) => <button type="button" key={option.value} className={`chip ${look.pattern === option.value ? "selected" : ""}`} aria-pressed={look.pattern === option.value} onClick={() => set("pattern", option.value as Pattern)}>{option.label}</button>)}</div>
           {error && <p className="error-alert" role="alert">{error}</p>}
           <div className="panel-actions onboarding-actions">{existing && <button type="button" className="button button-ghost" onClick={onDone}>Cancelar</button>}<button type="button" className="button button-primary" disabled={busy || !look.name.trim()} onClick={() => void save()}>{existing ? "Guardar" : "Continuar"}</button></div>
+        </> : step === "birthday" ? <>
+          <div className="onboarding-preview"><MascotArt look={look} size={104} /></div>
+          <h1>Quando fazes anos?</h1>
+          <p className="modal-copy">{look.name.trim() === defaultName.trim() ? "A tua mascote" : look.name} quer conhecer-te. Assim lembra-se do teu dia e ajuda o teu par a prepará-lo.</p>
+          <label className="form-label">Data de nascimento<input className="form-input" type="date" max={new Date().toISOString().slice(0, 10)} value={birthday} onChange={(event) => setBirthday(event.target.value)} /></label>
+          {error && <p className="error-alert" role="alert">{error}</p>}
+          <div className="panel-actions onboarding-actions"><button type="button" className="button button-ghost" onClick={afterBirthday}>Agora não</button><button type="button" className="button button-primary" disabled={busy || !birthday} onClick={() => void saveBirthday()}>Continuar</button></div>
         </> : <>
           <h1>Convida a tua cara-metade</h1>
           <p className="modal-copy">A tua mascote já tem casa. Falta a outra metade: cada um tem a sua conta e veem os mesmos planos e memórias.</p>
