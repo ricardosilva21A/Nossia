@@ -49,6 +49,10 @@ Em **Agenda → Semana**, ponham os horários de trabalho para a Nossia mostrar 
 
 Planeiem destinos e o que fazer em cada dia. Depois de uma viagem, juntem fotografias e vejam-na no **Mapa-mundo**. O aeroporto de partida muda-se em **Definições** (avatar).
 
+## Feriados e pontes
+
+Em **Agenda → Viagens**, a Nossia mostra os próximos fins de semana prolongados e as pontes que valem a pena, por exemplo: "8 de dezembro é terça-feira: tirando segunda-feira, têm 4 dias seguidos". Conta com o horário de cada um, incluindo quem trabalha ao fim de semana, e com o feriado do vosso concelho. Avisa também por notificação três semanas antes.
+
 ## Notificações e calendário
 
 Em **Definições** (avatar), ativem as notificações. No iPhone, só funcionam com a Nossia no ecrã principal. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.

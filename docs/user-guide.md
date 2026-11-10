@@ -51,6 +51,10 @@ In **Agenda → Semana** (Week), add your work hours so Nossia can show when you
 
 Plan destinations and what to do each day. After a trip, add photos and see it on **Mapa-mundo** (World map). Change your departure airport in **Definições** (avatar).
 
+## Holidays and long weekends
+
+In **Agenda → Viagens** (Trips), Nossia shows upcoming long weekends and bridges worth taking, for example: a Tuesday holiday becomes four days off by taking the Monday. It accounts for each person's hours, including weekend work, and your municipality's holiday, and sends a notification three weeks before.
+
 ## Notifications and calendar
 
 Turn on notifications in **Definições** (avatar). On iPhone they only work with Nossia on the Home Screen. In the same settings, you can subscribe to your dates in the iPhone calendar.

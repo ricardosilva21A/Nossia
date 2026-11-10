@@ -35,6 +35,7 @@ Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia
 | **Events** | Real events within 60 km of the couple, added in the admin, booked in one tap. |
 | **Places** | Find restaurants, cafés and bars with OpenStreetMap, then split them into to try, approved and not again. |
 | **Agenda** | Planned dates, a calendar, work schedules, shared free time, commitments and tasks. |
+| **Long weekends** | National and municipal holidays turned into long weekends and bridges that fit both partners' hours, with a reminder three weeks before. |
 | **Trips** | Destination guides, plans per day, flight searches from the couple's airport and a world map of past trips with photos. |
 | **Memories** | Notes, photos, whether you'd repeat it, what you watched and what you ate. |
 | **Partners** | Each partner has their own account, joined with a single-use invite link. |

@@ -4,6 +4,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { addDays as addCalendarDays, daysBetween as calendarDaysBetween, describeOpportunity, findOpportunities } from "../src/holidays.js";
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -15,10 +16,10 @@ export type Reminder = { key: string; category: Category; title: string; body: s
 export type ReminderInput = {
   userId: string;
   slot: PartnerSlot;
-  couple: { partner_one_name: string; partner_two_name: string; partner_one_birth_date: string | null; partner_two_birth_date: string | null; relationship_date: string };
+  couple: { partner_one_name: string; partner_two_name: string; partner_one_birth_date: string | null; partner_two_birth_date: string | null; relationship_date: string; municipality?: string | null };
   dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string }>;
   commitments: Array<{ id: string; title: string; event_date: string; starts_at: string | null; for_partner: PartnerSlot | null; created_by: string | null; created_at: string }>;
-  blocks: Array<{ weekday: number; starts_at: string; ends_at: string }>;
+  blocks: Array<{ weekday: number; starts_at: string; ends_at: string; partner_slot?: PartnerSlot }>;
   trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
 };
 
@@ -124,6 +125,12 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
   }
 
   if (morning) {
+    // Three weeks ahead is enough to ask for the day off.
+    const slotted = input.blocks.flatMap((block) => block.partner_slot ? [{ partner_slot: block.partner_slot, weekday: block.weekday }] : []);
+    for (const opportunity of findOpportunities(today, addCalendarDays(today, 30), slotted, input.couple.municipality)) {
+      if (calendarDaysBetween(today, opportunity.start) !== 21) continue;
+      reminders.push({ key: `bridge:${opportunity.start}`, category: "nudges", title: opportunity.leave.length ? "Uma ponte à vista" : "Um fim de semana prolongado", body: describeOpportunity(opportunity, { partner_one: input.couple.partner_one_name, partner_two: input.couple.partner_two_name }), url: "/viagens" });
+    }
     for (const trip of input.trips ?? []) {
       if (trip.end_date === yesterday) reminders.push({ key: `trip-after:${trip.id}`, category: "dates", title: `Como foi a viagem a ${trip.title}?`, body: "Juntem as fotografias e guardem a memória.", url: "/mapa-mundo" });
       const until = daysBetween(today, trip.start_date);
