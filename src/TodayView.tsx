@@ -41,6 +41,8 @@ export function TodayView({
   partnerTwoName,
   commitments,
   nextTrip,
+  nextEvent,
+  onOpenEvents,
   onQuickAdd,
   onMoreDetails,
   onPlanSuggestion,
@@ -74,6 +76,8 @@ export function TodayView({
   partnerTwoName: string;
   commitments: CoupleCommitment[];
   nextTrip: { title: string; days: number } | null;
+  nextEvent: { title: string; date: string } | null;
+  onOpenEvents: () => void;
   onQuickAdd: (value: QuickAddValue) => Promise<boolean>;
   onMoreDetails: (title: string) => void;
   onPlanSuggestion: (idea: DateIdea, date: string) => void;
@@ -134,9 +138,10 @@ export function TodayView({
         <ul className="special-dates">{nextCommitments.map((commitment) => <li key={commitment.id}><strong>{commitment.title}</strong><span>{commitment.event_date === today ? "Hoje" : shortDay(commitment.event_date)}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""} · {partnerName(commitment.for_partner)}</span></li>)}</ul>
       </section>}
 
-      {(anniversary || birthdays.length > 0 || nextTrip) && <section className="panel today-dates" aria-label={"Datas especiais"}>
+      {(anniversary || birthdays.length > 0 || nextTrip || nextEvent) && <section className="panel today-dates" aria-label={"Datas especiais"}>
         <p className="panel-label">{"Datas especiais"}</p>
         <ul className="special-dates">
+          {nextEvent && <li><strong>{nextEvent.date === today ? "Hoje" : shortDay(nextEvent.date)}</strong><span><button type="button" className="link-button" onClick={onOpenEvents}>Perto de vocês: {nextEvent.title}</button></span></li>}
           {nextTrip && <li><strong>{nextTrip.days === 0 ? "Hoje" : `${nextTrip.days} ${nextTrip.days === 1 ? "dia" : "dias"}`}</strong><span>Viagem a {nextTrip.title}</span></li>}
           {anniversary && <li><strong>{anniversary.days === 0 ? "Hoje" : `${anniversary.days} dias`}</strong><span>{`Aniversário de namoro · ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}`}</span></li>}
           {birthdays.map((birthday) => <li key={birthday.name}><strong>{birthday.days === 0 ? "Hoje" : `${birthday.days} dias`}</strong><span>{`Anos de ${birthday.name}`}</span></li>)}

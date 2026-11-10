@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { authErrorMessage } from "./authErrors";
+import { AdminEvents } from "./AdminEvents";
 import { supabase } from "./lib/supabase";
 import { seasons } from "./seasons";
 import { budgetLabel, durationLabel } from "./suggestions";
@@ -120,6 +121,7 @@ function AdminDashboard({ email }: { email: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<"catalog" | "events">("catalog");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -214,7 +216,8 @@ function AdminDashboard({ email }: { email: string }) {
         <div className="admin-tiles">{tiles.map(([label, value, detail]) => <article className="admin-tile" key={label}><strong>{value ?? "—"}</strong><span>{label}</span>{detail && <small>{detail}</small>}</article>)}</div>
         {overview && <div className="admin-weeks"><h2>Novas contas por semana</h2><ol>{overview.signups_by_week.map((week) => <li key={week.week}><span className="admin-week-label">{week.week.slice(8)}/{week.week.slice(5, 7)}</span><span className="admin-week-bar" style={{ width: `${(week.count / biggestWeek) * 100}%` }} /><span>{week.count}</span></li>)}</ol></div>}
       </section>
-      <section className="admin-catalog" aria-label="Catálogo">
+      <div className="chip-row" role="tablist" aria-label="Gerir">{([["catalog", "Catálogo de ideias"], ["events", "Eventos"]] as const).map(([value, label]) => <button type="button" role="tab" key={value} aria-selected={tab === value} className={`chip ${tab === value ? "selected" : ""}`} onClick={() => setTab(value)}>{label}</button>)}</div>
+      {tab === "events" ? <AdminEvents /> : <section className="admin-catalog" aria-label="Catálogo">
         <div className="admin-catalog-head"><h2>Catálogo ({ideas.length})</h2><input className="form-input" type="search" placeholder="Procurar ideia" aria-label="Procurar ideia" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="button" className="button button-primary" onClick={() => setDraft(emptyDraft)}><Plus size={16} aria-hidden="true" />Nova ideia</button></div>
         {draft && !draft.id && <IdeaForm draft={draft} busy={busy} onChange={setDraft} onSave={() => void saveDraft()} onCancel={() => setDraft(null)} />}
         <ul className="admin-ideas">{shown.map((idea) => <li key={idea.id}>
@@ -224,7 +227,7 @@ function AdminDashboard({ email }: { email: string }) {
             {confirmDelete === idea.id ? <div className="panel-actions"><button type="button" className="button button-primary" disabled={busy} onClick={() => void removeIdea(idea.id)}>Confirmar</button><button type="button" className="button button-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button></div> : <div className="row-actions"><button type="button" aria-label={`Editar ${idea.title}`} onClick={() => setDraft(draftFrom(idea))}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} onClick={() => setConfirmDelete(idea.id)}><Trash2 size={16} aria-hidden="true" /></button></div>}
           </div>}
         </li>)}</ul>
-      </section>
+      </section>}
     </div>
   );
 }

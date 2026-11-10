@@ -40,7 +40,9 @@ export function AirportPicker({ value, onChange }: { value: string; onChange: (c
   );
 }
 
-export function AccountSettings({ airport, onAirportChange, onSignedOut }: { airport: string; onAirportChange: (code: string) => void; onSignedOut: () => void }) {
+export function AccountSettings({ municipality, onMunicipalityChange, airport, onAirportChange, onSignedOut }: { municipality: string | null; onMunicipalityChange: (name: string) => Promise<boolean>; airport: string; onAirportChange: (code: string) => void; onSignedOut: () => void }) {
+  const [place, setPlace] = useState(municipality ?? "");
+  const [placeNote, setPlaceNote] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -68,6 +70,15 @@ export function AccountSettings({ airport, onAirportChange, onSignedOut }: { air
 
   return (
     <>
+      <article className="schedule-card">
+        <h2>Onde vivem</h2>
+        <p className="schedule-hint">O vosso concelho, para mostrar eventos a menos de 60 km.</p>
+        <form className="municipality-form" onSubmit={(event) => { event.preventDefault(); setPlaceNote(""); void onMunicipalityChange(place).then((saved) => setPlaceNote(saved ? "Guardado." : "")); }}>
+          <input className="form-input" maxLength={80} aria-label="Concelho onde vivem" placeholder="ex.: Guimarães" value={place} onChange={(event) => { setPlace(event.target.value); setPlaceNote(""); }} />
+          <button className="button button-secondary" type="submit">Guardar</button>
+        </form>
+        {placeNote && <p className="schedule-hint" role="status">{placeNote}</p>}
+      </article>
       <article className="schedule-card">
         <h2>Voos</h2>
         <p className="schedule-hint">De onde costumam partir. As pesquisas de voos começam neste aeroporto.</p>

@@ -32,6 +32,7 @@ Guias: [Guia de utilização](./docs/guia-de-utilizacao.md) · [User guide](./do
 | **Hoje** | Próximo date, sugestões de acordo com a época e o tempo, e uma caixa que percebe frases como "Jantar sexta às 20h". |
 | **Gostos** | Cada pessoa escolhe ideias em privado. O que os dois passam desaparece e o que os dois gostam vem primeiro. |
 | **Ideias** | Catálogo partilhado, favoritas, sorteio, perguntas para escolher pelo feeling e importação de CSV/XLSX. |
+| **Eventos** | Eventos reais a menos de 60 km do casal, inseridos no admin e marcados com um toque. |
 | **Sítios** | Procura restaurantes, cafés e bares com o OpenStreetMap e separa-os em queremos ir, aprovados e não repetir. |
 | **Agenda** | Dates marcados, calendário, horários de trabalho, tempo livre em comum, compromissos e tarefas. |
 | **Viagens** | Guias de destinos, planos por dia, pesquisa de voos a partir do aeroporto do casal e mapa-mundo das viagens com fotografias. |

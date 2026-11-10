@@ -32,6 +32,7 @@ Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia
 | **Today** | Next date, seasonal and weather-aware suggestions, and an add box that understands text like "Jantar sexta às 20h". |
 | **Taste** | Each partner privately swipes ideas. What both pass disappears, and what both like comes first. |
 | **Ideas** | A shared catalogue, favourites, a random draw, a "feeling" questionnaire and CSV/XLSX import. |
+| **Events** | Real events within 60 km of the couple, added in the admin, booked in one tap. |
 | **Places** | Find restaurants, cafés and bars with OpenStreetMap, then split them into to try, approved and not again. |
 | **Agenda** | Planned dates, a calendar, work schedules, shared free time, commitments and tasks. |
 | **Trips** | Destination guides, plans per day, flight searches from the couple's airport and a world map of past trips with photos. |

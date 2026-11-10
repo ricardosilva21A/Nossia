@@ -23,7 +23,7 @@ export function PrivacyPage() {
         <li><strong>Datas do casal:</strong> início da relação, aniversários e outras datas que escolham indicar.</li>
         <li><strong>O que escrevem:</strong> ideias, dates, notas, memórias, compromissos, tarefas, horários, viagens e sítios.</li>
         <li><strong>Fotografias</strong> que carreguem, guardadas num espaço privado.</li>
-        <li><strong>Localização:</strong> só as moradas e cidades que indiquem. O GPS só é usado se o permitirem, para procurar sítios por perto.</li>
+        <li><strong>Localização:</strong> só as moradas, cidades e o concelho que indiquem. O GPS só é usado se o permitirem, para procurar sítios por perto.</li>
         <li><strong>Notificações:</strong> os dados técnicos do dispositivo, se as ativarem.</li>
       </ul>
       <h2>Para quê</h2>
@@ -66,6 +66,8 @@ export function HelpPage() {
       <p>Vejam o catálogo, guardem favoritas, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época.</p>
       <h2>Ensinar a Nossia</h2>
       <p>No Hoje, de vez em quando aparece um cartão para dizeres se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas. O que os dois passam deixa de ser sugerido, e o que os dois gostam vem primeiro. Podes recuperar o que passaste nas Definições.</p>
+      <h2>Eventos</h2>
+      <p>Em Explorar, Eventos, aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas Definições. Marcar põe o evento na Agenda com o local e a hora.</p>
       <h2>Restaurantes e sítios</h2>
       <p>Em Explorar, Sítios, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os Aprovados, com o que comeram.</p>
       <h2>Mudar de planos</h2>
