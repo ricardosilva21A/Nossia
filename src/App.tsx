@@ -27,6 +27,9 @@ import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
 import { EventsPanel } from "./EventsPanel";
 import { Opportunities } from "./Opportunities";
+import { VacationSettings } from "./VacationSettings";
+import type { VacationPeriod, VacationProfile } from "./VacationSettings";
+import type { VacationRules } from "./holidays";
 import { eventsNear } from "./events";
 import type { LocalEvent, Origin } from "./events";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
@@ -378,6 +381,8 @@ function App() {
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
   const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
   const [events, setEvents] = useState<LocalEvent[]>([]);
+  const [vacationProfiles, setVacationProfiles] = useState<VacationProfile[]>([]);
+  const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
   const [partnerJoined, setPartnerJoined] = useState(true);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [editingMascot, setEditingMascot] = useState(false);
@@ -698,6 +703,13 @@ function App() {
     }).slice(0, 12);
     return ranked.length ? ranked[suggestionSeed % ranked.length] : null;
   }, [ideas, signals, suggestionDay, suggestionSeed, weatherForecast, workBlocks.length]);
+  const vacationRules = useMemo<VacationRules>(() => ({
+    away: {
+      partner_one: vacationPeriods.filter((period) => period.partner_slot === "partner_one"),
+      partner_two: vacationPeriods.filter((period) => period.partner_slot === "partner_two"),
+    },
+    avoidMonths: Object.fromEntries(vacationProfiles.filter((profile) => profile.mode === "flexible").map((profile) => [profile.partner_slot, profile.avoid_months])),
+  }), [vacationPeriods, vacationProfiles]);
   const eventOrigin: Origin | null = couple?.municipality_latitude != null && couple.municipality_longitude != null
     ? { municipality: couple.municipality, latitude: couple.municipality_latitude, longitude: couple.municipality_longitude }
     : couple?.weather_latitude != null && couple.weather_longitude != null ? { municipality: null, latitude: couple.weather_latitude, longitude: couple.weather_longitude } : null;
@@ -1682,6 +1694,50 @@ function App() {
     return () => { active = false; };
   }, [couple?.id, syncTick]);
 
+  useEffect(() => {
+    if (!supabase || !couple?.id) return;
+    let active = true;
+    void Promise.all([
+      supabase.from("vacation_profiles").select("*"),
+      supabase.from("vacation_periods").select("*").order("starts_on"),
+    ]).then(([profiles, periods]) => {
+      if (!active) return;
+      if (profiles.data) setVacationProfiles(profiles.data as VacationProfile[]);
+      if (periods.data) setVacationPeriods(periods.data as VacationPeriod[]);
+    });
+    return () => { active = false; };
+  }, [couple?.id, syncTick]);
+
+  async function saveVacationProfile(patch: Pick<VacationProfile, "mode" | "days_per_year" | "avoid_months">) {
+    if (!supabase || !couple || !session || !mySlot) return false;
+    const row = { user_id: session.user.id, couple_id: couple.id, partner_slot: mySlot, ...patch, updated_at: new Date().toISOString() };
+    const { data, error } = await supabase.from("vacation_profiles").upsert(row, { onConflict: "user_id" }).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível guardar as férias: ${error.message}`);
+      return false;
+    }
+    setVacationProfiles((current) => [...current.filter((item) => item.user_id !== session.user.id), data as VacationProfile]);
+    return true;
+  }
+
+  async function addVacationPeriod(start: string, end: string) {
+    if (!supabase || !couple || !session || !mySlot) return false;
+    const { data, error } = await supabase.from("vacation_periods").insert({ user_id: session.user.id, couple_id: couple.id, partner_slot: mySlot, starts_on: start, ends_on: end }).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível guardar as férias: ${error.message}`);
+      return false;
+    }
+    setVacationPeriods((current) => [...current, data as VacationPeriod].sort((first, second) => first.starts_on.localeCompare(second.starts_on)));
+    return true;
+  }
+
+  async function removeVacationPeriod(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase.from("vacation_periods").delete().eq("id", id);
+    if (error) setDataError(`Não foi possível apagar: ${error.message}`);
+    else setVacationPeriods((current) => current.filter((period) => period.id !== id));
+  }
+
   async function saveMunicipality(name: string) {
     if (!supabase || !couple) return false;
     const trimmed = name.trim();
@@ -1931,11 +1987,11 @@ function App() {
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
-          {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
+          {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
