@@ -26,6 +26,7 @@ import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
 import { EventsPanel } from "./EventsPanel";
+import { Opportunities } from "./Opportunities";
 import { eventsNear } from "./events";
 import type { LocalEvent, Origin } from "./events";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
@@ -1722,6 +1723,17 @@ function App() {
     });
   }
 
+  async function createTripFor(title: string, start: string, end: string) {
+    if (!supabase || !couple) return false;
+    const { data, error } = await supabase.from("couple_trips").insert({ couple_id: couple.id, title, start_date: start, end_date: end }).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível criar a viagem: ${error.message}`);
+      return false;
+    }
+    setTrips((current) => [...current, data as CoupleTrip]);
+    return true;
+  }
+
   async function planEventTrip(event: LocalEvent, date: string) {
     if (!supabase || !couple) return false;
     const next = new Date(`${date}T12:00:00`);
@@ -1919,7 +1931,7 @@ function App() {
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
-          {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
+          {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">

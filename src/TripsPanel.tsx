@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type { FormEvent } from "react";
 import { CalendarPlus, ChevronDown, ExternalLink, Pencil, Plane, Plus, Trash2 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -42,7 +43,7 @@ function TripDatesForm({ city, busy, onSave, onCancel }: { city: string; busy: b
   </form>;
 }
 
-export function TripsPanel({ coupleId, airport, trips, onTripsChange, onOpenMemory }: { coupleId: string; airport: string; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void; onOpenMemory: (id: string) => void }) {
+export function TripsPanel({ coupleId, airport, opportunities, trips, onTripsChange, onOpenMemory }: { coupleId: string; airport: string; opportunities?: ReactNode; trips: CoupleTrip[]; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void; onOpenMemory: (id: string) => void }) {
   const [destinations, setDestinations] = useState<CoupleDestination[]>([]);
   const [items, setItems] = useState<TripItem[]>([]);
   const [city, setCity] = useState("");
@@ -253,6 +254,7 @@ export function TripsPanel({ coupleId, airport, trips, onTripsChange, onOpenMemo
   return (
     <section className="trips-page" aria-label="Viagens">
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
+      {opportunities}
 
       {upcoming.length > 0 && <div className="trips-group"><h2>Próximas viagens</h2>{upcoming.map(renderTrip)}</div>}
 

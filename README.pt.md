@@ -35,6 +35,7 @@ Guias: [Guia de utilização](./docs/guia-de-utilizacao.md) · [User guide](./do
 | **Eventos** | Eventos reais a menos de 60 km do casal, inseridos no admin e marcados com um toque. |
 | **Sítios** | Procura restaurantes, cafés e bares com o OpenStreetMap e separa-os em queremos ir, aprovados e não repetir. |
 | **Agenda** | Dates marcados, calendário, horários de trabalho, tempo livre em comum, compromissos e tarefas. |
+| **Pontes** | Feriados nacionais e municipais transformados em fins de semana prolongados e pontes que encaixam nos horários dos dois, com aviso três semanas antes. |
 | **Viagens** | Guias de destinos, planos por dia, pesquisa de voos a partir do aeroporto do casal e mapa-mundo das viagens com fotografias. |
 | **Memórias** | Notas, fotografias, se querem repetir, o que viram e o que comeram. |
 | **Par** | Cada pessoa tem a sua conta, ligada através de um convite de utilização única. |

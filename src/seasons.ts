@@ -1,4 +1,7 @@
 import type { SeasonKey } from "./types";
+import { easterSunday } from "./holidays";
+
+export { easterSunday };
 
 type Season = { reason: string; label: string; event: boolean };
 
@@ -42,23 +45,6 @@ const easterWindows: Partial<Record<SeasonKey, [number, number]>> = {
 };
 
 // Anonymous Gregorian algorithm; returns Easter Sunday as a UTC date.
-export function easterSunday(year: number) {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(Date.UTC(year, month - 1, day));
-}
 
 function isoOffset(base: Date, days: number) {
   return new Date(base.getTime() + days * 86400000).toISOString().slice(0, 10);
