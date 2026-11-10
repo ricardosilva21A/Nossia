@@ -22,7 +22,7 @@ No **Hoje**, de vez em quando aparece um cartão para dizeres se te apetece cada
 
 ## Eventos
 
-Em **Explorar → Eventos** aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas **Definições**. **Marcar** põe o evento na Agenda com o local e a hora, e **Bilhetes e info** abre o site do organizador.
+Em **Explorar → Eventos** aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas **Definições**. **Marcar** põe o evento na Agenda com o local e a hora, e **Bilhetes e info** abre o site do organizador. Em **Vale a viagem** aparecem eventos grandes mais longe, só em dias em que estão os dois livres, com o tempo de carro. Os que ficam longe demais para ir e voltar no mesmo dia podem virar uma viagem.
 
 ## Restaurantes e sítios
 

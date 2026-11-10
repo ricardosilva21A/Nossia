@@ -24,7 +24,7 @@ On **Hoje**, a card sometimes asks you to swipe ideas: right if you like it, lef
 
 ## Events
 
-**Explorar → Eventos** (Explore → Events) lists events within 60 km of your municipality, which you set in **Definições** (Settings). **Marcar** adds the event to the Agenda with its place and time, and **Bilhetes e info** opens the organiser's site.
+**Explorar → Eventos** (Explore → Events) lists events within 60 km of your municipality, which you set in **Definições** (Settings). **Marcar** adds the event to the Agenda with its place and time, and **Bilhetes e info** opens the organiser's site. **Vale a viagem** (Worth the trip) lists big events further away, only on days you're both free, with the drive time. Those too far for a day out can become a trip.
 
 ## Restaurants and places
 

@@ -7,9 +7,10 @@ import type { Category } from "./types";
 type Draft = Omit<LocalEvent, "id" | "price_for_two" | "latitude" | "longitude" | "tags" | "url" | "image_url" | "start_time"> & { id: string | null; price_for_two: string; start_time: string; url: string; image_url: string; tags: string };
 
 const categories: Array<[Category, string]> = [["Culture", "Cultura"], ["Creative", "Criativo"], ["Food & drink", "Comida e bebida"], ["Adventure", "Aventura"], ["Relaxing", "Relaxante"], ["Romantic", "Romântico"]];
+const reachLabels: Record<LocalEvent["reach"], string> = { local: "Local (até 60 km)", regional: "Regional (até 150 km)", national: "Nacional (vale a viagem)" };
 const statusLabels: Record<LocalEvent["status"], string> = { pending: "À espera", approved: "Aprovado", rejected: "Recusado" };
 const today = () => new Date().toISOString().slice(0, 10);
-const emptyDraft = (): Draft => ({ id: null, title: "", description: "", starts_on: today(), ends_on: today(), start_time: "", venue: "", municipality: "", category: "Culture", price_for_two: "", indoor: false, url: "", image_url: "", tags: "", featured: false, status: "approved" });
+const emptyDraft = (): Draft => ({ id: null, title: "", description: "", starts_on: today(), ends_on: today(), start_time: "", venue: "", municipality: "", category: "Culture", price_for_two: "", indoor: false, url: "", image_url: "", tags: "", featured: false, reach: "local", status: "approved" });
 
 async function locate(venue: string, municipality: string) {
   const query = [venue, municipality, "Portugal"].filter(Boolean).join(", ");
@@ -63,6 +64,7 @@ export function AdminEvents() {
       image_url: draft.image_url.trim() || null,
       tags: draft.tags.split(",").map((tag) => tag.trim().toLowerCase()).filter(Boolean),
       featured: draft.featured,
+      reach: draft.reach,
       status: draft.status,
     };
     const query = draft.id ? supabase.from("events").update(row).eq("id", draft.id) : supabase.from("events").insert(row);
@@ -102,6 +104,7 @@ export function AdminEvents() {
     <div className="admin-form-row">
       <label className="form-label admin-grow">Categoria<select className="form-input" value={draft.category} onChange={(event) => set("category", event.target.value as Category)}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="form-label admin-grow">Preço para dois (€)<input className="form-input" type="number" min={0} step="0.5" placeholder="vazio se não se sabe" value={draft.price_for_two} onChange={(event) => set("price_for_two", event.target.value)} /></label>
+      <label className="form-label admin-grow">Alcance<select className="form-input" value={draft.reach} onChange={(event) => set("reach", event.target.value as LocalEvent["reach"])}>{Object.entries(reachLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="form-label admin-grow">Estado<select className="form-input" value={draft.status} onChange={(event) => set("status", event.target.value as LocalEvent["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
     </div>
     <label className="form-label">Ligação para bilhetes ou info<input className="form-input" type="url" placeholder="https://" value={draft.url} onChange={(event) => set("url", event.target.value)} /></label>
@@ -119,7 +122,7 @@ export function AdminEvents() {
       {draft && !draft.id && form}
       <ul className="admin-ideas">{events.map((event) => <li key={event.id}>
         {draft?.id === event.id ? form : <div className="admin-idea-row">
-          <div className="admin-grow"><strong>{event.title}</strong><small>{event.starts_on}{event.ends_on !== event.starts_on ? ` a ${event.ends_on}` : ""} · {event.municipality} · {statusLabels[event.status]}{event.featured ? " · Destaque" : ""}{event.latitude === null ? " · sem mapa" : ""}</small></div>
+          <div className="admin-grow"><strong>{event.title}</strong><small>{event.starts_on}{event.ends_on !== event.starts_on ? ` a ${event.ends_on}` : ""} · {event.municipality} · {reachLabels[event.reach].split(" (")[0]} · {statusLabels[event.status]}{event.featured ? " · Destaque" : ""}{event.latitude === null ? " · sem mapa" : ""}</small></div>
           {confirmDelete === event.id ? <div className="panel-actions"><button type="button" className="button button-primary" onClick={() => void remove(event.id)}>Confirmar</button><button type="button" className="button button-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button></div> : <div className="row-actions"><button type="button" aria-label={`Editar ${event.title}`} onClick={() => setDraft({ ...event, id: event.id, price_for_two: event.price_for_two?.toString() ?? "", start_time: event.start_time?.slice(0, 5) ?? "", url: event.url ?? "", image_url: event.image_url ?? "", tags: event.tags.join(", ") })}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${event.title}`} onClick={() => setConfirmDelete(event.id)}><Trash2 size={16} aria-hidden="true" /></button></div>}
         </div>}
       </li>)}</ul>

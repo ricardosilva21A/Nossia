@@ -67,7 +67,7 @@ export function HelpPage() {
       <h2>Ensinar a Nossia</h2>
       <p>No Hoje, de vez em quando aparece um cartão para dizeres se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas. O que os dois passam deixa de ser sugerido, e o que os dois gostam vem primeiro. Podes recuperar o que passaste nas Definições.</p>
       <h2>Eventos</h2>
-      <p>Em Explorar, Eventos, aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas Definições. Marcar põe o evento na Agenda com o local e a hora.</p>
+      <p>Em Explorar, Eventos, aparecem eventos a menos de 60 km do vosso concelho, que se escolhe nas Definições. Marcar põe o evento na Agenda com o local e a hora. Em Vale a viagem aparecem eventos grandes mais longe, só em dias em que estão os dois livres; os que ficam longe demais para ir e voltar no mesmo dia podem virar uma viagem.</p>
       <h2>Restaurantes e sítios</h2>
       <p>Em Explorar, Sítios, escolham entre experimentar um novo ou voltar a um de que gostaram. Quando dizem que querem repetir um jantar, o restaurante passa para os Aprovados, com o que comeram.</p>
       <h2>Mudar de planos</h2>

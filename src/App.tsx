@@ -706,6 +706,10 @@ function App() {
     const found = eventsNear(events, eventOrigin, today).find(({ event }) => event.starts_on <= weekAhead);
     return found ? { title: found.event.title, date: found.event.starts_on < today ? today : found.event.starts_on } : null;
   }, [events, eventOrigin?.latitude, eventOrigin?.longitude, eventOrigin?.municipality]);
+  const eventHorizon = useMemo(() => {
+    const days = sharedFreeDays(workBlocks, plannedDates, commitments, trips, 60);
+    return { free: new Set(days.filter((day) => day.dates.length === 0 && longestWindow(day.windows) >= 360).map((day) => day.key)), end: days[days.length - 1].key };
+  }, [commitments, plannedDates, trips, workBlocks]);
   const deckAvailable = useMemo(() => buildDeck(ideas, votes, localDateString(), new Date()), [ideas, votes]);
   const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
@@ -1718,6 +1722,24 @@ function App() {
     });
   }
 
+  async function planEventTrip(event: LocalEvent, date: string) {
+    if (!supabase || !couple) return false;
+    const next = new Date(`${date}T12:00:00`);
+    next.setDate(next.getDate() + 1);
+    const end = localDateString(next);
+    const { data, error } = await supabase.from("couple_trips").insert({ couple_id: couple.id, title: event.municipality || event.title, start_date: date, end_date: end }).select("*").single();
+    if (error) {
+      setDataError(`Não foi possível criar a viagem: ${error.message}`);
+      return false;
+    }
+    const trip = data as CoupleTrip;
+    const { error: itemError } = await supabase.from("trip_items").insert({ trip_id: trip.id, couple_id: couple.id, title: `${event.title}${event.start_time ? ` às ${event.start_time.slice(0, 5)}` : ""}`, day: date });
+    if (itemError) setDataError(`A viagem foi criada, mas não foi possível juntar o evento ao plano: ${itemError.message}`);
+    setTrips((current) => [...current, trip]);
+    navigateView("trips");
+    return true;
+  }
+
   async function saveVote(idea: DateIdea, vote: "like" | "pass") {
     if (!supabase || !couple || !session) return false;
     const updated_at = new Date().toISOString();
@@ -1885,7 +1907,7 @@ function App() {
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
-          {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} onPlan={planEvent} onOpenSettings={() => navigateView("settings")} />}
+          {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}

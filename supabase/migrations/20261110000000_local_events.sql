@@ -17,6 +17,8 @@ create table public.events (
   image_url text check (image_url is null or image_url ~ '^https?://'),
   tags text[] not null default '{}',
   featured boolean not null default false,
+  -- How far people would travel for it: local events show nearby, big ones further away.
+  reach text not null default 'local' check (reach in ('local', 'regional', 'national')),
   status text not null default 'approved' check (status in ('pending', 'approved', 'rejected')),
   created_at timestamptz not null default now(),
   check (ends_on >= starts_on)
