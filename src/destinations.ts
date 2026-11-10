@@ -64,6 +64,35 @@ export function guidesForSoon(now = new Date()) {
   return destinationGuides.filter((guide) => guide.months.some((month) => soon.includes(month)));
 }
 
+// The fewest days that make the trip worth it from northern Portugal, counting travel.
+const minimumDays: Record<string, number> = {
+  Lisboa: 2, Madrid: 2, Sevilha: 2, Barcelona: 2, "San Sebastián": 2, Bordéus: 2, Paris: 2, Londres: 2, Bruxelas: 2, Amesterdão: 2, Funchal: 2,
+  Granada: 3, "Palma de Maiorca": 3, Roma: 3, Milão: 3, Dublin: 3, "Ponta Delgada": 3, Marraquexe: 3, Berlim: 3, Munique: 3, Edimburgo: 3,
+  Florença: 3, Veneza: 3, Nápoles: 3, Praga: 3, Viena: 3, Budapeste: 3, Copenhaga: 3, Estocolmo: 3, Atenas: 3,
+  Santorini: 4, Dubrovnik: 4, Istambul: 4, Reiquiavique: 5,
+};
+
+export function minimumDaysFor(city: string) {
+  return minimumDays[city] ?? 3;
+}
+
+const plainCity = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-PT");
+
+// Destinations that fit a number of days and are in season, leaving out home and places already visited.
+// Those that use the time well come first; the start date varies the order so suggestions don't repeat.
+export function destinationsFor(days: number, start: string, exclude: string[] = [], count = 3) {
+  const month = Number(start.slice(5, 7));
+  const skip = new Set(exclude.map(plainCity));
+  // A small hash of city and date, so each weekend gets its own mix.
+  const turn = (city: string) => [...`${city}${start}`].reduce((hash, char) => Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  return destinationGuides
+    .filter((guide) => guide.months.includes(month) && minimumDaysFor(guide.city) <= days && !skip.has(plainCity(guide.city)))
+    .map((guide) => ({ guide, fit: minimumDaysFor(guide.city), turn: turn(guide.city) }))
+    .sort((first, second) => second.fit - first.fit || first.turn - second.turn)
+    .slice(0, count)
+    .map(({ guide }) => guide);
+}
+
 export function flightsUrl(airport: string, city: string, month?: string) {
   const query = `Voos de ${airport} para ${city}${month ? ` em ${month}` : ""}`;
   return `https://www.google.com/travel/flights?q=${encodeURIComponent(query)}&hl=pt-PT&curr=EUR`;

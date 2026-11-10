@@ -1073,3 +1073,4 @@ a.button{text-decoration:none}
 @media(max-width:420px){.vacation-form{grid-template-columns:1fr 1fr}.vacation-form .button{grid-column:1/-1}}
 .vacation-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.vacation-form .form-input{min-width:0;width:100%}
 @media(max-width:420px){.vacation-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.opportunity-ideas{margin-top:2px}
