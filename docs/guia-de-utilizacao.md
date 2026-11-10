@@ -5,8 +5,9 @@
 ## Começar
 
 1. Cria a conta com os vossos nomes e a data da relação.
-2. Em **Definições** (avatar), abre o **Perfil do casal** e cria a ligação de convite para o teu par.
-3. No iPhone, abre o site no Safari, toca em **Partilhar** e em **Adicionar ao ecrã principal**.
+2. Cria a tua mascote e diz-lhe quando fazes anos. O teu par faz o mesmo quando entrar.
+3. Em **Definições** (avatar), abre o **Perfil do casal** e cria a ligação de convite para o teu par.
+4. No iPhone, abre o site no Safari, toca em **Partilhar** e em **Adicionar ao ecrã principal**.
 
 ## Marcar coisas depressa
 
