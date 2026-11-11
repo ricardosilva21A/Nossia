@@ -1121,3 +1121,11 @@ a.button{text-decoration:none}
 .anniversary-gift-line .link-button{color:var(--accent);font-weight:600}
 .anniversary-feature{grid-template-columns:48px minmax(0,1fr)}
 @media(max-width:760px){.anniversary-feature{grid-template-columns:40px minmax(0,1fr)}}
+
+/* What each mascot is doing: short lines that can wrap */
+.house-seat small{white-space:normal;text-align:center;max-width:160px;line-height:1.3;padding:2px 8px}
+.house-seat.is-away{opacity:1;align-self:center}
+.house-seat.is-away small{background:rgba(255,255,255,.9);font-weight:500;padding:8px 12px;border-radius:14px;min-width:150px;max-width:170px}
+.house-seat.is-away small strong{display:block;font-size:13px}
+.house-seat small strong{font-weight:700}
+.house-out small{max-width:280px}

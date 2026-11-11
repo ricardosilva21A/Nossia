@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
 import { Mascot as MascotArt } from "./Mascot";
 import type { Mascot } from "./mascots";
-import type { HouseScene, Pose, SeasonalObject, WindowView } from "./house";
+import type { HouseScene, SeasonalObject, WindowView } from "./house";
 import type { HomePartner } from "./types";
 
 // A placeholder room. Marta's image replaces the <svg> below; the shortcuts are placed in
 // percentages so they keep working on top of it.
 const sky: Record<WindowView, string> = { sun: "#bfe3f5", clouds: "#d5dde3", rain: "#9fb0bd", fog: "#e3e3df", night: "#26304f" };
 const seasonalEmoji: Record<SeasonalObject, string> = { tree: "🎄", chestnuts: "🌰", basil: "🌿", mask: "🎭" };
-const poseCaption: Record<Pose, string> = { sofa: "em casa", away: "fora", sleeping: "a dormir", getting_ready: "a arranjar-se", celebrating: "a festejar", out: "em date" };
 
 type Props = {
   scene: HouseScene;
@@ -24,9 +23,10 @@ export function HouseHero({ scene, mascots, names, bubble, onOpenFridge, onOpenC
   const seat = (slot: HomePartner) => {
     const mascot = mascots.find((item) => item.partner_slot === slot);
     const pose = scene.poses[slot];
-    if (pose === "away" || pose === "out") return <div className="house-seat is-away" key={slot}><small>{names[slot]} · {poseCaption[pose]}</small></div>;
+    const doing = scene.doing[slot];
+    if (pose === "away") return <div className="house-seat is-away" key={slot}><small><strong>{names[slot]}</strong>{doing}</small></div>;
     if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-hidden="true">?</span><small>À espera de {names[slot]}</small></div>;
-    return <div className={`house-seat pose-${pose}`} key={slot}><MascotArt look={mascot} size={72} asleep={pose === "sleeping"} /><small>{mascot.name}{pose === "sofa" ? "" : ` · ${poseCaption[pose]}`}</small></div>;
+    return <div className={`house-seat pose-${pose}`} key={slot}><MascotArt look={mascot} size={72} asleep={pose === "sleeping"} /><small>{mascot.name}{doing ? ` · ${doing}` : ""}</small></div>;
   };
 
   return (
@@ -46,7 +46,9 @@ export function HouseHero({ scene, mascots, names, bubble, onOpenFridge, onOpenC
         </svg>
         {scene.seasonal && <span className="house-seasonal" aria-hidden="true">{seasonalEmoji[scene.seasonal]}</span>}
         {scene.fan && <span className="house-fan" aria-hidden="true">🌀</span>}
-        <div className="house-seats">{seat("partner_one")}{seat("partner_two")}</div>
+        {scene.together && scene.dateNow
+          ? <div className="house-seats"><div className="house-seat is-away house-out"><small><strong>Os dois em date</strong>{scene.dateNow.title}</small></div></div>
+          : <div className="house-seats">{seat("partner_one")}{seat("partner_two")}</div>}
         <button type="button" className="house-spot spot-fridge" aria-label="Abrir o mapa-mundo das viagens" onClick={onOpenFridge} />
         <button type="button" className="house-spot spot-calendar" aria-label="Abrir o calendário" onClick={onOpenCalendar} />
         <button type="button" className="house-spot spot-window" aria-label="Ver o tempo" onClick={onOpenWindow} />

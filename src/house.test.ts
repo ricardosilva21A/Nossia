@@ -72,3 +72,29 @@ describe("mascots", () => {
     expect(decideHouse({ ...base, now: new Date(2026, 9, 7, 2, 0) }).poses.partner_one).toBe("sleeping");
   });
 });
+
+describe("what each one is doing", () => {
+  it("says who is at work and until when", () => {
+    const scene = decideHouse({ ...base, blocks: [{ partner_slot: "partner_one", weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" }] });
+    expect(scene.doing).toEqual({ partner_one: "a trabalhar até às 18:00", partner_two: null });
+  });
+
+  it("names the commitment and when it ends", () => {
+    const scene = decideHouse({ ...base, commitments: [{ title: "Dentista", event_date: today, starts_at: "14:30:00", ends_at: null, for_partner: "partner_two" }] });
+    expect(scene.doing.partner_two).toBe("Dentista até às 15:30");
+  });
+
+  it("names the date they're getting ready for and the one they're on", () => {
+    const date = { ...planned("15:30:00"), id: "d1", title: "Jantar no Cozinha da Terra" };
+    expect(decideHouse({ ...base, dates: [date] }).doing.partner_one).toBe("a arranjar-se para as 15:30");
+    const out = decideHouse({ ...base, now: new Date(2026, 9, 7, 16, 0), dates: [date] });
+    expect(out.dateNow).toEqual({ title: "Jantar no Cozinha da Terra", time: "15:30" });
+    expect(out.doing.partner_one).toBe("em date: Jantar no Cozinha da Terra");
+  });
+
+  it("asks how it went once a date from today should be over", () => {
+    const date = { ...planned("11:00:00"), id: "d1", title: "Brunch" };
+    expect(decideHouse({ ...base, dates: [date] }).backFromDate).toEqual({ id: "d1", title: "Brunch" });
+    expect(decideHouse({ ...base, dates: [{ ...date, status: "completed" }] }).backFromDate).toBeNull();
+  });
+});
