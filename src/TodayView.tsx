@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarDays, Check, Clock, MapPin, Pencil, Popcorn, Shuffle, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
 import type { HouseScene } from "./house";
 import type { Mascot } from "./mascots";
@@ -13,6 +14,11 @@ type FreeDay = ReturnType<typeof sharedFreeDays>[number];
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function shortWeekday(key: string) {
+  const name = new Intl.DateTimeFormat("pt-PT", { weekday: "short", day: "numeric" }).format(new Date(`${key}T12:00:00`));
+  return name.charAt(0).toLocaleUpperCase("pt-PT") + name.slice(1);
 }
 
 function shortDay(key: string) {
@@ -50,7 +56,6 @@ export function TodayView({
   onMarkDone,
   onEditDate,
   onOpenPlaces,
-  onLogWatched,
   onOpenPlanned,
   onOpenAgenda,
 }: {
@@ -85,68 +90,83 @@ export function TodayView({
   onMarkDone: (id: string) => void;
   onEditDate: (id: string) => void;
   onOpenPlaces: () => void;
-  onLogWatched: () => void;
   onOpenPlanned: () => void;
   onOpenAgenda: () => void;
 }) {
+  const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
   const now = new Date();
   const today = dateKey(now);
-  const [nextDate, ...laterDates] = upcomingDates;
+  const [nextDate] = upcomingDates;
   const firstFreeDay = freeDays.find((freeDay) => freeDay.windows.length > 0 && freeDay.dates.length === 0);
 
   const nextCommitments = commitments.filter((commitment) => commitment.event_date >= today).sort((first, second) => first.event_date.localeCompare(second.event_date) || (first.starts_at ?? "").localeCompare(second.starts_at ?? "")).slice(0, 4);
   const partnerName = (slot: CoupleCommitment["for_partner"]) => slot === "partner_one" ? partnerOneName : slot === "partner_two" ? partnerTwoName : "Os dois";
 
+  // Commitments first; special dates and a nearby event only when they're a week away or less.
+  const daysUntil = (key: string) => Math.round((Date.parse(`${key}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / 86400000);
+  const whenLabel = (key: string) => {
+    const days = daysUntil(key);
+    return days === 0 ? "Hoje" : days === 1 ? "Amanhã" : shortWeekday(key);
+  };
+  const soon = [
+    ...nextCommitments.map((commitment) => ({ key: `c-${commitment.id}`, days: daysUntil(commitment.event_date), when: `${whenLabel(commitment.event_date)}${commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""}`, what: `${commitment.title} · ${partnerName(commitment.for_partner)}`, onClick: null as null | (() => void) })),
+    ...(nextEvent && daysUntil(nextEvent.date) <= 7 ? [{ key: "event", days: daysUntil(nextEvent.date), when: whenLabel(nextEvent.date), what: `Perto de vocês: ${nextEvent.title}`, onClick: onOpenEvents }] : []),
+    ...(nextTrip && nextTrip.days <= 7 ? [{ key: "trip", days: nextTrip.days, when: nextTrip.days === 0 ? "Hoje" : `Daqui a ${nextTrip.days} ${nextTrip.days === 1 ? "dia" : "dias"}`, what: `Viagem a ${nextTrip.title}`, onClick: null }] : []),
+    ...(anniversary && anniversary.days <= 7 ? [{ key: "anniversary", days: anniversary.days, when: anniversary.days === 0 ? "Hoje" : `Daqui a ${anniversary.days} ${anniversary.days === 1 ? "dia" : "dias"}`, what: `Aniversário de namoro · ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}`, onClick: null }] : []),
+    ...birthdays.filter((birthday) => birthday.days <= 7).map((birthday) => ({ key: `b-${birthday.name}`, days: birthday.days, when: birthday.days === 0 ? "Hoje" : `Daqui a ${birthday.days} ${birthday.days === 1 ? "dia" : "dias"}`, what: `Anos de ${birthday.name}`, onClick: null })),
+  ].sort((first, second) => first.days - second.days).slice(0, 3);
+
+  const bubble = deckSize > 0 ? <>
+    <p className="house-bubble-title"><strong>Diz-me do que gostas</strong></p>
+    <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia rápida" : "ideias rápidas"}: desliza para a direita se te apetece. Assim as sugestões ficam à vossa medida.</p>
+    <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Vamos lá</button></div>
+  </> : suggestion ? <>
+    <p className="house-bubble-title">{suggestionDate === today ? "Hoje" : shortDay(suggestionDate)}, que tal <strong>{suggestion.idea.emoji} {suggestion.idea.title}</strong>?</p>
+    <p className="today-meta"><Clock size={16} aria-hidden="true" />{durationLabel(suggestion.idea.duration_minutes, suggestion.idea.duration)}<span aria-hidden="true">·</span>{budgetLabel(suggestion.idea.budget_eur)}</p>
+    {suggestion.reasons[0] && <p className="panel-copy">{suggestion.reasons[0]}</p>}
+    {!weatherKnown && <p className="suggestion-hint">Partilhem a localização nas definições para a sugestão contar com o tempo.</p>}
+    <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion.idea, suggestionDate)}>Marcar</button><button type="button" className="button button-ghost" onClick={onAnotherSuggestion}><Shuffle size={16} aria-hidden="true" />Outra</button></div>
+  </> : <p className="panel-copy">Já fizeram todas as ideias desta época. Acrescentem novas em Explorar.</p>;
+
   return (
     <div className="today-grid">
-      <HouseHero scene={scene} mascots={mascots} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={suggestion ? <>
-        <p className="house-bubble-title">{suggestionDate === today ? "Hoje" : shortDay(suggestionDate)}, que tal <strong>{suggestion.idea.emoji} {suggestion.idea.title}</strong>?</p>
-        <p className="today-meta"><Clock size={16} aria-hidden="true" />{durationLabel(suggestion.idea.duration_minutes, suggestion.idea.duration)}<span aria-hidden="true">·</span>{budgetLabel(suggestion.idea.budget_eur)}</p>
-        {suggestion.reasons[0] && <p className="panel-copy">{suggestion.reasons[0]}</p>}
-        {!weatherKnown && <p className="suggestion-hint">Partilhem a localização mais abaixo para a sugestão ter em conta o tempo.</p>}
-        <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion.idea, suggestionDate)}>Marcar</button><button type="button" className="button button-ghost" onClick={onAnotherSuggestion}><Shuffle size={16} aria-hidden="true" />Outra</button></div>
-      </> : <p className="panel-copy">Já fizeram todas as ideias desta época. Acrescentem novas em Ideias.</p>} />
-      <section className="panel today-next" aria-label={"Próximo date"}>
-        <p className="panel-label">{"Próximo date"}</p>
-        {overdueCount > 0 && <button type="button" className="overdue-note" onClick={onOpenPlanned}>{`${overdueCount} date${overdueCount === 1 ? "" : "s"} que já passou — marquem como feito ou apaguem`}<ArrowRight size={15} aria-hidden="true" /></button>}
+      <HouseHero scene={scene} mascots={mascots} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={bubble} />
+
+      {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
+        <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
+        <button type="button" className="button button-ghost today-soon-more" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button>
+      </section>}
+
+      <section className="panel today-next" aria-label="Próximo date">
+        <p className="panel-label">Próximo date</p>
         {nextDate ? <>
           <h2>{nextDate.emoji} {nextDate.title}</h2>
           <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{nextDate.planned_for ? shortDay(nextDate.planned_for) : "Dia por decidir"}{nextDate.planned_start_time && <><Clock size={16} aria-hidden="true" />{nextDate.planned_start_time.slice(0, 5)}</>}</p>
           {nextDate.location_name && <p className="today-meta"><MapPin size={16} aria-hidden="true" />{nextDate.location_name}</p>}
-          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />{"Já fizemos"}</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button>{laterDates.length > 0 && <button type="button" className="button button-ghost" onClick={onOpenPlanned}>{`Mais ${laterDates.length} planeado${laterDates.length === 1 ? "" : "s"}`}<ArrowRight size={16} aria-hidden="true" /></button>}</div>
+          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
         </> : <>
-          <h2>{"Nada marcado ainda"}</h2>
-          <p className="panel-copy">{firstFreeDay
-            ? `Estão os dois livres ${shortDay(firstFreeDay.key)}. Marquem algo já a seguir.`
-            : "Marquem algo já a seguir, ou vejam as ideias."}</p>
+          <h2>Nada marcado ainda</h2>
+          <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou peçam uma ideia à mascote."}</p>
         </>}
+        {overdueCount > 0 && <button type="button" className="link-button today-overdue" onClick={onOpenPlanned}>{overdueCount === 1 ? "1 date já passou" : `${overdueCount} dates já passaram`}: marquem como feito ou apaguem</button>}
       </section>
 
-      <section className="panel today-quick-add" aria-label="Marcar">
-        <p className="panel-label">O que querem marcar?</p><div className="today-shortcuts"><button type="button" className="button button-ghost" onClick={onOpenPlaces}><UtensilsCrossed size={16} aria-hidden="true" />Jantar fora</button><button type="button" className="button button-ghost" onClick={onLogWatched}><Popcorn size={16} aria-hidden="true" />Vimos um filme ou série</button></div>
-        <QuickAddBox partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} onSubmit={onQuickAdd} onMoreDetails={onMoreDetails} />
+      <section className="today-add" aria-label="Marcar">
+        <p className="panel-label">O que querem marcar?</p>
+        <div className="today-add-buttons">
+          <button type="button" className="today-add-button" onClick={() => setAdding("date")}><Heart size={20} aria-hidden="true" />Date</button>
+          <button type="button" className="today-add-button" onClick={() => setAdding("commitment")}><CalendarDays size={20} aria-hidden="true" />Compromisso</button>
+          <button type="button" className="today-add-button" onClick={() => setAdding("idea")}><Lightbulb size={20} aria-hidden="true" />Ideia para depois</button>
+        </div>
       </section>
 
-      {deckSize > 0 && <section className="panel today-swipes" aria-label="Escolher ideias">
-        <p className="panel-label">A mascote quer conhecer-te</p>
-        <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia" : "ideias"} para dizeres se te apetece ou não. Assim só recebem sugestões a sério.</p>
-        <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Começar</button></div>
-      </section>}
-
-      {nextCommitments.length > 0 && <section className="panel today-commitments" aria-label="Compromissos">
-        <div className="panel-heading"><p className="panel-label">Próximos compromissos</p><button type="button" className="button button-ghost" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button></div>
-        <ul className="special-dates">{nextCommitments.map((commitment) => <li key={commitment.id}><strong>{commitment.title}</strong><span>{commitment.event_date === today ? "Hoje" : shortDay(commitment.event_date)}{commitment.starts_at ? ` · ${commitment.starts_at.slice(0, 5)}` : ""} · {partnerName(commitment.for_partner)}</span></li>)}</ul>
-      </section>}
-
-      {(anniversary || birthdays.length > 0 || nextTrip || nextEvent) && <section className="panel today-dates" aria-label={"Datas especiais"}>
-        <p className="panel-label">{"Datas especiais"}</p>
-        <ul className="special-dates">
-          {nextEvent && <li><strong>{nextEvent.date === today ? "Hoje" : shortDay(nextEvent.date)}</strong><span><button type="button" className="link-button" onClick={onOpenEvents}>Perto de vocês: {nextEvent.title}</button></span></li>}
-          {nextTrip && <li><strong>{nextTrip.days === 0 ? "Hoje" : `${nextTrip.days} ${nextTrip.days === 1 ? "dia" : "dias"}`}</strong><span>Viagem a {nextTrip.title}</span></li>}
-          {anniversary && <li><strong>{anniversary.days === 0 ? "Hoje" : `${anniversary.days} dias`}</strong><span>{`Aniversário de namoro · ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}`}</span></li>}
-          {birthdays.map((birthday) => <li key={birthday.name}><strong>{birthday.days === 0 ? "Hoje" : `${birthday.days} dias`}</strong><span>{`Anos de ${birthday.name}`}</span></li>)}
-        </ul>
-      </section>}
+      {adding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setAdding(null); }}>
+        <section className="modal-card today-add-modal" role="dialog" aria-modal="true" aria-labelledby="today-add-title">
+          <button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setAdding(null)}>×</button>
+          <h2 id="today-add-title">{adding === "date" ? "Novo date" : adding === "commitment" ? "Novo compromisso" : "Ideia para depois"}</h2>
+          <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} autoFocus onSubmit={onQuickAdd} onSaved={() => setAdding(null)} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
+        </section>
+      </div>}
 
       {weather && <div className="today-weather">{weather}</div>}
     </div>
