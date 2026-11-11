@@ -1235,3 +1235,22 @@ a.button{text-decoration:none}
 .wall-list li.is-empty{display:block;color:var(--ink-3);background:transparent;padding-left:0}
 @media (prefers-reduced-motion: reduce){.wall-page.flip-away,.wall-page.flip-back{animation:none}}
 .zoom-panel.zoom-calendar{width:min(100%,430px)}
+
+/* The animal loose in the app. The layer lets every click through; only the animal is tappable. */
+.roaming-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
+.roaming-pet{position:absolute;left:0;top:0;width:52px;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer;transition-property:transform,opacity;transition-timing-function:ease-in-out,ease;will-change:transform}
+.roaming-pet:focus-visible{outline:3px solid var(--cobalt-ink);border-radius:12px}
+.roaming-body{display:block;transition:transform .26s cubic-bezier(.3,1.6,.5,1)}
+.roaming-body svg{display:block;width:52px;height:auto;filter:drop-shadow(0 3px 2px rgba(35,24,21,.18))}
+.roaming-pet.faces-left .roaming-body{transform:scaleX(-1)}
+.roaming-pet.is-walking .roaming-body svg{animation:pet-hop .22s ease-in-out infinite alternate}
+.roaming-pet.is-popping{opacity:0}
+.roaming-pet.is-popping .roaming-body{transform:scale(.2) translateY(30px)}
+.roaming-pet .pet-says{top:-18px}
+@media (prefers-reduced-motion: reduce){.roaming-pet,.roaming-body{transition:none}.roaming-pet.is-walking .roaming-body svg{animation:none}}
+body.pet-cursor,body.pet-cursor *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-35 16 16)'%3E%3Cpath d='M9 13a4 4 0 1 1 2-5h10a4 4 0 1 1 2 5 4 4 0 1 1-2 5H11a4 4 0 1 1-2-5z' transform='translate(0 3)' fill='%23FFFDF3' stroke='%234A2E27' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 16 16,auto}
+body.pet-cursor :is(button,a,label,select,[role=button],.house-spot,summary){cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='10' fill='%23A5BCD6' stroke='%234D0E12' stroke-width='2'/%3E%3Cpath d='M6 11q8 5 16 0M6 17q8-5 16 0' fill='none' stroke='%23FFFDF3' stroke-width='2'/%3E%3C/svg%3E") 14 14,pointer}
+body.pet-cursor :is(input,textarea){cursor:text}
+body.pet-cursor :is(button,input):disabled{cursor:not-allowed}
+.settings-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600;color:var(--ink-2);min-height:44px}
+.settings-toggle input{width:20px;height:20px;accent-color:var(--accent)}
