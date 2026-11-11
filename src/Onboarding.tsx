@@ -90,6 +90,7 @@ export function Onboarding({ coupleId, userId, slot, defaultName, existing, pet,
       name: petDraft.name.trim(),
       color: petDraft.color,
       pattern: petDraft.pattern,
+      accessory: petDraft.accessory ?? "none",
       updated_at: new Date().toISOString(),
     }, { onConflict: "couple_id" }).select("*").single();
     setBusy(false);

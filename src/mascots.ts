@@ -2,7 +2,8 @@ import type { HomePartner } from "./types";
 
 export type Ears = "round" | "cat" | "dog" | "rabbit";
 export type Pattern = "none" | "spots" | "stripes";
-export type MascotLook = { name: string; ears: Ears; color: string; pattern: Pattern };
+export type Accessory = "none" | "lenco" | "laco" | "chapeu" | "oculos" | "gorro";
+export type MascotLook = { name: string; ears: Ears; color: string; pattern: Pattern; accessory?: Accessory };
 export type Hair = "short" | "long" | "bun" | "curly" | "bald";
 // The human avatar: a mini version of each person. null until they've made it.
 export type AvatarLook = { skin: string; hair: Hair; hair_color: string; glasses: boolean; beard: boolean };
@@ -26,7 +27,15 @@ export function avatarOf(mascot: Mascot | null | undefined): AvatarLook | null {
 
 // The couple's animal: one per couple, the voice of the house.
 export type Species = "dog" | "cat" | "rabbit";
-export type Pet = { couple_id: string; species: Species; name: string; color: string; pattern: Pattern };
+export type Pet = { couple_id: string; species: Species; name: string; color: string; pattern: Pattern; accessory?: Accessory };
+export const accessoryOptions: Array<{ value: Accessory; label: string }> = [
+  { value: "none", label: "Nada" },
+  { value: "lenco", label: "Lenço" },
+  { value: "laco", label: "Laço" },
+  { value: "chapeu", label: "Chapéu de festa" },
+  { value: "oculos", label: "Óculos de sol" },
+  { value: "gorro", label: "Gorro" },
+];
 export const speciesOptions: Array<{ value: Species; label: string }> = [
   { value: "dog", label: "Cão" },
   { value: "cat", label: "Gato" },
@@ -36,7 +45,7 @@ export const petColorOptions = ["#D9A86C", "#F2E2C4", "#8C5A3C", "#3B302B", "#B9
 
 // The animal is drawn with the old mascot art: the species picks the ears.
 export function petLook(pet: Pet): MascotLook {
-  return { name: pet.name, ears: pet.species, color: pet.color, pattern: pet.pattern };
+  return { name: pet.name, ears: pet.species, color: pet.color, pattern: pet.pattern, accessory: pet.accessory ?? "none" };
 }
 
 export const earOptions: Array<{ value: Ears; label: string }> = [

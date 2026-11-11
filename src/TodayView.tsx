@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
+import type { HouseActions } from "./HouseHero";
 import type { CalendarData, HouseScene, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
@@ -41,6 +42,7 @@ export function TodayView({
   pet,
   pins,
   calendar,
+  houseActions,
   deckSize,
   onOpenDeck,
   onOpenCalendar,
@@ -78,6 +80,7 @@ export function TodayView({
   mascots: Mascot[];
   pet: Pet | null;
   pins: TripPin[];
+  houseActions: HouseActions;
   calendar: CalendarData;
   deckSize: number;
   onOpenDeck: () => void;
@@ -147,7 +150,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} bubble={bubble} />
 
       {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
         <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
