@@ -3,7 +3,6 @@ import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { CalendarView, LocationSearch } from "./CalendarMap";
-import { CoupleCompanion } from "./CoupleCompanion";
 import { SchedulePanel, sharedFreeDays } from "./SchedulePanel";
 import { TripsPanel } from "./TripsPanel";
 import { TripWorld } from "./TripWorld";
@@ -1958,7 +1957,6 @@ function App() {
             onMarkDone={(id) => void markCompleted(id)}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
-            onLogWatched={() => void quickAdd({ kind: "done", title: watchingIdeaTitle, date: localDateString(), startTime: null, endTime: null, forPartner: null })}
             onOpenPlanned={() => navigateView("planned")}
             onOpenAgenda={() => navigateView("schedule")}
           />}
@@ -1973,7 +1971,6 @@ function App() {
             </section>
           </>}
           {view === "insights" && <>
-          <CoupleCompanion completedDates={completedStats.total} />
           <section className="milestones-card" aria-label={"Datas importantes"}>
             <div className="milestones-heading"><span className="section-kicker">DATAS QUE SIGNIFICAM MUITO</span><h2>A vossa história até agora</h2></div>
             {relationshipTime && <div className="relationship-duration">
@@ -1983,9 +1980,8 @@ function App() {
             {anniversary && <article className={`anniversary-feature${anniversaryGiftReminder ? " anniversary-gift-due" : ""}`}>
               <div className="anniversary-heart" aria-hidden="true">♥</div>
               <div className="anniversary-copy"><span className="anniversary-label">ANIVERSÁRIO DE NAMORO · DATA DO CASAL</span><h3>{anniversary.days === 0 ? ("Feliz aniversário de namoro!") : anniversary.days === 1 ? ("É já amanhã!") : `Faltam ${anniversary.days} dias`}</h3><p>{formatDate(anniversary.date)}{anniversary.days === 0 ? "" : ` · ${anniversary.years} ${"anos juntos"}`}</p>
-                {anniversaryGiftReminder && <div className="anniversary-gift-reminder"><strong>Está quase a chegar — já pensaram numa prenda?</strong><span>Ideia: ofereçam uma experiência a dois, como um jantar especial ou uma escapadinha.</span></div>}
+                {anniversaryGiftReminder && <p className="anniversary-gift-line">Está quase. Que tal uma experiência a dois, como um jantar especial ou uma escapadinha? <button type="button" className="link-button" onClick={startAnniversaryPlanning}>Planear o date de aniversário →</button></p>}
               </div>
-              <button type="button" className="anniversary-plan-button" onClick={startAnniversaryPlanning}>{"Planear date"} <span>→</span></button>
             </article>}
             {(couple.first_met_date || couple.first_message_date || couple.first_date_date) && <section className="milestone-group">
               <div className="milestone-group-heading"><span className="section-kicker">DATAS DO CASAL</span><span>Momentos importantes da vossa história</span></div>

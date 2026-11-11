@@ -1097,3 +1097,27 @@ a.button{text-decoration:none}
 .welcome-missing{margin:4px 0 0;padding-left:20px;color:var(--ink-2);display:grid;gap:4px}
 .welcome-actions{justify-content:flex-end;margin-top:14px}
 @media(min-width:761px){.welcome-backdrop{align-items:center}}
+
+/* Hoje simplificado: lista curta, próximo date, três botões de marcar */
+.today-grid>.today-soon,.today-grid>.today-add{grid-column:1/-1}
+.today-soon{display:grid;gap:4px;padding:4px 4px 0}
+.today-soon ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;min-width:0}
+.today-soon li{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:baseline;font-size:14px;color:var(--ink-2)}
+.today-soon li>span:last-child,.today-soon li>.link-button{min-width:0;overflow-wrap:anywhere}
+.today-soon-when{font-weight:700;color:var(--ink);white-space:nowrap}
+.today-soon-more{justify-self:end;min-height:36px;padding:0 10px}
+.today-overdue{display:block;margin-top:12px;font-size:13px;color:inherit;opacity:.9}
+.today-add{display:grid;gap:10px}
+.today-add .panel-label{margin:0}
+.today-add-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.today-add-button{display:grid;justify-items:center;gap:6px;min-height:84px;padding:14px 8px;border:0;border-radius:var(--radius-md);background:var(--paper);color:var(--ink);font:600 14px "DM Sans",sans-serif;text-align:center;cursor:pointer}
+.today-add-button svg{color:var(--accent)}
+.today-add-button:hover{background:var(--lemon)}
+.today-add-modal{width:min(100%,460px)}
+.today-add-modal h2{margin:0 0 12px}
+.today-add-modal .quick-add{display:grid;gap:12px}
+.quick-add-places{font-size:14px;color:var(--accent);align-self:center}
+.anniversary-gift-line{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
+.anniversary-gift-line .link-button{color:var(--accent);font-weight:600}
+.anniversary-feature{grid-template-columns:48px minmax(0,1fr)}
+@media(max-width:760px){.anniversary-feature{grid-template-columns:40px minmax(0,1fr)}}
