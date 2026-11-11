@@ -130,3 +130,34 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     together,
   };
 }
+
+// What the animal is doing when the app opens. It waits at the door when nobody's home and sleeps
+// in its bed when both are asleep; otherwise it picks something different each time.
+export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting";
+
+const freeModes: PetMode[] = ["sofa", "bed", "ball", "running", "sitting"];
+
+export function decidePetMode(poses: Record<HomePartner, Pose>, roll: number): PetMode {
+  const out = (pose: Pose) => pose === "away" || pose === "out";
+  if (out(poses.partner_one) && out(poses.partner_two)) return "door";
+  if (poses.partner_one === "sleeping" && poses.partner_two === "sleeping") return "bed";
+  // The sofa needs both of them on it to have a middle.
+  const modes = poses.partner_one === "sofa" && poses.partner_two === "sofa" ? freeModes : freeModes.filter((mode) => mode !== "sofa");
+  return modes[Math.min(modes.length - 1, Math.floor(Math.max(0, roll) * modes.length))];
+}
+
+// Trips that already happened, newest first, one magnet per place.
+export function fridgeMagnets(trips: Array<{ title: string; end_date: string }>, today: string, limit = 5) {
+  const seen = new Set<string>();
+  return [...trips]
+    .filter((trip) => trip.end_date < today)
+    .sort((first, second) => second.end_date.localeCompare(first.end_date))
+    .filter((trip) => {
+      const key = trip.title.trim().toLocaleLowerCase("pt-PT");
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .map((trip) => trip.title.trim());
+}

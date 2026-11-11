@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideHouse } from "./house";
+import { decideHouse, decidePetMode, fridgeMagnets } from "./house";
 import type { HouseInput } from "./house";
 import type { DailyWeather } from "./weather";
 
@@ -96,5 +96,30 @@ describe("what each one is doing", () => {
     const date = { ...planned("11:00:00"), id: "d1", title: "Brunch" };
     expect(decideHouse({ ...base, dates: [date] }).backFromDate).toEqual({ id: "d1", title: "Brunch" });
     expect(decideHouse({ ...base, dates: [{ ...date, status: "completed" }] }).backFromDate).toBeNull();
+  });
+});
+
+describe("the animal", () => {
+  it("waits at the door when both are out and sleeps in its bed when both sleep", () => {
+    expect(decidePetMode({ partner_one: "away", partner_two: "out" }, 0.5)).toBe("door");
+    expect(decidePetMode({ partner_one: "sleeping", partner_two: "sleeping" }, 0.5)).toBe("bed");
+  });
+
+  it("does something different otherwise, and only takes the sofa when both are on it", () => {
+    const modes = new Set([0, 0.2, 0.4, 0.6, 0.8, 0.99].map((roll) => decidePetMode({ partner_one: "sofa", partner_two: "sofa" }, roll)));
+    expect(modes).toEqual(new Set(["sofa", "bed", "ball", "running", "sitting"]));
+    expect([0, 0.3, 0.6, 0.99].map((roll) => decidePetMode({ partner_one: "away", partner_two: "sofa" }, roll))).not.toContain("sofa");
+  });
+});
+
+describe("fridge", () => {
+  it("shows a magnet for each place already visited, newest first", () => {
+    const trips = [
+      { title: "Barcelona", end_date: "2026-08-21" },
+      { title: "Lisboa", end_date: "2026-12-13" },
+      { title: "barcelona ", end_date: "2025-05-01" },
+      { title: "Porto", end_date: "2026-03-02" },
+    ];
+    expect(fridgeMagnets(trips, "2026-11-11")).toEqual(["Barcelona", "Porto"]);
   });
 });

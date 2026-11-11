@@ -39,6 +39,7 @@ export function TodayView({
   scene,
   mascots,
   pet,
+  magnets,
   deckSize,
   onOpenDeck,
   onOpenFridge,
@@ -74,6 +75,7 @@ export function TodayView({
   scene: HouseScene;
   mascots: Mascot[];
   pet: Pet | null;
+  magnets: string[];
   deckSize: number;
   onOpenDeck: () => void;
   onOpenFridge: () => void;
@@ -141,7 +143,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero scene={scene} mascots={mascots} pet={pet} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={bubble} />
+      <HouseHero scene={scene} mascots={mascots} pet={pet} magnets={magnets} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={bubble} />
 
       {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
         <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
