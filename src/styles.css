@@ -1121,3 +1121,8 @@ a.button{text-decoration:none}
 .anniversary-gift-line .link-button{color:var(--accent);font-weight:600}
 .anniversary-feature{grid-template-columns:48px minmax(0,1fr)}
 @media(max-width:760px){.anniversary-feature{grid-template-columns:40px minmax(0,1fr)}}
+
+/* Etiquetas: tipo + em casa ou fora */
+.place-filters{margin-top:-8px}
+.idea-special-check{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2);margin:4px 0 12px}
+.idea-special-check input{width:18px;height:18px;accent-color:var(--accent)}

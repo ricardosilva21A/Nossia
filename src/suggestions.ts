@@ -1,5 +1,7 @@
 import { activeSeasonFor, isIdeaInSeason, seasons } from "./seasons";
-import type { Category, DateIdea, Mood } from "./types";
+import type { DateIdea, Mood } from "./types";
+import { activityOf } from "./activities";
+import type { Activity } from "./activities";
 import { activityWeatherAdvice, activityWeatherReason } from "./weather";
 import type { DailyWeather } from "./weather";
 
@@ -11,7 +13,7 @@ export type SuggestionContext = {
   forecast: DailyWeather | undefined;
   // Longest stretch both are free that day, or null when unknown.
   freeMinutes: number | null;
-  categoryCounts: Map<Category, number>;
+  categoryCounts: Map<Activity, number>;
   signals?: CoupleSignals;
 };
 
@@ -31,9 +33,9 @@ export function ideasForDate(ideas: DateIdea[], date: string) {
 }
 
 export function completedCategoryCounts(ideas: DateIdea[]) {
-  const counts = new Map<Category, number>();
+  const counts = new Map<Activity, number>();
   for (const idea of ideas) {
-    if (idea.status === "completed") counts.set(idea.category, (counts.get(idea.category) ?? 0) + 1);
+    if (idea.status === "completed") counts.set(activityOf(idea), (counts.get(activityOf(idea)) ?? 0) + 1);
   }
   return counts;
 }
@@ -64,7 +66,7 @@ export function scoreIdea(idea: DateIdea, context: SuggestionContext): ScoredIde
     }
   }
 
-  score += Math.min(10, (context.categoryCounts.get(idea.category) ?? 0) * 2);
+  score += Math.min(10, (context.categoryCounts.get(activityOf(idea)) ?? 0) * 2);
   if (context.signals) {
     const effect = preferenceEffect(idea, context.signals);
     score += effect.adjustment;
