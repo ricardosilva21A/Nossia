@@ -36,12 +36,14 @@ import type { LocalEvent, Origin } from "./events";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
+import { activities, activityLabel, activityOf, activityValues, isSpecial, legacyFields } from "./activities";
+import type { Activity } from "./activities";
 import { ArrowRight, Bookmark, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
-import type { CouplePlace, Category, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, Mood, WeatherSetting, WorkScheduleBlock } from "./types";
+import type { CouplePlace, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, WeatherSetting, WorkScheduleBlock } from "./types";
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
@@ -83,9 +85,8 @@ type Couple = {
   couple_photo_path: string | null;
 };
 
-const moodOptions: Mood[] = ["Romantic", "Fun", "Relaxing", "Adventure", "Creative", "Surprise me"];
 
-const categories: Array<Category | "All"> = ["All", "Romantic", "Adventure", "Food & drink", "Creative", "Relaxing", "Culture"];
+const categories: Array<Activity | "All"> = ["All", ...activityValues];
 
 // Four tabs; pages that belong together sit under one tab as sub-sections. Settings open from the avatar.
 const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: View[] }> = [
@@ -204,6 +205,8 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
     budget: idea.budget,
     emoji: idea.emoji,
     mood: idea.mood,
+    activity: activityOf(idea),
+    special: isSpecial(idea),
     duration_minutes: idea.duration_minutes,
     budget_eur: idea.budget_eur,
     travel_minutes: idea.travel_minutes,
@@ -262,7 +265,8 @@ function filterFeelingIdeas(ideas: DateIdea[], answers: FeelingAnswers, answered
   const avoidTerms = answers.avoid.split(",").map((term) => term.trim().toLocaleLowerCase("en-GB")).filter(Boolean);
   return ideas.filter((idea) => {
     if (idea.status !== "idea") return false;
-    if (answers.mood !== "Surprise me" && idea.mood !== answers.mood) return false;
+    if (answers.activity !== "Surprise me" && activityOf(idea) !== answers.activity) return false;
+    if (answers.special && !isSpecial(idea)) return false;
     if (answeredQuestions >= 2) {
       const duration = idea.duration_minutes;
       if (duration === null) return false;
@@ -283,22 +287,11 @@ function filterFeelingIdeas(ideas: DateIdea[], answers: FeelingAnswers, answered
       if (answers.distance === "2" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 30)) return false;
       if (answers.distance === "3" && !idea.at_home && (idea.travel_minutes === null || idea.travel_minutes > 60)) return false;
     }
-    const searchable = `${idea.title} ${idea.description} ${idea.category} ${idea.mood}`.toLocaleLowerCase("en-GB");
+    const searchable = `${idea.title} ${idea.description} ${activityLabel(activityOf(idea))}`.toLocaleLowerCase("pt-PT");
     return !avoidTerms.some((term) => searchable.includes(term));
   });
 }
 
-function categoryForMood(mood: Mood): Category {
-  if (mood === "Romantic") return "Romantic";
-  if (mood === "Relaxing") return "Relaxing";
-  if (mood === "Adventure") return "Adventure";
-  if (mood === "Creative") return "Creative";
-  return "Food & drink";
-}
-
-function categoryLabel(category: Category) {
-  return ({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[category];
-}
 
 
 function App() {
@@ -339,7 +332,8 @@ function App() {
   const [photos, setPhotos] = useState<DatePhoto[]>([]);
   const [view, setView] = useState<View>(() => viewFromPath(window.location.pathname));
   const [visibleIdeaLimit, setVisibleIdeaLimit] = useState(60);
-  const [category, setCategory] = useState<Category | "All">("All");
+  const [category, setCategory] = useState<Activity | "All">("All");
+  const [placeFilter, setPlaceFilter] = useState<"all" | "home" | "out">("all");
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<AppModal>(null);
   const [activeIdeaId, setActiveIdeaId] = useState<string | null>(null);
@@ -348,11 +342,12 @@ function App() {
   const [anniversaryPlanDate, setAnniversaryPlanDate] = useState<string | null>(null);
   const [drawMessage, setDrawMessage] = useState("");
   const [discoveryMode, setDiscoveryMode] = useState<DiscoveryMode>("random");
-  const [feelingAnswers, setFeelingAnswers] = useState<FeelingAnswers>({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+  const [feelingAnswers, setFeelingAnswers] = useState<FeelingAnswers>({ activity: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
   const [feelingStep, setFeelingStep] = useState(0);
   const [weatherCondition, setWeatherCondition] = useState<WeatherCondition>("unknown");
   const [weatherForecast, setWeatherForecast] = useState<DailyWeather[]>([]);
-  const [newMood, setNewMood] = useState<Mood>("Romantic");
+  const [newActivity, setNewActivity] = useState<Activity>("comer");
+  const [newSpecial, setNewSpecial] = useState(false);
   const [newDuration, setNewDuration] = useState("120");
   const [newBudget, setNewBudget] = useState("30");
   const [newTravel, setNewTravel] = useState("");
@@ -367,7 +362,6 @@ function App() {
   const [repeatIdea, setRepeatIdea] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newCategory, setNewCategory] = useState<Category>("Romantic");
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
   const [importTarget, setImportTarget] = useState<"couple" | "global">("couple");
@@ -606,22 +600,21 @@ function App() {
 
   const completedMoodStats = useMemo(() => {
     const completedIdeas = ideas.filter((idea) => idea.status === "completed");
-    const moodCounts = moodOptions
-      .filter((mood) => mood !== "Surprise me")
-      .map((mood) => ({
-        mood,
-        count: completedIdeas.filter((idea) => idea.mood === mood).length,
+    const activityCounts = activityValues
+      .map((activity) => ({
+        activity,
+        count: completedIdeas.filter((idea) => activityOf(idea) === activity).length,
       }))
       .filter((stat) => stat.count > 0)
-      .sort((a, b) => b.count - a.count || a.mood.localeCompare(b.mood));
-    return { total: completedIdeas.length, moods: moodCounts, top: moodCounts.slice(0, 2) };
+      .sort((a, b) => b.count - a.count || a.activity.localeCompare(b.activity));
+    return { total: completedIdeas.length, activities: activityCounts, top: activityCounts.slice(0, 2) };
   }, [ideas]);
 
   const completedStats = useMemo(() => {
     const completedIdeas = ideas.filter((idea) => idea.status === "completed");
     const uniqueActivities = new Set(completedIdeas.map((idea) => `${idea.title.trim().toLocaleLowerCase("en-GB")}|${idea.description.trim().toLocaleLowerCase("en-GB")}`));
-    const categoryCounts = new Map<Category, number>();
-    completedIdeas.forEach((idea) => categoryCounts.set(idea.category, (categoryCounts.get(idea.category) ?? 0) + 1));
+    const categoryCounts = new Map<Activity, number>();
+    completedIdeas.forEach((idea) => categoryCounts.set(activityOf(idea), (categoryCounts.get(activityOf(idea)) ?? 0) + 1));
     const topCategory = [...categoryCounts.entries()].sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))[0]?.[0] ?? null;
     const locatedIdeas = completedIdeas.flatMap((idea) => idea.location_name?.trim() ? [idea.location_name.trim().toLocaleLowerCase("en-GB")] : []);
     const today = localDateString();
@@ -660,9 +653,10 @@ function App() {
               : view === "calendar" || view === "map" ? idea.status === "planned" || idea.status === "completed"
               : idea.status !== "completed";
       if (view === "discover" && !query && idea.status === "idea" && idea.seasons.length > 0 && !activeSeasonFor(idea.seasons, today)) return false;
-      const inCategory = category === "All" || idea.category === category;
-      const inSearch = !query || `${idea.title} ${idea.description} ${idea.category} ${idea.location_name ?? ""}`.toLocaleLowerCase("en-GB").includes(query);
-      return inView && inCategory && inSearch;
+      const inCategory = category === "All" || activityOf(idea) === category;
+      const inPlace = placeFilter === "all" || (placeFilter === "home") === idea.at_home;
+      const inSearch = !query || `${idea.title} ${idea.description} ${activityLabel(activityOf(idea))} ${idea.location_name ?? ""}`.toLocaleLowerCase("pt-PT").includes(query);
+      return inView && inCategory && inPlace && inSearch;
     });
     if (view !== "discover") return matching;
     const seasonRank = (idea: DateIdea) => {
@@ -670,7 +664,7 @@ function App() {
       return !season ? 0 : seasonDetails[season].event ? 2 : 1;
     };
     return matching.map((idea, index) => ({ idea, index })).sort((first, second) => seasonRank(second.idea) - seasonRank(first.idea) || first.index - second.index).map(({ idea }) => idea);
-  }, [category, ideas, search, view]);
+  }, [category, ideas, placeFilter, search, view]);
 
   const todayContext = useMemo(() => {
     const today = localDateString();
@@ -948,7 +942,7 @@ function App() {
   function startAnniversaryPlanning() {
     if (!anniversary) return;
     setAnniversaryPlanDate(anniversary.date);
-    setFeelingAnswers({ mood: completedMoodStats.top[0]?.mood ?? "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+    setFeelingAnswers({ activity: "Surprise me", special: true, duration: "4", budget: "4", distance: "4", avoid: "" });
     setFeelingStep(0);
     setCategory("All");
     navigateView("discover");
@@ -957,8 +951,8 @@ function App() {
     setModal("feeling");
   }
 
-  function drawRandomIdea(startNewRound = false, selectedCategory: Category | "All" = category) {
-    const categoryIdeas = ideasForDate(ideas, localDateString()).filter((idea) => selectedCategory === "All" || idea.category === selectedCategory);
+  function drawRandomIdea(startNewRound = false, selectedCategory: Activity | "All" = category) {
+    const categoryIdeas = ideasForDate(ideas, localDateString()).filter((idea) => selectedCategory === "All" || activityOf(idea) === selectedCategory);
     const availableIdeas = categoryIdeas;
     const previousDraws = startNewRound ? [] : drawnIdeaIds;
     const drawCount = startNewRound ? 0 : randomDrawCount;
@@ -970,7 +964,7 @@ function App() {
       setActiveIdeaId(null);
       setDrawMessage(selectedCategory === "All"
         ? "Não há mais ideias novas para sortear. Adicionem uma ideia ou escolham um date anterior para repetir."
-        : `Não há ideias de ${selectedCategory.toLocaleLowerCase("pt-PT")} disponíveis para sortear.`);
+        : `Não há ideias de ${activityLabel(selectedCategory).toLocaleLowerCase("pt-PT")} disponíveis para sortear.`);
       setDiscoveryMode("random");
       setDrawnIdeaIds([]);
       setRandomDrawCount(0);
@@ -991,7 +985,7 @@ function App() {
 
   function beginFeeling() {
     if (!anniversaryPlanDate) {
-      setFeelingAnswers({ mood: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
+      setFeelingAnswers({ activity: "Surprise me", duration: "4", budget: "4", distance: "4", avoid: "" });
     }
     setFeelingStep(0);
     setDiscoveryMode("feeling");
@@ -1115,8 +1109,8 @@ function App() {
     setEditingIdeaId(idea.idea_id);
     setNewTitle(idea.title);
     setNewDescription(idea.description);
-    setNewCategory(idea.category);
-    setNewMood(idea.mood);
+    setNewActivity(activityOf(idea));
+    setNewSpecial(isSpecial(idea));
     setNewDuration(String(idea.duration_minutes ?? 60));
     setNewBudget(String(idea.budget_eur ?? 0));
     setNewTravel(idea.travel_minutes === null ? "" : String(idea.travel_minutes));
@@ -1129,8 +1123,8 @@ function App() {
     setEditingIdeaId(null);
     setNewTitle("");
     setNewDescription("");
-    setNewCategory("Romantic");
-    setNewMood("Romantic");
+    setNewActivity("comer");
+    setNewSpecial(false);
     setNewDuration("120");
     setNewBudget("30");
     setNewTravel("");
@@ -1460,8 +1454,9 @@ function App() {
     const ideaFields = {
       title,
       description,
-      category: newCategory,
-      mood: newMood,
+      ...legacyFields(newActivity, newSpecial),
+      activity: newActivity,
+      special: newSpecial,
       duration: `${durationMinutes >= 240 ? "4+" : durationMinutes / 60} hour${durationMinutes === 60 ? "" : "s"}`,
       duration_minutes: durationMinutes,
       budget: budgetEuros === 0 ? "Free" : `€${budgetEuros > 10 ? "€" : ""}${budgetEuros > 30 ? "€" : ""}`,
@@ -2001,7 +1996,7 @@ function App() {
 
           {(view === "calendar" || view === "map") && <div className="date-view-filters">
             <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar dates"} placeholder={"Procurar date ou local..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-            <div className="filters" aria-label={"Filtrar dates por categoria"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item]}</button>)}</div>
+            <div className="filters" aria-label={"Filtrar dates por categoria"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div>
           </div>}
 
           {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
@@ -2034,23 +2029,23 @@ function App() {
               <article className="insight-metric"><span>↻</span><div><strong>{completedStats.wouldRepeat}</strong><small>dates para repetir</small></div></article>
               <article className="insight-metric"><span>€</span><div><strong>{new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(completedStats.estimatedSpend)}</strong><small>despesa estimada</small></div></article>
               <article className="insight-metric"><span>♡</span><div><strong>{completedStats.thisMonth}</strong><small>dates este mês</small></div></article>
-              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? categoryLabel(completedStats.topCategory) : "—"}</strong><small>categoria favorita</small></div></article>
+              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? activityLabel(completedStats.topCategory) : "—"}</strong><small>o que mais fazem</small></div></article>
               <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.homeDates}</strong><small>dates em casa</small></div></article>
               <article className="insight-metric"><span>♡</span><div><strong>{mostFrequentHome && mostFrequentHome.count > 0 ? `Casa de ${mostFrequentHome.partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : "—"}</strong><small>{mostFrequentHome && mostFrequentHome.count > 0 ? `${mostFrequentHome.count} dates · local mais frequente` : "local mais frequente"}</small></div></article>
             </div>
             <p className="insights-estimate-note">A despesa é estimada a partir do orçamento definido em cada ideia; não representa valores reais registados.</p>
             {completedMoodStats.total < 5
               ? <div className="insights-empty"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>A vossa história está a começar</h2><p>{`Façam mais ${5 - completedMoodStats.total} ${5 - completedMoodStats.total === 1 ? "date" : "dates"} para desbloquear o perfil de casal. Vamos mostrar os dois moods mais frequentes.`}</p><div className="insights-progress" role="progressbar" aria-label={"Dates até desbloquear o perfil de casal"} aria-valuenow={completedMoodStats.total} aria-valuemin={0} aria-valuemax={5}><span style={{ width: `${Math.min(completedMoodStats.total / 5 * 100, 100)}%` }} /></div><span className="insights-progress-label">{completedMoodStats.total} {"de"} 5 {"dates"}</span></div>
-              : <div className="insights-profile"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>{`São um casal ${completedMoodStats.top.map((stat) => ({ Romantic: "romântico", Fun: "divertido", Relaxing: "tranquilo", Adventure: "aventureiro", Creative: "criativo" })[stat.mood as Exclude<Mood, "Surprise me">]).join(" e ")}`}</h2><p>{`Com base nos vossos ${completedMoodStats.total} dates concluídos, estes são os vossos moods mais frequentes:`}</p><div className="insights-moods">{completedMoodStats.moods.map((stat) => <div className="insights-mood" key={stat.mood}><div><strong>{({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[stat.mood]}</strong><span>{stat.count} {stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
+              : <div className="insights-profile"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>{`Gostam sobretudo de ${completedMoodStats.top.map((stat) => (activities.find((item) => item.value === stat.activity)?.label ?? stat.activity).toLocaleLowerCase("pt-PT")).join(" e ")}`}</h2><p>{`Com base nos vossos ${completedMoodStats.total} dates concluídos, isto é o que mais fazem juntos:`}</p><div className="insights-moods">{completedMoodStats.activities.map((stat) => <div className="insights-mood" key={stat.activity}><div><strong>{activityLabel(stat.activity)}</strong><span>{stat.count} {stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
           </section>}
 
           {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
-            <div className="filters" aria-label={"Filtrar por categoria"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{({ All: "Todos", Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category | "All", string>)[item]}</button>)}</div>
+            <div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div>
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
-                <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[idea.category]}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
+                <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
                 <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
                   {view === "memories" && (idea.memory || idea.location_name || idea.would_repeat !== null || idea.watched_title || idea.food_notes) && <div className="memory-details">{idea.would_repeat !== null && <span className={idea.would_repeat ? "repeat-yes" : "repeat-no"}>{idea.would_repeat ? "Querem repetir" : "Não repetir"}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
                   <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
@@ -2099,20 +2094,20 @@ function App() {
           : modal === "delete" ? <div className="delete-content"><h3>{activeIdea?.status === "idea" ? "Apagar esta ideia?" : "Apagar este date?"}</h3><p className="modal-copy">{activeIdea?.status === "idea"
             ? `“${activeIdea?.title ?? ""}” será removida permanentemente da vossa lista de ideias.`
             : `Este date de “${activeIdea?.title ?? ""}” será removido permanentemente, incluindo as fotografias associadas. A ideia continua disponível.`}</p><button type="button" className="modal-submit delete-confirm-button" disabled={busy} onClick={() => void deleteActiveIdea()}>{busy ? "A apagar…" : "Apagar permanentemente"}</button></div>
-          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{({ Romantic: "Romântico", Adventure: "Aventura", "Food & drink": "Comida e bebida", Creative: "Criativo", Relaxing: "Relaxante", Culture: "Cultura" } as Record<Category, string>)[activeIdea.category]}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>{durationLabel(activeIdea.duration_minutes, activeIdea.duration)}</span><i /><span>{budgetLabel(activeIdea.budget_eur)}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>O tempo é uma indicação, não uma regra — a escolha continua a ser vossa.</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
+          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{activityLabel(activityOf(activeIdea))}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>{durationLabel(activeIdea.duration_minutes, activeIdea.duration)}</span><i /><span>{budgetLabel(activeIdea.budget_eur)}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>O tempo é uma indicação, não uma regra — a escolha continua a ser vossa.</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
           {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>SUGESTÕES ANTERIORES</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`${"Escolher sugestão"} ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
           {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{`Sortear outra vez (${3 - randomDrawCount} restantes)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{"Alterar respostas"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{"Planear para o aniversário"} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{"Este date é para hoje"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>Planear para outro dia</button></div>}
             {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button><button className="modal-submit" onClick={openNewIdea}>{"Adicionar ideia"} <span>→</span></button></div>}</>
           : modal === "feeling" ? <div className="feeling-layout">
             <div className="feeling-question-panel">
-              <p className="modal-copy">{anniversaryPlanDate ? completedMoodStats.top[0] ? `Para o vosso aniversário, começamos pelo mood mais frequente: ${moodLabels[completedMoodStats.top[0].mood]}. Podem alterar a resposta.` : "Ainda não há um mood mais frequente. Respondam às perguntas para encontrar uma ideia para o aniversário." : "Respondam a uma pergunta de cada vez. As sugestões ao lado atualizam-se à medida que escolhem."}</p>
+              <p className="modal-copy">{anniversaryPlanDate ? "Para o aniversário mostramos só ideias marcadas como Especiais. Escolham o que vos apetece fazer" : "Respondam a uma pergunta de cada vez. As sugestões ao lado atualizam-se à medida que escolhem."}</p>
               {drawMessage && <p className="form-alert config-alert" role="status">{drawMessage}</p>}
               <div className="feeling-progress" role="progressbar" aria-label={"Progresso das perguntas"} aria-valuenow={feelingStep} aria-valuemin={0} aria-valuemax={4}><span style={{ width: `${feelingStep / 4 * 100}%` }} /></div>
               <span className="feeling-step-label">{`${Math.min(feelingStep + 1, 4)} DE 4 PERGUNTAS`}</span>
               {feelingStep < 4 ? <>
-                <h3 className="feeling-question-title">{(["Qual é o vosso mood hoje?", "Quanto tempo têm?", "Qual é o orçamento para os dois?", "Até onde querem ir?"] as const)[feelingStep]}</h3>
+                <h3 className="feeling-question-title">{(["O que vos apetece fazer?", "Quanto tempo têm?", "Qual é o orçamento para os dois?", "Até onde querem ir?"] as const)[feelingStep]}</h3>
                 <div className="feeling-choice-grid">
-                  {feelingStep === 0 && moodOptions.map((mood) => <button type="button" key={mood} className={`feeling-choice ${feelingAnswers.mood === mood ? "selected" : ""}`} aria-pressed={feelingAnswers.mood === mood} onClick={() => { setFeelingAnswers((current) => ({ ...current, mood })); setFeelingStep(1); }}><span>{({ Romantic: "♥", Fun: "✳", Relaxing: "☁", Adventure: "⌖", Creative: "✧", "Surprise me": "?" })[mood]}</span>{({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood]}</button>)}
+                  {feelingStep === 0 && ([...activityValues, "Surprise me"] as const).map((activity) => <button type="button" key={activity} className={`feeling-choice ${feelingAnswers.activity === activity ? "selected" : ""}`} aria-pressed={feelingAnswers.activity === activity} onClick={() => { setFeelingAnswers((current) => ({ ...current, activity })); setFeelingStep(1); }}><span>{activity === "Surprise me" ? "?" : activities.find((item) => item.value === activity)?.emoji}</span>{activity === "Surprise me" ? "Surpreendam-nos" : activities.find((item) => item.value === activity)?.label}</button>)}
                   {feelingStep === 1 && ([["1", "Até 1 hora", "Up to 1 hour"], ["2", "1–2 horas", "1–2 hours"], ["3", "2–4 horas", "2–4 hours"], ["4", "Meio dia ou mais", "Half a day or more"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.duration === value ? "selected" : ""}`} aria-pressed={feelingAnswers.duration === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, duration: value })); setFeelingStep(2); }}><span>◷</span>{portuguese}</button>)}
                   {feelingStep === 2 && ([["1", "Gratuito ou até 10 €", "Free or up to €10"], ["2", "10–30 €", "€10–30"], ["3", "30–60 €", "€30–60"], ["4", "Sem limite definido", "No set limit"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.budget === value ? "selected" : ""}`} aria-pressed={feelingAnswers.budget === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, budget: value })); setFeelingStep(3); }}><span>€</span>{portuguese}</button>)}
                   {feelingStep === 3 && ([["1", "Em casa", "At home"], ["2", "Perto (até 30 min)", "Nearby (up to 30 min)"], ["3", "Até 1 hora de viagem", "Up to 1 hour away"], ["4", "Sem limite", "No limit"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.distance === value ? "selected" : ""}`} aria-pressed={feelingAnswers.distance === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, distance: value })); setFeelingStep(4); }}><span>⌖</span>{portuguese}</button>)}
@@ -2138,7 +2133,7 @@ function App() {
           : modal === "home-location" ? <><p className="modal-copy">Escolham em que casa aconteceu. Isto atualiza esta memória e as estatísticas, sem alterar a data nem o resto do registo.</p><label className="form-label" htmlFor="completed-home-location">Local do date<select className="form-input" id="completed-home-location" value={memoryHomePartner ?? "unset"} onChange={(event) => { const value = event.target.value; setMemoryHomePartner(value === "partner_one" || value === "partner_two" ? value : null); }}><option value="unset">Não indicar a casa</option><option value="partner_one">{`Casa de ${couple.partner_one_name}`}</option><option value="partner_two">{`Casa de ${couple.partner_two_name}`}</option></select></label><button className="modal-submit" disabled={busy} onClick={() => void saveCompletedHomeLocation()}>{busy ? "A guardar…" : "Guardar localização"} <span>→</span></button></>
           : modal === "location" ? <><p className="modal-copy">Pesquisem o local e escolham o resultado correto para o adicionar ao mapa.</p><LocationSearch value={locationName} onChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onSelect={(place: GeocodedPlace) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><button className="modal-submit" disabled={busy || locationLatitude === null || locationLongitude === null} onClick={() => void savePinnedLocation()}>{busy ? "A guardar…" : "Guardar no mapa"} <span>→</span></button></>
           : modal === "memory" ? <form onSubmit={(event) => void saveMemory(event)}><p className="modal-copy">Tudo é opcional. Podem juntar fotografias agora ou mais tarde.</p><label className="form-label">Quando foi<input className="form-input" type="date" required max={todayDate} value={memoryDate} onChange={(event) => setMemoryDate(event.target.value)} /></label>{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "watch" && <label className="form-label">O que viram?<input className="form-input" list="watched-titles" maxLength={200} placeholder="Nome do filme, série ou anime" value={memoryWatched} onChange={(event) => setMemoryWatched(event.target.value)} /><datalist id="watched-titles">{[...new Set(dates.flatMap((date) => date.watched_title ? [date.watched_title] : []))].map((title) => <option key={title} value={title} />)}</datalist></label>}{activeIdea && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" && <label className="form-label">O que comeram e beberam?<textarea className="form-input memory-input" maxLength={1000} placeholder="Pratos e bebidas de que se querem lembrar" value={memoryFood} onChange={(event) => setMemoryFood(event.target.value)} /></label>}<label className="form-label">Como foi? <textarea className="form-input memory-input" maxLength={1000} placeholder="Gostaram? O que não querem esquecer?" value={memoryNote} onChange={(event) => setMemoryNote(event.target.value)} /></label><HomeLocationPicker id="memory-home" searchLabel={activeIdea && !activeIdea.at_home && memoryKind(activeIdea.title, activeIdea.category, Boolean(activeIdea.place_id)) === "food" ? "Em que restaurante ou sítio?" : undefined} partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} homePartner={memoryHomePartner} value={locationName} onHomePartnerChange={(partner) => { setMemoryHomePartner(partner); setLocationLatitude(null); setLocationLongitude(null); setLocationName(partner ? `Casa de ${partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : ""); }} onLocationChange={(value) => { setLocationName(value); setLocationLatitude(null); setLocationLongitude(null); }} onPlaceSelect={(place) => { setLocationName(place.displayName.slice(0, 160)); setLocationLatitude(place.latitude); setLocationLongitude(place.longitude); }} /><div className="repeat-question"><span className="form-label">Querem repetir?</span><div className="chip-row" role="group" aria-label="Querem repetir?">{([[true, "Sim"], [false, "Não"]] as const).map(([value, label]) => <button type="button" key={label} className={`chip ${memoryRepeat === value ? "selected" : ""}`} aria-pressed={memoryRepeat === value} onClick={() => setMemoryRepeat(memoryRepeat === value ? null : value)}>{label}</button>)}</div></div><label className="photo-upload-button memory-photo-upload">＋ {"Adicionar fotografias"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void uploadPhotos(event)} /></label>{photoError && <p className="form-alert error-alert" role="alert">{photoError}</p>}{photos.some((photo) => photo.date_id === activeIdeaId) && <div className="memory-upload-previews">{photos.filter((photo) => photo.date_id === activeIdeaId && photo.signed_url).map((photo) => <img key={photo.id} src={photo.signed_url ?? ""} alt={"Fotografia do date enviada"} />)}</div>}<button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : editingMemory ? "Guardar alterações" : "Guardar nas memórias"} <span>→</span></button>{editingMemory && <button type="button" className="button button-ghost memory-undo" disabled={busy} onClick={() => void undoCompleted()}>Afinal ainda não fizemos</button>}</form>
-            : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões."}</p><label className="form-label" htmlFor="idea-title">A vossa ideia<input className="form-input" id="idea-title" autoFocus placeholder={"ex.: Ver as estrelas numa noite de verão"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">Descrição<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} maxLength={500} /></label><label className="form-label" htmlFor="idea-mood">Estado de espírito<select className="form-input" id="idea-mood" value={newMood} onChange={(event) => { const mood = event.target.value as Mood; setNewMood(mood); if (!editingIdeaId) setNewCategory(categoryForMood(mood)); }}>{moodOptions.map((mood) => <option key={mood} value={mood}>{({ Romantic: "Romântico", Fun: "Divertido", Relaxing: "Relaxante", Adventure: "Aventura", Creative: "Criativo", "Surprise me": "Surpreendam-nos" } as Record<Mood, string>)[mood]}</option>)}</select></label><label className="form-label" htmlFor="idea-category">Categoria<select className="form-input" id="idea-category" value={newCategory} onChange={(event) => setNewCategory(event.target.value as Category)}>{categories.filter((item): item is Category => item !== "All").map((item) => <option key={item} value={item}>{categoryLabel(item)}</option>)}</select></label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">Duração<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">Até 1 hora</option><option value="90">1–2 {"horas"}</option><option value="180">2–4 {"horas"}</option><option value="300">Meio dia ou mais</option></select></label><label className="form-label" htmlFor="idea-budget">Orçamento para dois<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">Gratuito</option><option value="10">Até 10 €</option><option value="30">Até 30 €</option><option value="60">Até 60 €</option></select></label></div><label className="form-label" htmlFor="idea-travel">Tempo de viagem (ida)<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">Desconhecido / sem limite</option><option value="15">Até 15 min</option><option value="30">Até 30 min</option><option value="60">Até 1 hora</option><option value="120">Mais de 1 hora</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />Esta ideia pode ser feita em casa</label><label className="form-label" htmlFor="idea-weather-setting">Adequação ao tempo<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">Adequada a qualquer tempo</option><option value="indoor">Interior</option><option value="outdoor">Exterior</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : modal === "edit" ? "Guardar alterações" : "Guardar esta ideia"} <span>→</span></button></form>}
+            : <form className="idea-editor-form" onSubmit={(event) => void addIdea(event)}><p className="modal-copy">{modal === "edit" ? "Atualizem os detalhes desta ideia." : "Adicionem uma ideia com os detalhes que a Nossia usa para encontrar boas sugestões."}</p><label className="form-label" htmlFor="idea-title">A vossa ideia<input className="form-input" id="idea-title" autoFocus placeholder={"ex.: Ver as estrelas numa noite de verão"} value={newTitle} onChange={(event) => setNewTitle(event.target.value)} required maxLength={70} /></label><label className="form-label" htmlFor="idea-description">Descrição<textarea className="form-input idea-description-input" id="idea-description" value={newDescription} onChange={(event) => setNewDescription(event.target.value)} maxLength={500} /></label><label className="form-label" htmlFor="idea-activity">O que vão fazer<select className="form-input" id="idea-activity" value={newActivity} onChange={(event) => setNewActivity(event.target.value as Activity)}>{activities.map((item) => <option key={item.value} value={item.value}>{item.emoji} {item.label}</option>)}</select></label><label className="idea-special-check"><input type="checkbox" checked={newSpecial} onChange={(event) => setNewSpecial(event.target.checked)} /> Especial: boa para um aniversário ou uma ocasião</label><div className="form-grid idea-detail-grid"><label className="form-label" htmlFor="idea-duration">Duração<select className="form-input" id="idea-duration" value={newDuration} onChange={(event) => setNewDuration(event.target.value)}><option value="60">Até 1 hora</option><option value="90">1–2 {"horas"}</option><option value="180">2–4 {"horas"}</option><option value="300">Meio dia ou mais</option></select></label><label className="form-label" htmlFor="idea-budget">Orçamento para dois<select className="form-input" id="idea-budget" value={newBudget} onChange={(event) => setNewBudget(event.target.value)}><option value="0">Gratuito</option><option value="10">Até 10 €</option><option value="30">Até 30 €</option><option value="60">Até 60 €</option></select></label></div><label className="form-label" htmlFor="idea-travel">Tempo de viagem (ida)<select className="form-input" id="idea-travel" value={newTravel} onChange={(event) => setNewTravel(event.target.value)} disabled={newAtHome}><option value="">Desconhecido / sem limite</option><option value="15">Até 15 min</option><option value="30">Até 30 min</option><option value="60">Até 1 hora</option><option value="120">Mais de 1 hora</option></select></label><label className="home-date-option"><input type="checkbox" checked={newAtHome} onChange={(event) => { setNewAtHome(event.target.checked); if (event.target.checked) { setNewTravel("0"); setNewWeatherSetting("indoor"); } else if (newTravel === "0") { setNewTravel(""); } }} />Esta ideia pode ser feita em casa</label><label className="form-label" htmlFor="idea-weather-setting">Adequação ao tempo<select className="form-input" id="idea-weather-setting" value={newWeatherSetting} onChange={(event) => setNewWeatherSetting(event.target.value as WeatherSetting)}><option value="any">Adequada a qualquer tempo</option><option value="indoor">Interior</option><option value="outdoor">Exterior</option></select></label><button className="modal-submit" type="submit" disabled={busy}>{busy ? "A guardar…" : modal === "edit" ? "Guardar alterações" : "Guardar esta ideia"} <span>→</span></button></form>}
       </section></div>}
     </div>
   );

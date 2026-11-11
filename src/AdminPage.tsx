@@ -7,7 +7,9 @@ import { AdminEvents } from "./AdminEvents";
 import { supabase } from "./lib/supabase";
 import { seasons } from "./seasons";
 import { budgetLabel, durationLabel } from "./suggestions";
-import type { Category, Idea, Mood, SeasonKey, WeatherSetting } from "./types";
+import type { Idea, SeasonKey, WeatherSetting } from "./types";
+import { activities, activityLabel, activityOf, isSpecial, legacyFields } from "./activities";
+import type { Activity } from "./activities";
 
 type Overview = {
   accounts: number;
@@ -28,8 +30,8 @@ type Draft = {
   title: string;
   description: string;
   emoji: string;
-  category: Category;
-  mood: Mood;
+  activity: Activity;
+  special: boolean;
   duration_minutes: string;
   budget_eur: string;
   at_home: boolean;
@@ -38,12 +40,10 @@ type Draft = {
   seasons: SeasonKey[];
 };
 
-const categories: Array<[Category, string]> = [["Romantic", "Romântico"], ["Adventure", "Aventura"], ["Food & drink", "Comida e bebida"], ["Creative", "Criativo"], ["Relaxing", "Relaxante"], ["Culture", "Cultura"]];
-const moods: Array<[Mood, string]> = [["Romantic", "Romântico"], ["Fun", "Divertido"], ["Relaxing", "Relaxante"], ["Adventure", "Aventura"], ["Creative", "Criativo"]];
 const weatherOptions: Array<[WeatherSetting, string]> = [["any", "Qualquer tempo"], ["indoor", "Interior"], ["outdoor", "Exterior"]];
 const seasonKeys = Object.keys(seasons) as SeasonKey[];
 
-const emptyDraft: Draft = { id: null, title: "", description: "", emoji: "💌", category: "Romantic", mood: "Romantic", duration_minutes: "120", budget_eur: "0", at_home: false, weather_setting: "any", repeatable: false, seasons: [] };
+const emptyDraft: Draft = { id: null, title: "", description: "", emoji: "💌", activity: "comer", special: false, duration_minutes: "120", budget_eur: "0", at_home: false, weather_setting: "any", repeatable: false, seasons: [] };
 
 function draftFrom(idea: Idea): Draft {
   return {
@@ -51,8 +51,8 @@ function draftFrom(idea: Idea): Draft {
     title: idea.title,
     description: idea.description,
     emoji: idea.emoji,
-    category: idea.category,
-    mood: idea.mood,
+    activity: activityOf(idea),
+    special: isSpecial(idea),
     duration_minutes: idea.duration_minutes?.toString() ?? "",
     budget_eur: idea.budget_eur?.toString() ?? "",
     at_home: idea.at_home,
@@ -99,8 +99,7 @@ function IdeaForm({ draft, busy, onChange, onSave, onCancel }: { draft: Draft; b
       <div className="admin-form-row"><label className="form-label admin-emoji">Emoji<input className="form-input" required maxLength={8} value={draft.emoji} onChange={(event) => set("emoji", event.target.value)} /></label><label className="form-label admin-grow">Título<input className="form-input" required maxLength={200} value={draft.title} onChange={(event) => set("title", event.target.value)} /></label></div>
       <label className="form-label">Descrição<textarea className="form-input admin-textarea" maxLength={1000} value={draft.description} onChange={(event) => set("description", event.target.value)} /></label>
       <div className="admin-form-row">
-        <label className="form-label admin-grow">Categoria<select className="form-input" value={draft.category} onChange={(event) => set("category", event.target.value as Category)}>{categories.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label className="form-label admin-grow">Ambiente<select className="form-input" value={draft.mood} onChange={(event) => set("mood", event.target.value as Mood)}>{moods.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="form-label admin-grow">Tipo<select className="form-input" value={draft.activity} onChange={(event) => set("activity", event.target.value as Activity)}>{activities.map((item) => <option key={item.value} value={item.value}>{item.emoji} {item.label}</option>)}</select></label>
         <label className="form-label admin-grow">Tempo<select className="form-input" value={draft.weather_setting} onChange={(event) => set("weather_setting", event.target.value as WeatherSetting)}>{weatherOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       </div>
       <div className="admin-form-row">
@@ -110,6 +109,7 @@ function IdeaForm({ draft, busy, onChange, onSave, onCancel }: { draft: Draft; b
       <div className="admin-checks">
         <label><input type="checkbox" checked={draft.at_home} onChange={(event) => set("at_home", event.target.checked)} /> Em casa</label>
         <label><input type="checkbox" checked={draft.repeatable} onChange={(event) => set("repeatable", event.target.checked)} /> Repetível</label>
+        <label><input type="checkbox" checked={draft.special} onChange={(event) => set("special", event.target.checked)} /> Especial (aniversários e ocasiões)</label>
       </div>
       <div className="chip-row" role="group" aria-label="Épocas">{seasonKeys.map((key) => <button type="button" key={key} className={`chip ${draft.seasons.includes(key) ? "selected" : ""}`} aria-pressed={draft.seasons.includes(key)} onClick={() => set("seasons", draft.seasons.includes(key) ? draft.seasons.filter((item) => item !== key) : [...draft.seasons, key])}>{seasons[key].label}</button>)}</div>
       <div className="panel-actions"><button className="button button-primary" type="submit" disabled={busy}>Guardar</button><button type="button" className="button button-ghost" onClick={onCancel}>Cancelar</button></div>
@@ -158,8 +158,9 @@ function AdminDashboard({ email }: { email: string }) {
       title: draft.title.trim(),
       description: draft.description.trim(),
       emoji: draft.emoji.trim(),
-      category: draft.category,
-      mood: draft.mood,
+      ...legacyFields(draft.activity, draft.special),
+      activity: draft.activity,
+      special: draft.special,
       duration: durationLabel(durationMinutes),
       duration_minutes: durationMinutes,
       budget: budgetLabel(budgetEur),
@@ -223,7 +224,7 @@ function AdminDashboard({ email }: { email: string }) {
         <ul className="admin-ideas">{shown.map((idea) => <li key={idea.id}>
           {draft?.id === idea.id ? <IdeaForm draft={draft} busy={busy} onChange={setDraft} onSave={() => void saveDraft()} onCancel={() => setDraft(null)} /> : <div className="admin-idea-row">
             <span className="admin-idea-emoji" aria-hidden="true">{idea.emoji}</span>
-            <div className="admin-grow"><strong>{idea.title}</strong><small>{categories.find(([value]) => value === idea.category)?.[1] ?? idea.category}{idea.repeatable ? " · Repetível" : ""}{idea.seasons?.length ? ` · ${idea.seasons.map((key) => seasons[key]?.label ?? key).join(", ")}` : ""}</small></div>
+            <div className="admin-grow"><strong>{idea.title}</strong><small>{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · Especial" : ""}{idea.repeatable ? " · Repetível" : ""}{idea.seasons?.length ? ` · ${idea.seasons.map((key) => seasons[key]?.label ?? key).join(", ")}` : ""}</small></div>
             {confirmDelete === idea.id ? <div className="panel-actions"><button type="button" className="button button-primary" disabled={busy} onClick={() => void removeIdea(idea.id)}>Confirmar</button><button type="button" className="button button-ghost" onClick={() => setConfirmDelete(null)}>Cancelar</button></div> : <div className="row-actions"><button type="button" aria-label={`Editar ${idea.title}`} onClick={() => setDraft(draftFrom(idea))}><Pencil size={16} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} onClick={() => setConfirmDelete(idea.id)}><Trash2 size={16} aria-hidden="true" /></button></div>}
           </div>}
         </li>)}</ul>

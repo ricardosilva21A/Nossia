@@ -1122,6 +1122,10 @@ a.button{text-decoration:none}
 .anniversary-feature{grid-template-columns:48px minmax(0,1fr)}
 @media(max-width:760px){.anniversary-feature{grid-template-columns:40px minmax(0,1fr)}}
 
+/* Etiquetas: tipo + em casa ou fora */
+.place-filters{margin-top:-8px}
+.idea-special-check{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2);margin:4px 0 12px}
+.idea-special-check input{width:18px;height:18px;accent-color:var(--accent)}
 /* What each mascot is doing: short lines that can wrap */
 .house-seat small{white-space:normal;text-align:center;max-width:160px;line-height:1.3;padding:2px 8px}
 .house-seat.is-away{opacity:1;align-self:center}

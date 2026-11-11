@@ -1,10 +1,14 @@
+import type { Activity } from "./activities";
+
 export type Category = "Romantic" | "Adventure" | "Food & drink" | "Creative" | "Relaxing" | "Culture";
 export type Status = "idea" | "planned" | "completed";
 export type Mood = "Romantic" | "Fun" | "Relaxing" | "Adventure" | "Creative" | "Surprise me";
 export type WeatherSetting = "any" | "indoor" | "outdoor";
 export type HomePartner = "partner_one" | "partner_two";
 export type FeelingAnswers = {
-  mood: Mood;
+  activity: Activity | "Surprise me";
+  // Only ideas marked "Especial" (used when planning the anniversary).
+  special?: boolean;
   duration: "1" | "2" | "3" | "4";
   budget: "1" | "2" | "3" | "4";
   distance: "1" | "2" | "3" | "4";
@@ -29,6 +33,8 @@ export type IdeaDetails = {
   seasons: SeasonKey[];
   repeatable: boolean;
   tags: string[];
+  activity?: Activity;
+  special?: boolean;
 };
 
 // A shared catalog idea (created_by_couple_id is null) or a couple's private idea.
