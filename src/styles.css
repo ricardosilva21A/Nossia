@@ -376,7 +376,7 @@ h1{font-size:31px;line-height:1.2;margin-bottom:8px;color:#231815}
 .import-preview-list>div strong{font-size:13px}
 .import-preview-list>div span,.import-preview-list>p{font-size:12px;color:#6b5549}
 .import-invalid-row{font-size:12px;color:#4d0e12;margin:3px 0}
-.delete-confirm-button{background:#4d0e12}
+.delete-confirm-button{background:#4d0e12;color:#fff}
 .delete-confirm-button:hover{background:#380a0d}
 .modal-card:has(.import-content)>.section-kicker,.modal-card:has(.import-content)>h2,.modal-card:has(.delete-content)>.section-kicker,.modal-card:has(.delete-content)>h2{display:none}
 .modal-card:has(.import-content),.modal-card:has(.delete-content){max-height:90vh;overflow:auto}
@@ -803,15 +803,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,te
 @media(max-width:760px){.favorite-button{width:40px;height:40px}.card-action,.weather-edit-button,.add-button{min-height:44px}.calendar-controls button{min-height:44px;min-width:44px}.relationship-metric-switch button{min-height:40px;padding:0 12px}.schedule-blocks button,.task-list button,.commitment-list button{min-width:44px;min-height:44px}}
 .loading-screen,.auth-main{background:var(--canvas)}.auth-side{background:var(--accent);color:#fff}.auth-side .brand-name,.auth-quote h1,.auth-quote p{color:#fff}.auth-side .brand-mark{background:#fff;color:var(--accent-ink)}.auth-card{background:var(--paper);border:0;border-radius:var(--radius-lg);box-shadow:none}
 
-/* Earth palette: text set on the filled cards and tabs */
-.nav-link.active,.nav-link.active .nav-icon,.brand-mark{color:var(--ink)}
-.today-next,.today-next .panel-label,.today-next h2,.today-next .today-meta,.today-next .today-meta svg,.today-next .panel-copy,.today-next .button-ghost,.today-next .overdue-note{color:var(--ink)}
+/* Text on the filled cards and tabs: beige on Sceptre Red, dark on Cerulean */
+.nav-link.active,.nav-link.active .nav-icon,.brand-mark{color:var(--canvas)}
+.today-next,.today-next .panel-label,.today-next h2,.today-next .today-meta,.today-next .today-meta svg,.today-next .panel-copy,.today-next .button-ghost,.today-next .overdue-note{color:var(--canvas)}
 .today-suggestion,.today-suggestion .panel-label,.today-suggestion h2,.today-suggestion .panel-copy,.today-suggestion .today-meta,.today-suggestion .today-meta svg,.today-suggestion .suggestion-hint,.today-suggestion .button-ghost,.today-suggestion .icon-button{color:var(--ink)}
-.today-next .button-secondary,.today-suggestion .button-secondary{color:var(--ink)}
-.today-next .button-ghost:hover,.today-suggestion .button-ghost:hover{background:#ffffff40}
+.today-next .button-secondary{background:var(--canvas);border-color:var(--canvas);color:var(--accent)}
+.today-suggestion .button-secondary{color:var(--ink)}
+.today-next .button-ghost:hover{background:#f5efc626}
+.today-suggestion .button-ghost:hover{background:#ffffff40}
 .today-suggestion .icon-button{background:#ffffff59;border-color:#23181533}
-.today-next .overdue-note{background:#ffffff59}
-.nav-link.active .nav-count{background:var(--ink);color:#fff}
+.today-next .overdue-note{background:#f5efc626}
+.nav-link.active .nav-count{background:var(--canvas);color:var(--accent)}
 .nav-count{color:var(--ink)}
 .button-primary:hover:not(:disabled),.modal-submit:hover:not(:disabled){background:#380a0d;color:#fff}
 button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,textarea:focus-visible{outline-color:var(--ink)}
