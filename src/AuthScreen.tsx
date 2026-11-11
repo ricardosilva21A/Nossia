@@ -87,7 +87,7 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { invite_code: initialInviteCode, partner_name: invite.partner_two_name } },
+          options: { emailRedirectTo: window.location.origin, data: { invite_code: initialInviteCode, partner_name: invite.partner_two_name } },
         });
         if (signUpError) throw signUpError;
         if (!data.session) setMessage("A tua conta está pronta. Confirma o email na caixa de entrada e inicia sessão.");
@@ -95,7 +95,7 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { partner_one_name: partnerOneName.trim(), partner_two_name: partnerTwoName.trim(), relationship_date: relationshipDate } },
+          options: { emailRedirectTo: window.location.origin, data: { partner_one_name: partnerOneName.trim(), partner_two_name: partnerTwoName.trim(), relationship_date: relationshipDate } },
         });
         if (signUpError) throw signUpError;
         if (!data.session) setMessage("A conta está pronta. Confirma o email na caixa de entrada e inicia sessão.");

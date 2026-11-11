@@ -19,6 +19,8 @@ import { formatDate, localDateString, nextAnniversary, nextPersonalBirthday, rel
 import { HomeLocationPicker } from "./HomeLocationPicker";
 import { AccountSettings } from "./AccountSettings";
 import { Onboarding } from "./Onboarding";
+import { WelcomeSteps, readSeenWelcome, saveSeenWelcome } from "./WelcomeSteps";
+import type { WelcomeStep } from "./WelcomeSteps";
 import { Mascot as MascotArt } from "./Mascot";
 import type { Mascot } from "./mascots";
 import { decideHouse } from "./house";
@@ -380,6 +382,11 @@ function App() {
   const [votes, setVotes] = useState<Vote[]>([]);
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
   const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
+  const [welcomeSeen, setWelcomeSeen] = useState<WelcomeStep[]>([]);
+  const welcomeUserId = session?.user.id;
+  useEffect(() => {
+    if (welcomeUserId) setWelcomeSeen(readSeenWelcome(welcomeUserId));
+  }, [welcomeUserId]);
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [vacationProfiles, setVacationProfiles] = useState<VacationProfile[]>([]);
   const [vacationPeriods, setVacationPeriods] = useState<VacationPeriod[]>([]);
@@ -1880,6 +1887,23 @@ function App() {
   if (passwordRecovery && session) return <AuthScreen initialMode="password-update" onModeChange={navigateAuth} recovery onRecoveryComplete={() => setPasswordRecovery(false)} />;
   if (!session || !couple) return <><AuthScreen initialMode={authFlow} onModeChange={navigateAuth} />{dataError && <p className="auth-global-error" role="alert">{dataError}</p>}</>;
 
+  // After the mascot exists: one pop-up at a time, swipes first, then what's missing in the profile.
+  const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
+  const onboardingVisible = Boolean(mySlot && mascots && (onboardingOpen || editingMascot || !myMascot));
+  const profileMissing = [
+    !couple.municipality ? "O concelho onde vivem" : null,
+    couple.weather_latitude == null ? "A localização para o tempo" : null,
+    mySlot && !workBlocks.some((block) => block.partner_slot === mySlot) ? "Os teus horários de trabalho" : null,
+  ].filter((item): item is string => item !== null);
+  const welcomeStep: WelcomeStep | null = !myMascot || onboardingVisible || openDeck || modal || quickAddOpen ? null
+    : votes.length === 0 && deckAvailable.length > 0 && !welcomeSeen.includes("swipes") ? "swipes"
+      : profileMissing.length > 0 && !welcomeSeen.includes("profile") ? "profile" : null;
+  const markWelcomeSeen = (step: WelcomeStep) => {
+    const next = [...welcomeSeen.filter((item) => item !== step), step];
+    setWelcomeSeen(next);
+    saveSeenWelcome(session.user.id, next);
+  };
+
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -2042,6 +2066,7 @@ function App() {
       </main>
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
+      {welcomeStep && myMascot && <WelcomeSteps step={welcomeStep} mascot={myMascot} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
       {couple && mySlot && mascots && (onboardingOpen || editingMascot || !mascots.some((item) => item.user_id === session.user.id)) && <Onboarding coupleId={couple.id} userId={session.user.id} slot={mySlot} defaultName={mySlot === "partner_one" ? couple.partner_one_name : couple.partner_two_name} existing={editingMascot ? mascots.find((item) => item.user_id === session.user.id) ?? null : null} askInvite={!editingMascot && !partnerJoined} birthDate={mySlot === "partner_one" ? couple.partner_one_birth_date : couple.partner_two_birth_date} onSaveBirthday={saveMyBirthday} onSaved={(saved) => { setMascots((current) => [...(current ?? []).filter((item) => item.user_id !== saved.user_id), saved]); if (!editingMascot) setOnboardingOpen(true); }} onDone={() => { setOnboardingOpen(false); setEditingMascot(false); }} />}
