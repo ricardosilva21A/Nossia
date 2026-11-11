@@ -24,7 +24,7 @@ import { Mascot as PetArt } from "./Mascot";
 import { Avatar } from "./Avatar";
 import { avatarOf, petLook } from "./mascots";
 import type { Mascot, Pet } from "./mascots";
-import { decideHouse, fridgeMagnets } from "./house";
+import { decideHouse, tripPins } from "./house";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
@@ -1942,10 +1942,12 @@ function App() {
             scene={decideHouse({ now: new Date(), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") })}
             mascots={mascots ?? []}
             pet={pet}
-            magnets={fridgeMagnets(trips, localDateString())}
+            pins={tripPins(trips, localDateString())}
+            calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}
-            onOpenFridge={() => navigateView("tripMap")}
+            onPlanTrip={() => navigateView("trips")}
+            onOpenWorldMap={() => navigateView("tripMap")}
             onOpenCalendar={() => navigateView("calendar")}
             onOpenWindow={() => navigateView("settings")}
             busy={busy}
