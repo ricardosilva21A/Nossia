@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
 import type { HouseScene } from "./house";
-import type { Mascot } from "./mascots";
+import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import type { CoupleCommitment, DateIdea } from "./types";
@@ -38,6 +38,7 @@ export function TodayView({
   weather,
   scene,
   mascots,
+  pet,
   deckSize,
   onOpenDeck,
   onOpenFridge,
@@ -72,6 +73,7 @@ export function TodayView({
   weather: ReactNode;
   scene: HouseScene;
   mascots: Mascot[];
+  pet: Pet | null;
   deckSize: number;
   onOpenDeck: () => void;
   onOpenFridge: () => void;
@@ -126,7 +128,7 @@ export function TodayView({
     <p className="house-bubble-title"><strong>{scene.together ? "Bom date!" : `Às ${scene.dateNow.time} é o vosso date.`}</strong></p>
     <p className="panel-copy">{scene.dateNow.title}{scene.together ? ". Aproveitem, depois contam-me como foi." : ". Já se estão a arranjar?"}</p>
   </> : deckSize > 0 ? <>
-    <p className="house-bubble-title"><strong>Diz-me do que gostas</strong></p>
+    <p className="house-bubble-title"><strong>{pet ? `${pet.name}: ` : ""}Diz-me do que gostas</strong></p>
     <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia rápida" : "ideias rápidas"}: desliza para a direita se te apetece. Assim as sugestões ficam à vossa medida.</p>
     <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Vamos lá</button></div>
   </> : suggestion ? <>
@@ -139,7 +141,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero scene={scene} mascots={mascots} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={bubble} />
+      <HouseHero scene={scene} mascots={mascots} pet={pet} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenFridge={onOpenFridge} onOpenCalendar={onOpenCalendar} onOpenWindow={onOpenWindow} bubble={bubble} />
 
       {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
         <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>

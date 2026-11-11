@@ -1,5 +1,6 @@
-import { Mascot as MascotArt } from "./Mascot";
-import type { Mascot } from "./mascots";
+import { Mascot as PetArt } from "./Mascot";
+import { petLook } from "./mascots";
+import type { Pet } from "./mascots";
 
 // The pop-ups shown after someone creates their mascot, one at a time:
 // first the swipes ("a tua mascote quer conhecer-te"), then what is still missing in the profile.
@@ -7,19 +8,19 @@ export type WelcomeStep = "swipes" | "profile";
 
 type Props = {
   step: WelcomeStep;
-  mascot: Mascot;
+  pet: Pet;
   deckSize: number;
   missing: string[];
   onStart: () => void;
   onLater: () => void;
 };
 
-export function WelcomeSteps({ step, mascot, deckSize, missing, onStart, onLater }: Props) {
-  const title = step === "swipes" ? `${mascot.name} quer conhecer-te` : "Falta pouco para o perfil ficar completo";
+export function WelcomeSteps({ step, pet, deckSize, missing, onStart, onLater }: Props) {
+  const title = step === "swipes" ? `${pet.name} quer conhecer-te` : "Falta pouco para o perfil ficar completo";
   return (
     <div className="welcome-backdrop" role="presentation">
       <section className="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
-        <div className="welcome-mascot"><MascotArt look={mascot} size={96} /></div>
+        <div className="welcome-mascot"><PetArt look={petLook(pet)} size={96} /></div>
         <h2 id="welcome-title">{title}</h2>
         {step === "swipes" ? <>
           <p className="modal-copy">Diz-lhe do que gostas: {deckSize} {deckSize === 1 ? "ideia" : "ideias"} rápidas, uma de cada vez. Desliza para a direita se te apetece, para a esquerda se não. O teu par não vê as tuas escolhas, só o que gostam os dois.</p>

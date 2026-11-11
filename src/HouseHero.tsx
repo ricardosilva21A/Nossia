@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
-import { Mascot as MascotArt } from "./Mascot";
-import type { Mascot } from "./mascots";
+import { Avatar } from "./Avatar";
+import { Mascot as PetArt } from "./Mascot";
+import { avatarOf, defaultAvatar, petLook } from "./mascots";
+import type { Mascot, Pet } from "./mascots";
 import type { HouseScene, SeasonalObject, WindowView } from "./house";
 import type { HomePartner } from "./types";
 
@@ -12,6 +14,7 @@ const seasonalEmoji: Record<SeasonalObject, string> = { tree: "🎄", chestnuts:
 type Props = {
   scene: HouseScene;
   mascots: Mascot[];
+  pet: Pet | null;
   names: Record<HomePartner, string>;
   bubble: ReactNode;
   onOpenFridge: () => void;
@@ -19,14 +22,14 @@ type Props = {
   onOpenWindow: () => void;
 };
 
-export function HouseHero({ scene, mascots, names, bubble, onOpenFridge, onOpenCalendar, onOpenWindow }: Props) {
+export function HouseHero({ scene, mascots, pet, names, bubble, onOpenFridge, onOpenCalendar, onOpenWindow }: Props) {
   const seat = (slot: HomePartner) => {
     const mascot = mascots.find((item) => item.partner_slot === slot);
     const pose = scene.poses[slot];
     const doing = scene.doing[slot];
     if (pose === "away") return <div className="house-seat is-away" key={slot}><small><strong>{names[slot]}</strong>{doing}</small></div>;
     if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-hidden="true">?</span><small>À espera de {names[slot]}</small></div>;
-    return <div className={`house-seat pose-${pose}`} key={slot}><MascotArt look={mascot} size={72} asleep={pose === "sleeping"} /><small>{mascot.name}{doing ? ` · ${doing}` : ""}</small></div>;
+    return <div className={`house-seat pose-${pose}`} key={slot}><Avatar look={avatarOf(mascot) ?? defaultAvatar} outfit={scene.outfit} size={72} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} /><small>{names[slot]}{doing ? ` · ${doing}` : ""}</small></div>;
   };
 
   return (
@@ -49,6 +52,7 @@ export function HouseHero({ scene, mascots, names, bubble, onOpenFridge, onOpenC
         {scene.together && scene.dateNow
           ? <div className="house-seats"><div className="house-seat is-away house-out"><small><strong>Os dois em date</strong>{scene.dateNow.title}</small></div></div>
           : <div className="house-seats">{seat("partner_one")}{seat("partner_two")}</div>}
+        {pet && <div className="house-pet" aria-label={`${pet.name}, o animal da casa`}><PetArt look={petLook(pet)} size={56} asleep={scene.poses.partner_one === "sleeping" && scene.poses.partner_two === "sleeping"} /><small>{pet.name}</small></div>}
         <button type="button" className="house-spot spot-fridge" aria-label="Abrir o mapa-mundo das viagens" onClick={onOpenFridge} />
         <button type="button" className="house-spot spot-calendar" aria-label="Abrir o calendário" onClick={onOpenCalendar} />
         <button type="button" className="house-spot spot-window" aria-label="Ver o tempo" onClick={onOpenWindow} />
