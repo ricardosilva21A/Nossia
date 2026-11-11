@@ -3,7 +3,9 @@ import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
 import { avatarOf, defaultAvatar, petLook } from "./mascots";
-import type { Mascot, Pet } from "./mascots";
+import type { Accessory, Mascot, Pet } from "./mascots";
+import type { AffectionKind } from "./affections";
+import { AffectionSheet, WardrobeSheet } from "./HouseSheets";
 import { decidePetMode } from "./house";
 import type { CalendarData, HouseScene, PetMode, SeasonalObject, TripPin, WindowView } from "./house";
 import { WallCalendar } from "./WallCalendar";
@@ -39,9 +41,17 @@ type Props = {
   onPlanTrip: () => void;
   onOpenWorldMap: () => void;
   onOpenWindow: () => void;
+} & HouseActions;
+
+// What the people and the animal in the house do when tapped.
+export type HouseActions = {
+  mySlot: HomePartner | null;
+  onOpenProfile: () => void;
+  onSendAffection: (kind: AffectionKind) => Promise<boolean>;
+  onSavePetAccessory: (accessory: Accessory) => Promise<boolean>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow, mySlot, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -56,21 +66,37 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
     return () => window.clearTimeout(timer);
   }, [happy]);
 
+  const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
+  const partnerSlot: HomePartner | null = mySlot ? (mySlot === "partner_one" ? "partner_two" : "partner_one") : null;
+  const partnerLook = partnerSlot ? avatarOf(mascots.find((item) => item.partner_slot === partnerSlot) ?? null) : null;
+  // Tapping yourself opens your profile; tapping the other one sends them something.
+  const tapPerson = (slot: HomePartner) => {
+    if (slot === mySlot) onOpenProfile();
+    else setSheet("affection");
+  };
+  const personLabel = (slot: HomePartner, where: string) => slot === mySlot ? `${names[slot]}, ${where}. Abrir o teu perfil` : `${names[slot]}, ${where}. Mandar-lhe um carinho`;
+  const short = (doing: string) => doing.replace("a trabalhar até às", "trabalho até").replace(" até às ", " até ");
+
   const seat = (slot: HomePartner) => {
     const mascot = mascots.find((item) => item.partner_slot === slot);
     const pose = scene.poses[slot];
     const doing = scene.doing[slot];
-    if (pose === "away") return <div className="house-seat is-away" key={slot}><small><strong>{names[slot]}</strong>{doing}</small></div>;
-    if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-hidden="true">?</span><small>À espera de {names[slot]}</small></div>;
-    return <div className={`house-seat pose-${pose}`} key={slot}><Avatar look={avatarOf(mascot) ?? defaultAvatar} outfit={scene.outfit} size={72} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} /><small>{names[slot]}{doing ? ` · ${doing}` : ""}</small></div>;
+    if (pose === "away") return null;
+    if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-label={`À espera de ${names[slot]}`}>?</span></div>;
+    return (
+      <button type="button" className={`house-seat pose-${pose}`} key={slot} aria-label={personLabel(slot, doing || "em casa")} onClick={() => tapPerson(slot)}>
+        <Avatar look={avatarOf(mascot) ?? defaultAvatar} outfit={scene.outfit} size={72} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />
+        {doing && <small>{short(doing)}</small>}
+      </button>
+    );
   };
+  const away = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.poses[slot] === "away");
 
   const petButton = pet && (
-    <button type="button" className={`house-pet pet-${mode}${happy ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Fazer-lhe uma festa`} onClick={() => setHappy(true)}>
+    <button type="button" className={`house-pet pet-${mode}${happy ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => { setHappy(true); window.setTimeout(() => setSheet("wardrobe"), 450); }}>
       {happy && <span className="pet-says" aria-hidden="true">Au!</span>}
       <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed" && !happy} />
       {mode === "ball" && <span className="pet-toy" aria-hidden="true" />}
-      <small>{pet.name}</small>
     </button>
   );
 
@@ -112,14 +138,19 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         {scene.seasonal && <span className="house-seasonal" aria-hidden="true">{seasonalEmoji[scene.seasonal]}</span>}
         {scene.fan && <span className="house-fan" aria-hidden="true">🌀</span>}
         {scene.together && scene.dateNow
-          ? <div className="house-seats"><div className="house-seat is-away house-out"><small><strong>Os dois em date</strong>{scene.dateNow.title}</small></div></div>
-          : <div className={`house-seats${scene.poses.partner_one === "away" && scene.poses.partner_two === "away" ? " both-away" : ""}`}>{seat("partner_one")}{mode === "sofa" && petButton}{seat("partner_two")}</div>}
+          ? <div className="house-away"><span className="away-pill">♥ Os dois em date · {scene.dateNow.title}</span></div>
+          : <>
+            <div className="house-seats">{seat("partner_one")}{mode === "sofa" && petButton}{seat("partner_two")}</div>
+            {away.length > 0 && <div className="house-away">{away.map((slot) => <button type="button" key={slot} className="away-pill" aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}</div>}
+          </>}
         {mode !== "sofa" && petButton}
         <button type="button" className="house-spot spot-map" aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
         <button type="button" className="house-spot spot-calendar" aria-label="Ver o calendário de perto" onClick={open("calendar")} />
         <button type="button" className="house-spot spot-window" aria-label="Ver o tempo" onClick={onOpenWindow} />
       </div>
       <div className="house-bubble">{bubble}</div>
+      {sheet === "affection" && partnerSlot && <AffectionSheet name={names[partnerSlot]} look={partnerLook} onSend={onSendAffection} onClose={() => setSheet(null)} />}
+      {sheet === "wardrobe" && pet && <WardrobeSheet pet={pet} onSave={onSavePetAccessory} onClose={() => setSheet(null)} />}
       {closeUp?.what === "map" && <ZoomOverlay origin={closeUp.origin} label="Mapa das viagens" className="zoom-map" onClose={() => setCloseUp(null)}>
         {(close) => <WallMap pins={pins} onPlanTrip={() => { close(); window.setTimeout(onPlanTrip, 470); }} onOpenWorldMap={() => { close(); window.setTimeout(onOpenWorldMap, 470); }} />}
       </ZoomOverlay>}

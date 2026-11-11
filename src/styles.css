@@ -1238,19 +1238,42 @@ a.button{text-decoration:none}
 
 /* The animal loose in the app. The layer lets every click through; only the animal is tappable. */
 .roaming-layer{position:fixed;inset:0;z-index:45;pointer-events:none;overflow:hidden}
-.roaming-pet{position:absolute;left:0;top:0;width:52px;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer;transition-property:transform,opacity;transition-timing-function:ease-in-out,ease;will-change:transform}
+.roaming-pet{position:absolute;left:0;top:0;width:40px;padding:0;border:0;background:transparent;pointer-events:auto;cursor:pointer;transition-property:transform,opacity;transition-timing-function:ease-in-out,ease;will-change:transform}
 .roaming-pet:focus-visible{outline:3px solid var(--cobalt-ink);border-radius:12px}
 .roaming-body{display:block;transition:transform .26s cubic-bezier(.3,1.6,.5,1)}
-.roaming-body svg{display:block;width:52px;height:auto;filter:drop-shadow(0 3px 2px rgba(35,24,21,.18))}
+.roaming-body svg{display:block;width:40px;height:auto;filter:drop-shadow(0 3px 2px rgba(35,24,21,.18))}
 .roaming-pet.faces-left .roaming-body{transform:scaleX(-1)}
 .roaming-pet.is-walking .roaming-body svg{animation:pet-hop .22s ease-in-out infinite alternate}
-.roaming-pet.is-popping{opacity:0}
-.roaming-pet.is-popping .roaming-body{transform:scale(.2) translateY(30px)}
 .roaming-pet .pet-says{top:-18px}
 @media (prefers-reduced-motion: reduce){.roaming-pet,.roaming-body{transition:none}.roaming-pet.is-walking .roaming-body svg{animation:none}}
-body.pet-cursor,body.pet-cursor *{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg transform='rotate(-35 16 16)'%3E%3Cpath d='M9 13a4 4 0 1 1 2-5h10a4 4 0 1 1 2 5 4 4 0 1 1-2 5H11a4 4 0 1 1-2-5z' transform='translate(0 3)' fill='%23FFFDF3' stroke='%234A2E27' stroke-width='2'/%3E%3C/g%3E%3C/svg%3E") 16 16,auto}
-body.pet-cursor :is(button,a,label,select,[role=button],.house-spot,summary){cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='10' fill='%23A5BCD6' stroke='%234D0E12' stroke-width='2'/%3E%3Cpath d='M6 11q8 5 16 0M6 17q8-5 16 0' fill='none' stroke='%23FFFDF3' stroke-width='2'/%3E%3C/svg%3E") 14 14,pointer}
-body.pet-cursor :is(input,textarea){cursor:text}
-body.pet-cursor :is(button,input):disabled{cursor:not-allowed}
 .settings-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;font-weight:600;color:var(--ink-2);min-height:44px}
 .settings-toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+/* People in the house are buttons now; names live in the labels for screen readers, not on screen. */
+button.house-seat{padding:0;border:0;background:transparent;font:inherit;color:inherit;cursor:pointer;pointer-events:auto;border-radius:14px}
+button.house-seat:focus-visible,.away-pill:focus-visible,.house-pet:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:2px}
+.house-seats .house-seat small{max-width:none;white-space:nowrap;font-size:clamp(9px,2.6cqw,11px);padding:1px 6px}
+.house-pet small{display:none}
+/* Whoever is out: one short line each, above the sofa. */
+.house-away{position:absolute;left:58.3%;top:51%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;max-width:62%;pointer-events:none}
+.away-pill{pointer-events:auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;border-radius:999px;background:rgba(255,253,243,.92);color:var(--ink);font:500 clamp(10px,2.8cqw,12px)/1.3 "DM Sans",sans-serif;padding:3px 10px;box-shadow:0 1px 4px rgba(35,24,21,.12);cursor:pointer}
+.away-pill strong{font-weight:700}
+span.away-pill{cursor:default}
+
+.house-sheet{position:relative;padding-top:28px}
+.affection-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.affection-option{display:flex;align-items:center;gap:8px;min-height:52px;padding:8px 12px;border:1px solid var(--line);border-radius:16px;background:var(--paper);color:var(--ink);font:600 14px "DM Sans",sans-serif;text-align:left;cursor:pointer}
+.affection-option span{font-size:22px}
+.affection-option:last-child{grid-column:1/-1}
+.affection-option:active{background:var(--lemon)}
+.welcome-mascot{position:relative}
+.affection-fly{position:absolute;left:50%;top:30%;font-size:34px;animation:affection-fly 1.2s ease-out forwards}
+@keyframes affection-fly{0%{transform:translate(-50%,0) scale(.6);opacity:0}30%{opacity:1;transform:translate(-50%,-10px) scale(1.2)}100%{transform:translate(20px,-60px) scale(1);opacity:0}}
+.wardrobe-row{justify-content:center;margin-top:10px}
+
+.affection-toast{position:fixed;left:50%;top:12px;z-index:70;transform:translateX(-50%);width:min(calc(100% - 32px),420px);display:grid;grid-template-columns:auto 1fr;align-items:center;gap:4px 12px;padding:12px 14px;border-radius:var(--radius-md);background:var(--paper);box-shadow:0 12px 30px rgba(35,24,21,.2);animation:toast-in .35s cubic-bezier(.2,.8,.3,1.2)}
+.affection-toast p{margin:0;font-weight:700;color:var(--ink)}
+.affection-toast-emoji{font-size:30px;animation:pet-jump .5s ease 2}
+.affection-toast-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+@keyframes toast-in{from{transform:translate(-50%,-30px);opacity:0}}
+@media (prefers-reduced-motion: reduce){.affection-toast,.affection-toast-emoji,.affection-fly{animation:none}}
