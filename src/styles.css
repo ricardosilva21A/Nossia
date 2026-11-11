@@ -1119,8 +1119,8 @@ a.button{text-decoration:none}
 .quick-add-places{font-size:14px;color:var(--accent);align-self:center}
 .anniversary-gift-line{margin:8px 0 0;font-size:13px;color:var(--ink-2)}
 .anniversary-gift-line .link-button{color:var(--accent);font-weight:600}
-.anniversary-feature{grid-template-columns:48px minmax(0,1fr)}
-@media(max-width:760px){.anniversary-feature{grid-template-columns:40px minmax(0,1fr)}}
+/* The heart icon is hidden, so the card is one column of text. */
+.anniversary-feature{display:block;padding:16px 18px}
 
 /* Etiquetas: tipo + em casa ou fora */
 .place-filters{margin-top:-8px}
@@ -1133,3 +1133,8 @@ a.button{text-decoration:none}
 .house-seat.is-away small strong{display:block;font-size:13px}
 .house-seat small strong{font-weight:700}
 .house-out small{max-width:280px}
+
+/* The couple's animal, on the floor by the sofa */
+.house-pet{position:absolute;left:18%;bottom:8px;display:grid;justify-items:center;pointer-events:none}
+.house-pet small{font-size:11px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.75);padding:1px 7px;border-radius:9px}
+@media(max-width:760px){.house-pet{left:4%}}

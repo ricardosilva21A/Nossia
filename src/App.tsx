@@ -20,8 +20,10 @@ import { AccountSettings } from "./AccountSettings";
 import { Onboarding } from "./Onboarding";
 import { WelcomeSteps, readSeenWelcome, saveSeenWelcome } from "./WelcomeSteps";
 import type { WelcomeStep } from "./WelcomeSteps";
-import { Mascot as MascotArt } from "./Mascot";
-import type { Mascot } from "./mascots";
+import { Mascot as PetArt } from "./Mascot";
+import { Avatar } from "./Avatar";
+import { avatarOf, petLook } from "./mascots";
+import type { Mascot, Pet } from "./mascots";
 import { decideHouse } from "./house";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
@@ -375,6 +377,8 @@ function App() {
   const lastViewInSection = useRef<Partial<Record<Section, View>>>({});
   const [memoryNote, setMemoryNote] = useState("");
   const [mascots, setMascots] = useState<Mascot[] | null>(null);
+  const [pet, setPet] = useState<Pet | null>(null);
+  const [editingPet, setEditingPet] = useState(false);
   const [syncTick, setSyncTick] = useState(0);
   const [votes, setVotes] = useState<Vote[]>([]);
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
@@ -1631,8 +1635,10 @@ function App() {
     void Promise.all([
       supabase.from("couple_mascots").select("*"),
       supabase.from("couple_members").select("user_id"),
-    ]).then(([mascotResult, memberResult]) => {
+      supabase.from("couple_pets").select("*").maybeSingle(),
+    ]).then(([mascotResult, memberResult, petResult]) => {
       if (!active) return;
+      if (!petResult.error) setPet((petResult.data as Pet | null) ?? null);
       if (mascotResult.error) {
         setDataError(`Não foi possível carregar as mascotes: ${mascotResult.error.message}`);
         return;
@@ -1887,13 +1893,14 @@ function App() {
 
   // After the mascot exists: one pop-up at a time, swipes first, then what's missing in the profile.
   const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
-  const onboardingVisible = Boolean(mySlot && mascots && (onboardingOpen || editingMascot || !myMascot));
+  const needsAvatar = Boolean(mascots && !avatarOf(myMascot));
+  const onboardingVisible = Boolean(mySlot && mascots && (onboardingOpen || editingMascot || editingPet || needsAvatar));
   const profileMissing = [
     !couple.municipality ? "O concelho onde vivem" : null,
     couple.weather_latitude == null ? "A localização para o tempo" : null,
     mySlot && !workBlocks.some((block) => block.partner_slot === mySlot) ? "Os teus horários de trabalho" : null,
   ].filter((item): item is string => item !== null);
-  const welcomeStep: WelcomeStep | null = !myMascot || onboardingVisible || openDeck || modal || quickAddOpen ? null
+  const welcomeStep: WelcomeStep | null = !myMascot || !pet || onboardingVisible || openDeck || modal || quickAddOpen ? null
     : votes.length === 0 && deckAvailable.length > 0 && !welcomeSeen.includes("swipes") ? "swipes"
       : profileMissing.length > 0 && !welcomeSeen.includes("profile") ? "profile" : null;
   const markWelcomeSeen = (step: WelcomeStep) => {
@@ -1934,6 +1941,7 @@ function App() {
             weatherKnown={couple.weather_latitude !== null}
             scene={decideHouse({ now: new Date(), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") })}
             mascots={mascots ?? []}
+            pet={pet}
             deckSize={deckAvailable.length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}
             onOpenFridge={() => navigateView("tripMap")}
@@ -1978,7 +1986,7 @@ function App() {
             </div>}
             {anniversary && <article className={`anniversary-feature${anniversaryGiftReminder ? " anniversary-gift-due" : ""}`}>
               <div className="anniversary-heart" aria-hidden="true">♥</div>
-              <div className="anniversary-copy"><span className="anniversary-label">ANIVERSÁRIO DE NAMORO · DATA DO CASAL</span><h3>{anniversary.days === 0 ? ("Feliz aniversário de namoro!") : anniversary.days === 1 ? ("É já amanhã!") : `Faltam ${anniversary.days} dias`}</h3><p>{formatDate(anniversary.date)}{anniversary.days === 0 ? "" : ` · ${anniversary.years} ${"anos juntos"}`}</p>
+              <div className="anniversary-copy"><span className="anniversary-label">ANIVERSÁRIO DE NAMORO</span><h3>{anniversary.days === 0 ? ("Feliz aniversário de namoro!") : anniversary.days === 1 ? ("É já amanhã!") : `Faltam ${anniversary.days} dias`}</h3><p>{formatDate(anniversary.date)}{anniversary.days === 0 ? "" : ` · fazem ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}`}</p>
                 {anniversaryGiftReminder && <p className="anniversary-gift-line">Está quase. Que tal uma experiência a dois, como um jantar especial ou uma escapadinha? <button type="button" className="link-button" onClick={startAnniversaryPlanning}>Planear o date de aniversário →</button></p>}
               </div>
             </article>}
@@ -2010,7 +2018,7 @@ function App() {
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>A minha mascote</h2>{mascots?.find((item) => item.user_id === session.user.id) && <MascotArt look={mascots.find((item) => item.user_id === session.user.id) as Mascot} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
           </section>}
@@ -2061,10 +2069,10 @@ function App() {
       </main>
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
-      {welcomeStep && myMascot && <WelcomeSteps step={welcomeStep} mascot={myMascot} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
+      {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
-      {couple && mySlot && mascots && (onboardingOpen || editingMascot || !mascots.some((item) => item.user_id === session.user.id)) && <Onboarding coupleId={couple.id} userId={session.user.id} slot={mySlot} defaultName={mySlot === "partner_one" ? couple.partner_one_name : couple.partner_two_name} existing={editingMascot ? mascots.find((item) => item.user_id === session.user.id) ?? null : null} askInvite={!editingMascot && !partnerJoined} birthDate={mySlot === "partner_one" ? couple.partner_one_birth_date : couple.partner_two_birth_date} onSaveBirthday={saveMyBirthday} onSaved={(saved) => { setMascots((current) => [...(current ?? []).filter((item) => item.user_id !== saved.user_id), saved]); if (!editingMascot) setOnboardingOpen(true); }} onDone={() => { setOnboardingOpen(false); setEditingMascot(false); }} />}
+      {couple && mySlot && mascots && onboardingVisible && <Onboarding key={editingPet ? "pet" : "avatar"} coupleId={couple.id} userId={session.user.id} slot={mySlot} defaultName={mySlot === "partner_one" ? couple.partner_one_name : couple.partner_two_name} existing={myMascot} pet={pet} startStep={editingPet ? "pet" : "avatar"} editing={editingMascot || editingPet} askInvite={!editingMascot && !editingPet && !partnerJoined} birthDate={mySlot === "partner_one" ? couple.partner_one_birth_date : couple.partner_two_birth_date} onSaveBirthday={saveMyBirthday} onSaved={(saved) => { setMascots((current) => [...(current ?? []).filter((item) => item.user_id !== saved.user_id), saved]); if (!editingMascot) setOnboardingOpen(true); }} onPetSaved={(saved) => { setPet(saved); if (!editingPet) setOnboardingOpen(true); }} onDone={() => { setOnboardingOpen(false); setEditingMascot(false); setEditingPet(false); }} />}
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setModal(null); setAnniversaryPlanDate(null); } }}><section className={`modal-card ${modal === "new" || modal === "edit" ? "idea-editor-modal" : ""} ${modal === "profile" ? "profile-modal" : ""} ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" aria-label={"Fechar"} disabled={busy} onClick={() => { setModal(null); setAnniversaryPlanDate(null); }}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>
         <p className="section-kicker">{modal === "profile" ? "O VOSSO CASAL" : modal === "global-import" ? "CATÁLOGO GLOBAL DE IDEIAS" : modal === "import" ? "IMPORTAR IDEIAS" : modal === "plan" ? "UM PLANO SÓ PARA VOCÊS" : modal === "memory" ? "GUARDAR ESTE MOMENTO" : modal === "home-location" ? "ATUALIZAR LOCALIZAÇÃO" : modal === "draw" ? discoveryMode === "feeling" ? "A VOSSA SUGESTÃO PERSONALIZADA" : "O DATE DE HOJE ESTÁ DECIDIDO" : modal === "feeling" ? "ESCOLHER PELO FEELING" : modal === "album" ? "O VOSSO ÁLBUM PRIVADO" : modal === "location" ? "ADICIONAR ESTE LOCAL AO MAPA" : "MAIS UMA IDEIA ESPECIAL"}</p>
         <h2 id="modal-title">{modal === "profile" ? "Perfil do casal" : modal === "global-import" ? "Adicionar ideias para todos os casais" : modal === "import" ? "Importar ideias para o vosso casal" : modal === "plan" ? `Vamos combinar um date${activeIdea ? `: ${activeIdea.title}` : ""}?` : modal === "memory" ? "Como foi o vosso date?" : modal === "home-location" ? `Onde aconteceu ${activeIdea?.title ?? "este date"}?` : modal === "draw" ? activeIdea ? discoveryMode === "feeling" ? "Uma ideia à vossa medida" : "A vossa próxima aventura" : "Vamos encontrar uma ideia" : modal === "feeling" ? "O que vos apetece hoje?" : modal === "album" ? activeIdea ? `Álbum: ${activeIdea.title}` : "Álbum do date" : modal === "location" ? "Onde aconteceu?" : "O que gostariam de fazer?"}</h2>
