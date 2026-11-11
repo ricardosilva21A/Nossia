@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideHouse, decidePetMode, fridgeMagnets } from "./house";
+import { calendarMarks, decideHouse, decidePetMode, monthCells, tripPins } from "./house";
 import type { HouseInput } from "./house";
 import type { DailyWeather } from "./weather";
 
@@ -112,14 +112,36 @@ describe("the animal", () => {
   });
 });
 
-describe("fridge", () => {
-  it("shows a magnet for each place already visited, newest first", () => {
+describe("wall map", () => {
+  it("places each trip on the map and tells past from coming", () => {
     const trips = [
-      { title: "Barcelona", end_date: "2026-08-21" },
-      { title: "Lisboa", end_date: "2026-12-13" },
-      { title: "barcelona ", end_date: "2025-05-01" },
-      { title: "Porto", end_date: "2026-03-02" },
+      { id: "b", title: "Barcelona", start_date: "2026-08-16", end_date: "2026-08-21", latitude: 41.38, longitude: 2.18 },
+      { id: "l", title: "Lisboa ", start_date: "2026-12-11", end_date: "2026-12-13", latitude: null, longitude: null },
     ];
-    expect(fridgeMagnets(trips, "2026-11-11")).toEqual(["Barcelona", "Porto"]);
+    expect(tripPins(trips, "2026-11-11")).toEqual([
+      { id: "b", title: "Barcelona", start_date: "2026-08-16", end_date: "2026-08-21", past: true, x: 364, y: 85 },
+      { id: "l", title: "Lisboa", start_date: "2026-12-11", end_date: "2026-12-13", past: false, x: null, y: null },
+    ]);
+  });
+});
+
+describe("wall calendar", () => {
+  it("starts the weeks on Monday", () => {
+    const cells = monthCells(2026, 10);
+    expect(cells.slice(0, 7)).toEqual([null, null, null, null, null, null, "2026-11-01"]);
+    expect(cells.length % 7).toBe(0);
+    expect(cells.filter(Boolean)).toHaveLength(30);
+  });
+
+  it("marks dates, commitments and every day of a trip inside the page", () => {
+    const marks = calendarMarks({
+      dates: [{ title: "Jantar", planned_for: "2026-11-14T20:00:00" }, { title: "Sem dia", planned_for: null }],
+      commitments: [{ title: "Dentista", event_date: "2026-11-14" }],
+      trips: [{ title: "Lisboa", start_date: "2026-11-29", end_date: "2026-12-02" }],
+    }, "2026-11-01", "2026-11-30");
+    expect(marks.get("2026-11-14")?.map((mark) => mark.kind)).toEqual(["date", "commitment"]);
+    expect(marks.get("2026-11-29")).toEqual([{ kind: "trip", title: "Lisboa" }]);
+    expect(marks.get("2026-11-30")).toHaveLength(1);
+    expect(marks.has("2026-12-01")).toBe(false);
   });
 });

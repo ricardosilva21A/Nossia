@@ -147,17 +147,62 @@ export function decidePetMode(poses: Record<HomePartner, Pose>, roll: number): P
 }
 
 // Trips that already happened, newest first, one magnet per place.
-export function fridgeMagnets(trips: Array<{ title: string; end_date: string }>, today: string, limit = 5) {
-  const seen = new Set<string>();
+// The pins on the wall map: every trip with a place, the past ones in full and the next ones hollow.
+export type TripPin = { id: string; title: string; start_date: string; end_date: string; past: boolean; x: number | null; y: number | null };
+
+export function tripPins(trips: Array<{ id: string; title: string; start_date: string; end_date: string; latitude: number | null; longitude: number | null }>, today: string): TripPin[] {
   return [...trips]
-    .filter((trip) => trip.end_date < today)
-    .sort((first, second) => second.end_date.localeCompare(first.end_date))
-    .filter((trip) => {
-      const key = trip.title.trim().toLocaleLowerCase("pt-PT");
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, limit)
-    .map((trip) => trip.title.trim());
+    .sort((first, second) => first.start_date.localeCompare(second.start_date))
+    .map((trip) => {
+      const placed = trip.latitude !== null && trip.longitude !== null;
+      return {
+        id: trip.id,
+        title: trip.title.trim(),
+        start_date: trip.start_date,
+        end_date: trip.end_date,
+        past: trip.end_date < today,
+        // Same equirectangular frame as worldPath.ts (720 x 284).
+        x: placed ? Math.round(((trip.longitude as number) + 180) * 2) : null,
+        y: placed ? Math.round((84 - (trip.latitude as number)) * 2) : null,
+      };
+    });
+}
+
+// A wall-calendar page: weeks start on Monday, empty cells are null.
+export function monthCells(year: number, month: number): Array<string | null> {
+  const first = new Date(year, month, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const cells: Array<string | null> = Array.from({ length: lead }, () => null);
+  for (let day = 1; day <= days; day += 1) cells.push(`${year}-${pad(month + 1)}-${pad(day)}`);
+  while (cells.length % 7) cells.push(null);
+  return cells;
+}
+
+export type CalendarMark = { kind: "date" | "commitment" | "trip"; title: string };
+
+export type CalendarData = {
+  dates: Array<{ title: string; planned_for: string | null }>;
+  commitments: Array<{ title: string; event_date: string }>;
+  trips: Array<{ title: string; start_date: string; end_date: string }>;
+};
+
+export function calendarMarks(input: CalendarData, from: string, to: string): Map<string, CalendarMark[]> {
+  const marks = new Map<string, CalendarMark[]>();
+  const add = (day: string, mark: CalendarMark) => {
+    if (day < from || day > to) return;
+    marks.set(day, [...(marks.get(day) ?? []), mark]);
+  };
+  for (const date of input.dates) if (date.planned_for) add(date.planned_for.slice(0, 10), { kind: "date", title: date.title });
+  for (const item of input.commitments) add(item.event_date, { kind: "commitment", title: item.title });
+  for (const trip of input.trips) {
+    const cursor = new Date(`${trip.start_date}T12:00:00`);
+    const end = new Date(`${trip.end_date}T12:00:00`);
+    for (let guard = 0; cursor <= end && guard < 60; guard += 1) {
+      add(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`, { kind: "trip", title: trip.title });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  return marks;
 }

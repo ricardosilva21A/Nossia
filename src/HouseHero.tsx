@@ -1,18 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
 import { avatarOf, defaultAvatar, petLook } from "./mascots";
 import type { Mascot, Pet } from "./mascots";
 import { decidePetMode } from "./house";
-import type { HouseScene, PetMode, SeasonalObject, WindowView } from "./house";
+import type { CalendarData, HouseScene, PetMode, SeasonalObject, TripPin, WindowView } from "./house";
+import { WallCalendar } from "./WallCalendar";
+import { WallMap } from "./WallMap";
+import { WorldMapArt } from "./WorldMapArt";
+import { ZoomOverlay } from "./ZoomOverlay";
 import type { HomePartner } from "./types";
 
 // A placeholder room. Marta's image replaces the <svg> below; the shortcuts are placed in
 // percentages so they keep working on top of it.
 const sky: Record<WindowView, string> = { sun: "#bfe3f5", clouds: "#d5dde3", rain: "#9fb0bd", fog: "#e3e3df", night: "#26304f" };
 const seasonalEmoji: Record<SeasonalObject, string> = { tree: "🎄", chestnuts: "🌰", basil: "🌿", mask: "🎭" };
-const magnetColors = ["#4D0E12", "#A5BCD6", "#D9A86C", "#4A2E27", "#93ABC8"];
 const months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
 const petLines: Record<PetMode, string> = {
   door: "à vossa espera",
@@ -28,15 +31,21 @@ type Props = {
   mascots: Mascot[];
   pet: Pet | null;
   names: Record<HomePartner, string>;
-  magnets?: string[];
+  pins?: TripPin[];
+  calendar: CalendarData;
   today?: Date;
   bubble: ReactNode;
-  onOpenFridge: () => void;
-  onOpenCalendar: () => void;
+  onOpenAgenda: () => void;
+  onPlanTrip: () => void;
+  onOpenWorldMap: () => void;
   onOpenWindow: () => void;
 };
 
-export function HouseHero({ scene, mascots, pet, names, magnets = [], today = new Date(), bubble, onOpenFridge, onOpenCalendar, onOpenWindow }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow }: Props) {
+  // What is open up close, and where on the wall it was, so the zoom starts from there.
+  const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar"; origin: DOMRect } | null>(null);
+  const open = (what: "map" | "calendar") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
+  const placedPast = pins.filter((pin) => pin.past && pin.x !== null);
   // A new roll each time the house opens, so the animal is doing something different.
   const [roll] = useState(() => Math.random());
   const mode = useMemo(() => decidePetMode(scene.poses, roll), [roll, scene.poses]);
@@ -71,17 +80,18 @@ export function HouseHero({ scene, mascots, pet, names, magnets = [], today = ne
         <svg className="house-art" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1080" height="400" fill="#f4e8d4" />
           <rect y="400" width="1080" height="120" fill="#d8bd97" />
-          <rect x="430" y="50" width="220" height="170" rx="10" fill={sky[scene.window]} stroke="#fff" strokeWidth="12" />
-          <path d="M540 50v170M430 135h220" stroke="#fff" strokeWidth="8" />
-          {/* Fridge with a magnet for each place they've been */}
-          <rect x="90" y="130" width="130" height="290" rx="16" fill="#fbfaf6" stroke="#d9d3c4" strokeWidth="4" />
-          <path d="M90 240h130" stroke="#d9d3c4" strokeWidth="4" />
-          {magnets.map((name, index) => {
-            const y = 150 + index * 50 + (index > 0 ? 20 : 0);
-            const label = name.length > 10 ? `${name.slice(0, 9)}…` : name;
-            const color = magnetColors[index % magnetColors.length];
-            return <g key={name} transform={`rotate(${index % 2 ? 4 : -4} 155 ${y + 17})`}><rect x="99" y={y} width="112" height="34" rx="8" fill={color} /><text x="155" y={y + 23} textAnchor="middle" fontSize="17" fontWeight="700" fontFamily="DM Sans, sans-serif" fill={index % 5 === 1 || index % 5 === 4 ? "#231815" : "#F5EFC6"}>{label}</text></g>;
-          })}
+          {/* Window, in the left corner */}
+          <rect x="80" y="60" width="200" height="160" rx="10" fill={sky[scene.window]} stroke="#fff" strokeWidth="12" />
+          <path d="M180 60v160M80 140h200" stroke="#fff" strokeWidth="8" />
+          <rect x="66" y="222" width="228" height="12" rx="4" fill="#e9dcc3" />
+          {/* A plant under the window */}
+          <path d="M160 330c-30-30-34-62-18-76 10 22 16 46 18 76zM172 330c4-36 18-62 40-70 0 30-16 54-40 70zM166 330c-6-40-2-70 8-84 8 26 4 56-8 84z" fill="#6B8F71" />
+          <path d="M138 328h60l-8 70h-44z" fill="#C97B63" />
+          {/* World map in a wooden frame, with a pin for every trip */}
+          <rect x="356" y="58" width="308" height="152" rx="8" fill="#6B4A35" />
+          <rect x="368" y="70" width="284" height="128" rx="3" fill="#EADBBE" />
+          <path d="M368 102h284M368 134h284M368 166h284" stroke="#DCC9A6" strokeWidth="2" />
+          <WorldMapArt x={374} y={76} width={272} height={116} pins={pins} pinScale={2.2} />
           {/* Wall calendar with today's date */}
           <rect x="700" y="70" width="130" height="130" rx="8" fill="#fff" stroke="#d9d3c4" strokeWidth="4" />
           <rect x="700" y="70" width="130" height="34" rx="8" fill="#4d0e12" />
@@ -105,11 +115,17 @@ export function HouseHero({ scene, mascots, pet, names, magnets = [], today = ne
           ? <div className="house-seats"><div className="house-seat is-away house-out"><small><strong>Os dois em date</strong>{scene.dateNow.title}</small></div></div>
           : <div className={`house-seats${scene.poses.partner_one === "away" && scene.poses.partner_two === "away" ? " both-away" : ""}`}>{seat("partner_one")}{mode === "sofa" && petButton}{seat("partner_two")}</div>}
         {mode !== "sofa" && petButton}
-        <button type="button" className="house-spot spot-fridge" aria-label={magnets.length ? `Frigorífico com ímanes de ${magnets.join(", ")}. Abrir o mapa-mundo` : "Abrir o mapa-mundo das viagens"} onClick={onOpenFridge} />
-        <button type="button" className="house-spot spot-calendar" aria-label="Abrir a agenda" onClick={onOpenCalendar} />
+        <button type="button" className="house-spot spot-map" aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
+        <button type="button" className="house-spot spot-calendar" aria-label="Ver o calendário de perto" onClick={open("calendar")} />
         <button type="button" className="house-spot spot-window" aria-label="Ver o tempo" onClick={onOpenWindow} />
       </div>
       <div className="house-bubble">{bubble}</div>
+      {closeUp?.what === "map" && <ZoomOverlay origin={closeUp.origin} label="Mapa das viagens" className="zoom-map" onClose={() => setCloseUp(null)}>
+        {(close) => <WallMap pins={pins} onPlanTrip={() => { close(); window.setTimeout(onPlanTrip, 470); }} onOpenWorldMap={() => { close(); window.setTimeout(onOpenWorldMap, 470); }} />}
+      </ZoomOverlay>}
+      {closeUp?.what === "calendar" && <ZoomOverlay origin={closeUp.origin} label="Calendário" className="zoom-calendar" onClose={() => setCloseUp(null)}>
+        {(close) => <WallCalendar today={today} {...calendar} onOpenAgenda={() => { close(); window.setTimeout(onOpenAgenda, 470); }} />}
+      </ZoomOverlay>}
     </section>
   );
 }
