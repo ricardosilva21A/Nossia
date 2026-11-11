@@ -40,9 +40,9 @@ export function HouseHero({ scene, mascots, names, bubble, onOpenFridge, onOpenC
           <rect x="60" y="130" width="160" height="290" rx="16" fill="#fbfaf6" stroke="#d9d3c4" strokeWidth="4" />
           <path d="M60 240h160" stroke="#d9d3c4" strokeWidth="4" />
           <rect x="860" y="70" width="150" height="140" rx="8" fill="#fff" stroke="#d9d3c4" strokeWidth="4" />
-          <rect x="860" y="70" width="150" height="36" rx="8" fill="#e07a5f" />
-          <rect x="310" y="300" width="460" height="130" rx="30" fill="#b8c7bb" />
-          <rect x="290" y="340" width="500" height="100" rx="28" fill="#a7b8ab" />
+          <rect x="860" y="70" width="150" height="36" rx="8" fill="#4d0e12" />
+          <rect x="310" y="300" width="460" height="130" rx="30" fill="#a5bcd6" />
+          <rect x="290" y="340" width="500" height="100" rx="28" fill="#93abc8" />
         </svg>
         {scene.seasonal && <span className="house-seasonal" aria-hidden="true">{seasonalEmoji[scene.seasonal]}</span>}
         {scene.fan && <span className="house-fan" aria-hidden="true">🌀</span>}

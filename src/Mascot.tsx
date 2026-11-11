@@ -19,8 +19,8 @@ export function Mascot({ look, size = 96, asleep = false }: { look: MascotLook; 
       {look.pattern === "spots" && <g fill="#000" opacity=".14"><circle cx="34" cy="60" r="7" /><circle cx="86" cy="52" r="5" /><circle cx="78" cy="94" r="8" /><circle cx="42" cy="96" r="5" /></g>}
       {look.pattern === "stripes" && <g stroke="#000" strokeOpacity=".14" strokeWidth="6" strokeLinecap="round"><path d="M46 34v14M60 32v14M74 34v14" /></g>}
       <ellipse cx="60" cy="84" rx="24" ry="20" fill="#fff" opacity=".55" />
-      {eye ? <path d={eye.d} fill="none" stroke="#2d2225" strokeWidth="3.5" strokeLinecap="round" /> : <g fill="#2d2225"><circle cx="48" cy="60" r="5" /><circle cx="72" cy="60" r="5" /></g>}
-      <path d="M54 74q6 6 12 0" fill="none" stroke="#2d2225" strokeWidth="3" strokeLinecap="round" />
+      {eye ? <path d={eye.d} fill="none" stroke="#231815" strokeWidth="3.5" strokeLinecap="round" /> : <g fill="#231815"><circle cx="48" cy="60" r="5" /><circle cx="72" cy="60" r="5" /></g>}
+      <path d="M54 74q6 6 12 0" fill="none" stroke="#231815" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }
