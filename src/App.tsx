@@ -170,6 +170,8 @@ function translateImportMessage(message: string) {
 }
 
 
+// Where "vimos o Interstellar" is filed, with the film's name. Kept out of suggestions:
+// a casual episode on the sofa isn't a date (a saga marathon, which is suggested, is).
 const watchingIdeaTitle = "Ver um filme ou uma série";
 
 
@@ -241,6 +243,8 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
     }] : [];
   });
   const unplannedIdeas = catalog
+    // The casual "watched something" idea only collects what they log; it's never suggested.
+    .filter((idea) => idea.title !== watchingIdeaTitle)
     .filter((idea) => idea.repeatable ? !plannedIdeaIds.has(idea.id) : !datedIdeaIds.has(idea.id))
     .map((idea) => ({ ...fromIdea(idea), ...emptyDateDetails, id: idea.id, status: "idea" as const }));
   return [...datedIdeas, ...unplannedIdeas];
