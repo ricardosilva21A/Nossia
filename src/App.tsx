@@ -1928,7 +1928,7 @@ function App() {
             suggestion={suggestion}
             suggestionDate={suggestionDay.key}
             weatherKnown={couple.weather_latitude !== null}
-            scene={decideHouse({ now: new Date(), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates })}
+            scene={decideHouse({ now: new Date(), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") })}
             mascots={mascots ?? []}
             deckSize={deckAvailable.length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}

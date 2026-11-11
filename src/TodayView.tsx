@@ -94,6 +94,7 @@ export function TodayView({
   onOpenAgenda: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
+  const [dismissedBack, setDismissedBack] = useState<string | null>(null);
   const now = new Date();
   const today = dateKey(now);
   const [nextDate] = upcomingDates;
@@ -116,7 +117,15 @@ export function TodayView({
     ...birthdays.filter((birthday) => birthday.days <= 7).map((birthday) => ({ key: `b-${birthday.name}`, days: birthday.days, when: birthday.days === 0 ? "Hoje" : `Daqui a ${birthday.days} ${birthday.days === 1 ? "dia" : "dias"}`, what: `Anos de ${birthday.name}`, onClick: null })),
   ].sort((first, second) => first.days - second.days).slice(0, 3);
 
-  const bubble = deckSize > 0 ? <>
+  const back = scene.backFromDate && dismissedBack !== scene.backFromDate.id ? scene.backFromDate : null;
+  const bubble = back ? <>
+    <p className="house-bubble-title"><strong>Já voltaram? Como correu {back.title}?</strong></p>
+    <p className="panel-copy">Guardem a memória enquanto está fresca. Fotografias e notas são opcionais.</p>
+    <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(back.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => setDismissedBack(back.id)}>Ainda não</button></div>
+  </> : scene.dateNow ? <>
+    <p className="house-bubble-title"><strong>{scene.together ? "Bom date!" : `Às ${scene.dateNow.time} é o vosso date.`}</strong></p>
+    <p className="panel-copy">{scene.dateNow.title}{scene.together ? ". Aproveitem, depois contam-me como foi." : ". Já se estão a arranjar?"}</p>
+  </> : deckSize > 0 ? <>
     <p className="house-bubble-title"><strong>Diz-me do que gostas</strong></p>
     <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia rápida" : "ideias rápidas"}: desliza para a direita se te apetece. Assim as sugestões ficam à vossa medida.</p>
     <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Vamos lá</button></div>
