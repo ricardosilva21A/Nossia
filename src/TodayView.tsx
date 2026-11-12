@@ -130,6 +130,8 @@ export function TodayView({
   onOpenAgenda: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
+  const [planDay, setPlanDay] = useState<string | null>(null);
+  if (!adding && planDay) setPlanDay(null);
   const [dismissedBack, setDismissedBack] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ date: string; time: string } | null>(null);
   // A reminder to turn notifications on, until they do (or wave it away for two weeks).
@@ -196,7 +198,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
 
       {pushHint && <section className="push-hint" aria-label="Notificações">
         <Bell size={20} aria-hidden="true" />
@@ -207,23 +209,24 @@ export function TodayView({
         <div className="push-hint-actions">{myPush === "off" && <button type="button" className="button button-primary" onClick={onOpenNotifications}>Ligar</button>}<button type="button" className="button button-ghost" onClick={hidePushHint}>Agora não</button></div>
       </section>}
 
-      {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
-        <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
-        <button type="button" className="button button-ghost today-soon-more" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button>
-      </section>}
-
-      <section className="panel today-next" aria-label="Próximo date">
+      {/* One card for what's next: the next date, then whatever else is coming this week. */}
+      <section className="panel today-next" aria-label="A seguir">
         <p className="panel-label">Próximo date</p>
         {nextDate ? <>
           <h2>{nextDate.emoji} {nextDate.title}</h2>
           {waitingOnPartner(nextDate, myUserId) && <p className="proposal-tag">À espera de {otherName}{partnerHasPush === false ? " · vê quando abrir a app" : ""}</p>}
           <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{nextDate.planned_for ? shortDay(nextDate.planned_for) : "Dia por decidir"}{nextDate.planned_start_time && <><Clock size={16} aria-hidden="true" />{nextDate.planned_start_time.slice(0, 5)}</>}</p>
           {nextDate.location_name && <p className="today-meta"><MapPin size={16} aria-hidden="true" />{nextDate.location_name}</p>}
-          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
+          <div className="panel-actions">{(!nextDate.planned_for || nextDate.planned_for <= today) && <button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button>}<button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
         </> : <>
           <h2>Nada marcado ainda</h2>
           <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou vejam a sugestão no balão da casa."}</p>
         </>}
+        {soon.length > 0 && <div className="today-soon">
+          <p className="panel-label">Em breve</p>
+          <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
+          <button type="button" className="button button-ghost today-soon-more" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button>
+        </div>}
         {overdueCount > 0 && <button type="button" className="link-button today-overdue" onClick={onOpenPlanned}>{overdueCount === 1 ? "1 date já passou" : `${overdueCount} dates já passaram`}: marquem como feito ou apaguem</button>}
       </section>
 
@@ -240,7 +243,7 @@ export function TodayView({
         <DialogSection onClose={busy ? null : () => setAdding(null)} className="modal-card today-add-modal" aria-labelledby="today-add-title">
           <button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setAdding(null)}>×</button>
           <h2 id="today-add-title">{adding === "date" ? "Novo date" : adding === "commitment" ? "Novo compromisso" : "Ideia para depois"}</h2>
-          <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} autoFocus onSubmit={onQuickAdd} onSaved={() => setAdding(null)} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
+          <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} initialDay={planDay} autoFocus onSubmit={onQuickAdd} onSaved={() => { setAdding(null); setPlanDay(null); }} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
         </DialogSection>
       </div>}
 

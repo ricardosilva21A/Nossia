@@ -28,16 +28,16 @@ Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia
 
 | Area | What it does |
 |---|---|
-| **House** | Each partner's mascot in a shared home that reacts to the weather, season, work hours and dates. |
-| **Today** | Next date, seasonal and weather-aware suggestions, and an add box that understands text like "Jantar sexta às 20h". |
+| **House** | Both partners' avatars and Summer, the house pet, in a room that reacts to the weather, season, work hours and dates. The window shows the weather, the wall map your trips and the calendar your plans. Tap your partner to send a kiss, hug or wave. |
+| **Today** | Proposals to accept, the next date, seasonal and weather-aware suggestions, and an add box that understands text like "Jantar sexta às 20h". |
 | **Taste** | Each partner privately swipes ideas. What both pass disappears, and what both like comes first. |
-| **Ideas** | A shared catalogue, favourites, a random draw, a "feeling" questionnaire and CSV/XLSX import. |
-| **Events** | Real events within 60 km of the couple, added in the admin, booked in one tap. |
+| **Ideas** | A shared catalogue, a random draw, a "feeling" questionnaire, links shared from other apps and CSV/XLSX import. |
+| **Events** | Real events within 60 km of the couple, added in the admin, booked in one tap. The tab only shows when there are events. |
 | **Places** | Find restaurants, cafés and bars with OpenStreetMap, then split them into to try, approved and not again. |
-| **Agenda** | Planned dates, a calendar, work schedules, shared free time, commitments and tasks. |
+| **Agenda** | Planned dates and proposals, commitments and shared free time. A date one partner plans is a proposal until the other accepts. |
 | **Long weekends** | National and municipal holidays turned into long weekends and bridges that fit both partners' hours, with a reminder three weeks before. |
 | **Trips** | Destination guides, plans per day, flight searches from the couple's airport and a world map of past trips with photos. |
-| **Memories** | Notes, photos, whether you'd repeat it, what you watched and what you ate. |
+| **Memories** | A three-tap close (😍 🙂 😐, a photo), notes, what you watched and what you ate. A map of dates and trips. |
 | **Partners** | Each partner has their own account, joined with a single-use invite link. |
 | **Notifications** | Web push reminders and a private iCal feed for the iPhone calendar. |
 | **Account** | First-run guide, privacy policy and account deletion. |

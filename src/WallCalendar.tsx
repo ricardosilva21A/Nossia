@@ -13,6 +13,8 @@ type Data = CalendarData;
 type Props = Data & {
   today: Date;
   onOpenAgenda: () => void;
+  // Tap a day, then plan a date on it.
+  onPlanDay?: (day: string) => void;
 };
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -27,7 +29,7 @@ function marksFor(data: Data, { year, month }: Month) {
   return calendarMarks(data, `${year}-${pad(month + 1)}-01`, `${year}-${pad(month + 1)}-${pad(days)}`);
 }
 
-function Page({ month, marks, todayKey, className = "", onAnimationEnd }: { month: Month; marks: Map<string, CalendarMark[]>; todayKey: string; className?: string; onAnimationEnd?: () => void }) {
+function Page({ month, marks, todayKey, className = "", selected = null, onPick, onAnimationEnd }: { month: Month; marks: Map<string, CalendarMark[]>; todayKey: string; className?: string; selected?: string | null; onPick?: (day: string) => void; onAnimationEnd?: () => void }) {
   return (
     <div className={`wall-page ${className}`} onAnimationEnd={onAnimationEnd} aria-hidden={className ? "true" : undefined}>
       <div className="wall-page-head"><strong>{monthNames[month.month]}</strong><span>{month.year}</span></div>
@@ -38,10 +40,10 @@ function Page({ month, marks, todayKey, className = "", onAnimationEnd }: { mont
           const dayMarks = marks.get(day) ?? [];
           const kinds = new Set(dayMarks.map((mark) => mark.kind));
           return (
-            <span key={day} className={`wall-day${day === todayKey ? " is-today" : ""}${kinds.has("trip") ? " has-trip" : ""}`} title={dayMarks.map((mark) => mark.title).join(", ") || undefined}>
+            <button type="button" key={day} tabIndex={onPick ? 0 : -1} className={`wall-day${day === todayKey ? " is-today" : ""}${kinds.has("trip") ? " has-trip" : ""}${day === selected ? " is-selected" : ""}`} aria-pressed={day === selected} aria-label={`${Number(day.slice(8))} de ${monthNames[month.month]}${dayMarks.length ? `: ${dayMarks.map((mark) => mark.title).join(", ")}` : ""}`} onClick={onPick ? () => onPick(day) : undefined}>
               {Number(day.slice(8))}
               {(kinds.has("date") || kinds.has("commitment")) && <i className="wall-marks">{kinds.has("date") && <b className="mark-date">♥</b>}{kinds.has("commitment") && <b className="mark-commitment" />}</i>}
-            </span>
+            </button>
           );
         })}
       </div>
@@ -50,12 +52,13 @@ function Page({ month, marks, todayKey, className = "", onAnimationEnd }: { mont
 }
 
 // The calendar on the wall, up close: one month per page, flipped up and over like a real one.
-export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda }: Props) {
+export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda, onPlanDay }: Props) {
   const data = useMemo(() => ({ dates, commitments, trips }), [dates, commitments, trips]);
   const [shown, setShown] = useState<Month>({ year: today.getFullYear(), month: today.getMonth() });
   const [flip, setFlip] = useState<{ dir: "next" | "prev"; to: Month } | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const todayKey = keyOf(today);
+  const [selected, setSelected] = useState<string | null>(null);
 
   function turn(dir: "next" | "prev") {
     if (flip) return;
@@ -68,6 +71,7 @@ export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda }:
     if (!flip) return;
     setShown(flip.to);
     setFlip(null);
+    setSelected(null);
   }
 
   const base = flip?.dir === "next" ? flip.to : shown;
@@ -81,6 +85,8 @@ export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda }:
     seenTrips.add(mark.title);
     return true;
   }).map((mark) => ({ day, ...mark })));
+  // With a day picked, the list shows just that day.
+  const shownItems = selected ? items.filter((item) => item.day === selected || (item.kind === "trip" && (marksFor(data, listMonth).get(selected) ?? []).some((mark) => mark.title === item.title))) : items;
 
   return (
     <div className="wall-calendar">
@@ -98,7 +104,7 @@ export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda }:
         }}
       >
         <div className="wall-rings" aria-hidden="true">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</div>
-        <Page month={base} marks={marksFor(data, base)} todayKey={todayKey} />
+        <Page month={base} marks={marksFor(data, base)} todayKey={todayKey} selected={selected} onPick={(day) => setSelected((current) => current === day ? null : day)} />
         {flip?.dir === "next" && <Page month={shown} marks={marksFor(data, shown)} todayKey={todayKey} className="flip-away" onAnimationEnd={settle} />}
         {flip?.dir === "prev" && <Page month={flip.to} marks={marksFor(data, flip.to)} todayKey={todayKey} className="flip-back" onAnimationEnd={settle} />}
       </div>
@@ -108,11 +114,12 @@ export function WallCalendar({ today, dates, commitments, trips, onOpenAgenda }:
         <button type="button" className="icon-button" aria-label="Mês seguinte" onClick={() => turn("next")}><ChevronRight size={20} aria-hidden="true" /></button>
       </div>
       <ul className="wall-list">
-        {items.length ? items.map((item, index) => <li key={`${item.day}-${index}`} className={`is-${item.kind}`}><span>{Number(item.day.slice(8))}</span><strong>{item.title}</strong><small>{kindLabel[item.kind]}</small></li>)
-          : <li className="is-empty">Nada marcado neste mês.</li>}
+        {shownItems.length ? shownItems.map((item, index) => <li key={`${item.day}-${index}`} className={`is-${item.kind}`}><span>{Number(item.day.slice(8))}</span><strong>{item.title}</strong><small>{kindLabel[item.kind]}</small></li>)
+          : <li className="is-empty">{selected ? "Nada marcado neste dia." : "Nada marcado neste mês."}</li>}
       </ul>
       <div className="panel-actions wall-actions">
-        <button type="button" className="button button-primary" onClick={onOpenAgenda}>Abrir a agenda</button>
+        <button type="button" className={`button ${selected && onPlanDay ? "button-ghost" : "button-primary"}`} onClick={onOpenAgenda}>Abrir a agenda</button>
+        {selected && onPlanDay && selected >= todayKey && <button type="button" className="button button-primary" onClick={() => onPlanDay(selected)}>Marcar date a {Number(selected.slice(8))}</button>}
       </div>
     </div>
   );

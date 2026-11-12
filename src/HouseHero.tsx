@@ -41,6 +41,7 @@ type Props = {
   today?: Date;
   bubble: ReactNode;
   onOpenAgenda: () => void;
+  onPlanDay?: (day: string) => void;
   onPlanTrip: () => void;
   onOpenWorldMap: () => void;
   onOpenWindow: () => void;
@@ -59,7 +60,7 @@ export type HouseActions = {
   onSavePetAccessory: (accessory: Accessory) => Promise<boolean>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar" | "weather"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar" | "weather") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -179,7 +180,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         {(close) => <WallMap pins={pins} onPlanTrip={() => { close(); window.setTimeout(onPlanTrip, 470); }} onOpenWorldMap={() => { close(); window.setTimeout(onOpenWorldMap, 470); }} />}
       </ZoomOverlay>}
       {closeUp?.what === "calendar" && <ZoomOverlay origin={closeUp.origin} label="Calendário" className="zoom-calendar" onClose={() => setCloseUp(null)}>
-        {(close) => <WallCalendar today={today} {...calendar} onOpenAgenda={() => { close(); window.setTimeout(onOpenAgenda, 470); }} />}
+        {(close) => <WallCalendar today={today} {...calendar} onOpenAgenda={() => { close(); window.setTimeout(onOpenAgenda, 470); }} onPlanDay={onPlanDay ? (day) => { close(); window.setTimeout(() => onPlanDay(day), 470); } : undefined} />}
       </ZoomOverlay>}
     </section>
   );

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
-import { CalendarView, LocationSearch } from "./CalendarMap";
+import { LocationSearch } from "./CalendarMap";
 import { SchedulePanel, sharedFreeDays } from "./SchedulePanel";
 import { TripsPanel } from "./TripsPanel";
 import { TripWorld } from "./TripWorld";
@@ -52,7 +52,7 @@ import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabe
 import { TodayView } from "./TodayView";
 import { activities, activityLabel, activityOf, activityValues, isSpecial, legacyFields } from "./activities";
 import type { Activity } from "./activities";
-import { ArrowRight, Bookmark, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import { previewIdeaImport } from "./ideaImport";
@@ -126,6 +126,8 @@ const subviewLabels: Record<View, string> = {
   events: "Eventos",
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
+// Screens that were folded into others: their old addresses still work and land on the new place.
+const foldedViews: Partial<Record<View, View>> = { favorites: "discover", calendar: "planned", schedule: "settings" };
 
 
 function viewFromPath(pathname: string): View {
@@ -1177,26 +1179,6 @@ function App() {
     setWeatherForecast(forecast);
   }, []);
 
-  async function toggleFavorite(id: string) {
-    const idea = ideas.find((item) => item.id === id);
-    if (!idea || !supabase || !couple) return;
-    setBusy(true);
-    setDataError("");
-    const { error } = idea.favorite
-      ? await supabase.from("couple_idea_favorites").delete().eq("couple_id", couple.id).eq("idea_id", idea.idea_id)
-      : await supabase.from("couple_idea_favorites").insert({ couple_id: couple.id, idea_id: idea.idea_id });
-    if (error) {
-      setDataError(`Não foi possível atualizar os favoritos: ${error.message}`);
-    } else {
-      setFavoriteIdeaIds((current) => {
-        const next = new Set(current);
-        if (idea.favorite) next.delete(idea.idea_id);
-        else next.add(idea.idea_id);
-        return next;
-      });
-    }
-    setBusy(false);
-  }
 
   function openPlan(idea: DateIdea) {
     setAnniversaryPlanDate(null);
@@ -1683,26 +1665,16 @@ function App() {
     if (!ideaId) return false;
     if (value.kind === "idea") return true;
     if (value.kind === "done") {
-      const { data, error } = await supabase.from("couple_dates").insert({ couple_id: couple.id, idea_id: ideaId, status: "completed", completed_at: value.date ?? localDateString() }).select("*").single();
+      // Something already done goes through the same three-tap close as any other date.
+      const { data, error } = await supabase.from("couple_dates").insert({ couple_id: couple.id, idea_id: ideaId, status: "planned", planned_for: value.date ?? localDateString(), watched_title: sharedWatching ? watchedName(value.title) || null : null }).select("*").single();
       if (error) {
         setDataError(`Não foi possível guardar: ${error.message}`);
         return false;
       }
       const saved = data as CoupleDate;
       setDates((current) => [...current, saved]);
-      setActiveIdeaId(saved.id);
-      setEditingMemory(true);
-      setMemoryDate(saved.completed_at ?? localDateString());
-      setMemoryNote("");
-      setMemoryRating(null);
-      setMemoryWatched((sharedWatching ? watchedName(value.title) : "") || lastWatched(ideaId));
-      setMemoryFood("");
-      setMemoryHomePartner(null);
-      setLocationName(memoryKind(value.title, "", false) === "food" ? placeFromTitle(value.title) : "");
-      setLocationLatitude(null);
-      setLocationLongitude(null);
       setQuickAddOpen(false);
-      setModal("memory");
+      setQuickCloseId(saved.id);
       return true;
     }
     return value.date ? createDate(ideaId, { planned_for: value.date, planned_start_time: value.startTime, watched_title: sharedWatching ? watchedName(value.title) || null : null }) : false;
@@ -1788,6 +1760,13 @@ function App() {
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     if (date?.status === "planned") setQuickCloseId(id);
   }, [dates, routeTick]);
+
+  // Old addresses of folded screens land on their new place.
+  useEffect(() => {
+    const target = foldedViews[view];
+    if (target) navigateView(target, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   // A notification tapped while the app is open: go there without reloading.
   useEffect(() => {
@@ -2098,17 +2077,17 @@ function App() {
   const pageHeading: Record<View, [string, string]> = {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
-    settings: ["Definições", "Perfil, notificações, calendário do iPhone e localização."],
+    settings: ["Definições", "Perfil, horários, notificações, calendário do iPhone e localização."],
     trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
-    tripMap: ["Mapa-mundo", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
+    tripMap: ["Mapa", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
     places: ["Sítios", "Restaurantes, cafés e bares para experimentar, e os que já são vossos."],
     events: ["Eventos", "O que está a acontecer perto de vocês."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
-    planned: ["Planeados", "O que já está marcado."],
+    planned: ["Planeados", "O que já está marcado, os compromissos e quando estão os dois livres."],
     memories: ["Memórias", "Os dates que já fizeram, com notas e fotografias."],
     calendar: ["Calendário", "Dates planeados e memórias, mês a mês."],
     schedule: ["Agenda", "Horários, tarefas e o tempo livre que têm em comum."],
-    map: ["Mapa", "Os sítios dos vossos dates."],
+    map: ["Mapa", "Os sítios dos vossos dates e as viagens."],
     insights: ["Estatísticas", "A vossa história em números e datas."],
   };
   const isGlobalImport = modal === "global-import";
@@ -2123,6 +2102,9 @@ function App() {
   const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
   // The other one, by name: who a proposal comes from or waits on.
   const partnerName = mySlot === "partner_one" ? couple.partner_two_name : mySlot === "partner_two" ? couple.partner_one_name : "o teu par";
+  // What each tab shows: folded screens never, the map's trips half lives inside "Mapa", and
+  // Eventos only once there are events to show.
+  const shownViews = (section: (typeof sections)[number]) => section.views.filter((item) => !foldedViews[item] && item !== "tripMap" && (item !== "events" || events.length > 0));
   const needsAvatar = Boolean(mascots && !avatarOf(myMascot));
   const onboardingVisible = Boolean(mySlot && mascots && (onboardingOpen || editingMascot || editingPet || needsAvatar));
   const profileMissing = [
@@ -2156,9 +2138,9 @@ function App() {
         </header>
 
         <div className="content">
-          <section className="welcome-row"><div><h1>{view !== "settings" && sectionOf(view).views.length > 1 ? sectionOf(view).label : pageHeading[view][0]}</h1><p className="welcome-copy">{pageHeading[view][1]}</p></div>{view === "discover" && <div className="welcome-actions">{isCatalogAdmin && catalogAvailable && <button className="button button-ghost" onClick={() => openImport("global")}>Carregar ideias globais</button>}<button className="button button-ghost" onClick={() => openImport("couple")}><Upload size={16} aria-hidden="true" />Importar</button><button className="button button-primary" onClick={() => setQuickAddOpen(true)}><Plus size={16} aria-hidden="true" />Nova ideia</button></div>}</section>
+          <section className="welcome-row"><div><h1>{view !== "settings" && shownViews(sectionOf(view)).length > 1 ? sectionOf(view).label : pageHeading[view][0]}</h1><p className="welcome-copy">{pageHeading[view][1]}</p></div>{view === "discover" && <div className="welcome-actions">{isCatalogAdmin && catalogAvailable && <button className="button button-ghost" onClick={() => openImport("global")}>Carregar ideias globais</button>}<button className="button button-ghost" onClick={() => openImport("couple")}><Upload size={16} aria-hidden="true" />Importar</button><button className="button button-primary" onClick={() => setQuickAddOpen(true)}><Plus size={16} aria-hidden="true" />Nova ideia</button></div>}</section>
 
-          {view !== "settings" && sectionOf(view).views.length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{sectionOf(view).views.map((item) => <button type="button" key={item} className={view === item ? "active" : ""} aria-current={view === item ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>)}</nav>}
+          {view !== "settings" && shownViews(sectionOf(view)).length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{shownViews(sectionOf(view)).map((item) => { const current = view === item || (item === "map" && view === "tripMap"); return <button type="button" key={item} className={current ? "active" : ""} aria-current={current ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>; })}</nav>}
 
           {dataError && <p className="data-alert" role="alert">{dataError}</p>}
 
@@ -2181,7 +2163,7 @@ function App() {
             onOpenDeck={() => setOpenDeck(deckAvailable)}
             onPlanTrip={() => navigateView("trips")}
             onOpenWorldMap={() => navigateView("tripMap")}
-            onOpenCalendar={() => navigateView("calendar")}
+            onOpenCalendar={() => navigateView("planned")}
             onOpenWindow={() => navigateView("settings")}
             busy={busy}
             anniversary={anniversary}
@@ -2209,7 +2191,7 @@ function App() {
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
-            onOpenAgenda={() => navigateView("schedule")}
+            onOpenAgenda={() => navigateView("planned")}
           />}
           {view === "discover" && <>
             <section className="discovery-options" aria-label={"Escolher como encontrar um date"}>
@@ -2250,21 +2232,21 @@ function App() {
           </>}
 
 
-          {(view === "calendar" || view === "map") && <div className="date-view-filters">
+          {(view === "map" || view === "tripMap") && <div className="map-switch" role="group" aria-label="O que mostrar no mapa"><button type="button" className={view === "map" ? "active" : ""} aria-pressed={view === "map"} onClick={() => navigateView("map", true)}>Dates</button><button type="button" className={view === "tripMap" ? "active" : ""} aria-pressed={view === "tripMap"} onClick={() => navigateView("tripMap", true)}>Viagens</button></div>}
+          {view === "map" && <div className="date-view-filters">
             <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar dates"} placeholder={"Procurar date ou local..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             <div className="filters" aria-label={"Filtrar dates por categoria"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div>
           </div>}
 
-          {view === "calendar" && <CalendarView ideas={visibleIdeas} commitments={commitments} trips={trips} />}
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} visited={trips.filter((trip) => trip.end_date < localDateString()).map((trip) => trip.title)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
-          {view === "schedule" && <SchedulePanel part="week" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
           {view === "settings" && <section className="settings-page">
             <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
-            <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />
+            <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
           </section>}
           {view === "map" && <Suspense fallback={<div className="map-loading">A abrir o mapa…</div>}><LazyMapView
             ideas={visibleIdeas}
@@ -2295,22 +2277,23 @@ function App() {
               : <div className="insights-profile"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>{`Gostam sobretudo de ${completedMoodStats.top.map((stat) => (activities.find((item) => item.value === stat.activity)?.label ?? stat.activity).toLocaleLowerCase("pt-PT")).join(" e ")}`}</h2><p>{`Com base nos vossos ${completedMoodStats.total} dates concluídos, isto é o que mais fazem juntos:`}</p><div className="insights-moods">{completedMoodStats.activities.map((stat) => <div className="insights-mood" key={stat.activity}><div><strong>{activityLabel(stat.activity)}</strong><span>{stat.count} {stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
           </section>}
 
-          {view !== "today" && view !== "calendar" && view !== "map" && view !== "insights" && view !== "schedule" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
+          {view !== "today" && view !== "map" && view !== "insights" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
             <div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div>
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
-                <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
+                <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
                 <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.source_url && <a className="idea-source" href={idea.source_url} target="_blank" rel="noreferrer">Ver no {siteName(idea.source_url)}</a>}{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}{idea.status === "planned" && isProposal(idea) && (waitingOnPartner(idea, session.user.id)
                     ? <p className="proposal-tag">À espera de {partnerName}{partnerHasPush === false ? " · vê quando abrir a app" : ""}</p>
                     : <div className="proposal-card-actions"><p className="proposal-tag">Proposta de {partnerName}</p><div><button type="button" className="card-action" disabled={busy} onClick={() => void acceptProposal(idea.id)}>Aceitar</button><button type="button" className="card-action" disabled={busy} onClick={() => openEditPlan(idea)}>Outro dia</button><button type="button" className="card-action undo-action" disabled={busy} onClick={() => void declineProposal(idea.id)}>Agora não</button></div></div>)}
                   {view === "memories" && (idea.memory || idea.location_name || verdictOf(idea) || idea.watched_title || idea.food_notes) && <div className="memory-details">{verdictOf(idea) && <span className={verdictOf(idea)!.wouldRepeat ? "repeat-yes" : "repeat-no"}>{verdictOf(idea)!.emoji} {verdictOf(idea)!.label}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
-                  <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
+                  <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => openQuickClose(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
                 </div>
               </article>)}
             </div>{visibleIdeas.length > visibleIdeaLimit && <button type="button" className="show-more-ideas" onClick={() => setVisibleIdeaLimit((limit) => limit + 60)}>{`Mostrar mais ideias (${visibleIdeas.length - visibleIdeaLimit} restantes)`}</button>}</> : <div className="empty-state"><span>♡</span><h3>Ainda não há dates por aqui</h3><p>{view === "favorites" ? "Guardem as vossas ideias favoritas para as encontrarem aqui." : "Experimentem outra categoria ou adicionem uma ideia."}</p><button className="add-button" onClick={() => setQuickAddOpen(true)}>＋ Adicionar ideia</button></div>}
           </section>}
+          {view === "planned" && <SchedulePanel part="agenda" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
         </div>
       </main>
 

@@ -1340,3 +1340,21 @@ span.away-pill{cursor:default}
 .crash-screen h1{margin:0 0 8px}
 .crash-screen p{color:var(--ink-2)}
 .crash-screen .panel-actions{justify-content:center}
+
+/* "Em breve" now lives inside the next-date card (bordô), so its text turns light. */
+.today-next .today-soon{margin-top:14px;padding:12px 0 0;border-top:1px solid rgba(245,239,198,.28)}
+.today-next .today-soon li,.today-next .today-soon-when,.today-next .today-soon .link-button,.today-next .today-soon-more{color:var(--canvas)}
+.today-next .today-soon-more{border-color:rgba(245,239,198,.4);background:transparent}
+.today-next .today-soon .panel-label{color:var(--canvas);opacity:.8}
+
+/* One map, two halves. */
+.map-switch{display:inline-flex;gap:4px;margin:0 0 12px;padding:4px;border-radius:999px;background:var(--paper)}
+.map-switch button{min-height:40px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:var(--ink-2);font:600 14px "DM Sans",sans-serif;cursor:pointer}
+.map-switch button.active{background:var(--ink);color:#fff}
+
+/* Days on the wall calendar can be tapped. */
+button.wall-day{border:0;background:transparent;font:inherit;cursor:pointer;padding:0}
+button.wall-day.has-trip{background:#F3E2C2}
+button.wall-day.is-selected{background:var(--accent);color:var(--canvas)}
+button.wall-day.is-selected .wall-marks b{color:var(--canvas)}
+button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:1px}
