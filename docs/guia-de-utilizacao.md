@@ -68,6 +68,10 @@ Nas **Definições**, em **As minhas férias**, cada um diz como tira férias: *
 
 Em **Definições**, ativem as notificações e escolham o que querem receber (dates, compromissos, carinhos…). No iPhone, só funcionam com a Nossia no ecrã principal; o Hoje lembra-vos enquanto não estiverem ligadas. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.
 
+## Resumo do mês e tempo
+
+No dia 1 chega o resumo do mês que acabou (dates, 😍, viagens), que também aparece no Hoje durante a primeira semana e em **Nós › Números**. Avisos de tempo só quando mudam um plano: chuva num date ao ar livre ou um fim de semana de sol em que estão livres, no máximo um por semana. Desligam-se em **Definições**, em **Tempo**.
+
 ## Apagar a conta
 
 Está em **Definições**. Se o teu par tiver conta, os dados do casal ficam com essa pessoa. Se fores só tu, apagamos tudo, incluindo as fotografias.

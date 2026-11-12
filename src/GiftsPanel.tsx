@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { track } from "./usage";
 import type { FormEvent } from "react";
 import { Check, ExternalLink, Gift, Lock, Trash2, Undo2 } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -53,6 +54,7 @@ export function GiftsPanel({ coupleId, partnerName, partnerBirthDate, relationsh
       return;
     }
     setGifts((current) => [data as GiftIdea, ...(current ?? [])]);
+    track("gift:saved");
     setTitle("");
     setLink("");
     setNote("");

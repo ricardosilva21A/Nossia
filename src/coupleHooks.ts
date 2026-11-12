@@ -3,6 +3,7 @@
 // notifications. Each hook does one thing and owns its own effects.
 
 import { useEffect, useState } from "react";
+import { track } from "./usage";
 import { supabase } from "./lib/supabase";
 import { devicePushStatus } from "./push";
 import type { PushStatus } from "./push";
@@ -75,6 +76,7 @@ export function useAffections(coupleId: string | undefined, mySlot: HomePartner 
     if (!supabase || !coupleId || !mySlot) return false;
     const { data, error } = await supabase.from("couple_affections").insert({ couple_id: coupleId, to_slot: mySlot === "partner_one" ? "partner_two" : "partner_one", kind }).select("id").single();
     if (error || !data) return false;
+    track("affection:sent");
     // The notification is a bonus: if it fails, the other one still sees it when they open the app.
     void notifyPartner("/api/affection", { id: data.id as string });
     return true;

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
+import { track } from "./usage";
 import { Mascot as PetArt } from "./Mascot";
 import { petLook } from "./mascots";
 import type { Pet } from "./mascots";
@@ -60,8 +61,8 @@ export function HouseGuide({ pet, names, onDone }: Props) {
         <p>{step.text({ ...names, pet: pet?.name ?? "O animal da casa" })}</p>
         <div className="guide-actions">
           <span className="guide-count">{index + 1} de {available.length}</span>
-          <button type="button" className="button button-ghost" onClick={onDone}>Saltar</button>
-          <button type="button" className="button button-primary" autoFocus onClick={() => (last ? onDone() : setIndex(index + 1))}>{last ? "Vamos lá" : "Seguinte"}</button>
+          <button type="button" className="button button-ghost" onClick={() => { track(`guide:skipped_${index + 1}`); onDone(); }}>Saltar</button>
+          <button type="button" className="button button-primary" autoFocus onClick={() => { if (last) { track("guide:finished"); onDone(); } else setIndex(index + 1); }}>{last ? "Vamos lá" : "Seguinte"}</button>
         </div>
       </div>
     </div>

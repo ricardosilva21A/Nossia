@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "./usage";
 import { DialogSection } from "./useDialog";
 import type { ReactNode } from "react";
 import { ArrowRight, Bell, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
@@ -219,7 +220,7 @@ export function TodayView({
         <p className="panel-label">O vosso {monthSummary.label}</p>
         <h2>{summaryLine(monthSummary)}</h2>
         {monthSummary.favorite && <p className="panel-copy">O favorito: {monthSummary.favorite.emoji} {monthSummary.favorite.title}</p>}
-        <div className="panel-actions"><button type="button" className="button button-ghost" onClick={hideMonth}>Fechar</button><button type="button" className="button button-primary" onClick={() => { hideMonth(); onOpenInsights(); }}>Ver mais</button></div>
+        <div className="panel-actions"><button type="button" className="button button-ghost" onClick={hideMonth}>Fechar</button><button type="button" className="button button-primary" onClick={() => { hideMonth(); track("month:opened"); onOpenInsights(); }}>Ver mais</button></div>
       </section>}
 
       {pushHint && <section className="push-hint" aria-label="Notificações">

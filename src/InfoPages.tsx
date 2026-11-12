@@ -15,7 +15,7 @@ function InfoPage({ title, children }: { title: string; children: ReactNode }) {
 export function PrivacyPage() {
   return (
     <InfoPage title="Política de privacidade">
-      <p className="info-updated">Última atualização: 8 de novembro de 2026</p>
+      <p className="info-updated">Última atualização: 12 de novembro de 2026</p>
       <p>A Nossia é uma aplicação privada para casais. Esta página explica que dados guarda, para quê e quem os vê.</p>
       <h2>Que dados guardamos</h2>
       <ul>
@@ -25,11 +25,12 @@ export function PrivacyPage() {
         <li><strong>Fotografias</strong> que carreguem, guardadas num espaço privado.</li>
         <li><strong>Localização:</strong> só as moradas, cidades e o concelho que indiquem. O GPS só é usado se o permitirem, para procurar sítios por perto.</li>
         <li><strong>Notificações:</strong> os dados técnicos do dispositivo, se as ativarem.</li>
+        <li><strong>Uso da aplicação:</strong> contagens anónimas do que é usado (por exemplo, "abriu o mapa" ou "aceitou uma proposta"), com um código aleatório do dispositivo que não está ligado à conta. Nunca títulos, mensagens, nomes ou locais. Guardamos 6 meses e podem desligar em Definições.</li>
       </ul>
       <h2>Para quê</h2>
       <p>Só para a aplicação funcionar: mostrar os vossos planos aos dois, enviar lembretes e sugerir ideias. Não há publicidade, não vendemos dados e não os usamos para treinar inteligência artificial.</p>
       <h2>Quem vê os dados</h2>
-      <p>Os dados do casal só são visíveis para as duas contas desse casal. A área de administração mostra apenas totais, como o número de contas, e o catálogo público de ideias.</p>
+      <p>Os dados do casal só são visíveis para as duas contas desse casal. A área de administração mostra apenas totais, como o número de contas e quantas vezes cada parte da app foi usada, e o catálogo público de ideias.</p>
       <h2>Serviços que usamos</h2>
       <ul>
         <li><strong>Supabase</strong> (União Europeia): base de dados, contas e fotografias.</li>
