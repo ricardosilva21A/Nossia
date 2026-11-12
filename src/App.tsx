@@ -16,18 +16,19 @@ import { HomeLocationPicker } from "./HomeLocationPicker";
 import { AccountSettings } from "./AccountSettings";
 import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
-import { isProposal, needsNewAgreement, proposalsForMe, startsAsProposal, waitingOnPartner } from "./proposals";
+import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { IdeaCard } from "./IdeaCard";
+import { InsightsPanel } from "./InsightsPanel";
+import type { IdeaCardActions } from "./IdeaCard";
 import { readGuideSeen, saveGuideSeen } from "./HouseGuide";
 import { DialogSection } from "./useDialog";
 import { verdictOf, verdicts } from "./verdicts";
 import { ShareSheet } from "./ShareSheet";
-import { devicePushStatus } from "./push";
-import type { PushStatus } from "./push";
-import type { Shared, SharedPlan } from "./ShareSheet";
+import { notifyPartner, readLinkTitle, useAffections, useClock, useNotificationTaps, usePushStatus, useSharedIntake } from "./coupleHooks";
+import type { SharedPlan } from "./ShareSheet";
 import type { MapFilter } from "./TripWorld";
-import { firstUrl, siteName } from "./share";
-import type { AffectionKind } from "./affections";
+import { firstUrl } from "./share";
 import { RoamingPet, readPetRoams, savePetRoams } from "./RoamingPet";
 import { WelcomeSteps, readSeenWelcome, saveSeenWelcome } from "./WelcomeSteps";
 import type { WelcomeStep } from "./WelcomeSteps";
@@ -48,7 +49,7 @@ import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabe
 import { TodayView } from "./TodayView";
 import { activities, activityLabel, activityOf, activityValues, isSpecial, legacyFields } from "./activities";
 import type { Activity } from "./activities";
-import { ArrowRight, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
+import { ArrowRight, CalendarDays, Heart, Home, Lightbulb, LogOut, Plus, Search, Shuffle, SlidersHorizontal, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import type { ImportPreview } from "./ideaImport";
@@ -406,26 +407,11 @@ function App() {
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const [guideSeen, setGuideSeen] = useState(true);
-  // The house follows the clock: who is at work, asleep or out changes without anyone touching the app.
-  const [clock, setClock] = useState(() => Date.now());
-  useEffect(() => {
-    const tick = () => { if (!document.hidden) setClock(Date.now()); };
-    const timer = window.setInterval(tick, 60000);
-    document.addEventListener("visibilitychange", tick);
-    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", tick); };
-  }, []);
-  // Who gets notifications: this phone, and the other one on any of theirs.
-  const [myPush, setMyPush] = useState<PushStatus | null>(null);
-  const [partnerHasPush, setPartnerHasPush] = useState<boolean | null>(null);
-  // Something shared into the app from another one (Instagram, TikTok, WhatsApp, Maps), or a pasted link.
-  const [shared, setShared] = useState<Shared | null>(() => {
-    if (window.location.pathname.replace(/\/+$/, "") !== "/partilhar") return null;
-    const params = new URLSearchParams(window.location.search);
-    const value = { title: params.get("title"), text: params.get("text"), url: firstUrl(params.get("url"), params.get("text"), params.get("title")) };
-    return value.url || value.text || value.title ? value : null;
-  });
-  const [incoming, setIncoming] = useState<{ id: string; kind: AffectionKind } | null>(null);
   const [syncTick, setSyncTick] = useState(0);
+  const clock = useClock();
+  const { myPush, partnerHasPush } = usePushStatus(couple?.id, `${syncTick}:${view}`);
+  const [shared, setShared] = useSharedIntake();
+  const { incoming, send: sendAffection, markSeen: markAffectionSeen } = useAffections(couple?.id, mySlot, syncTick);
   const [votes, setVotes] = useState<Vote[]>([]);
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
   const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
@@ -1088,13 +1074,6 @@ function App() {
     return !error;
   }
 
-  // Tells the other one's phone; a bonus on top of what they see when they open the app.
-  async function notifyPartner(path: string, body: Record<string, string>) {
-    if (!supabase) return;
-    const { data: auth } = await supabase.auth.getSession();
-    if (!auth.session) return;
-    await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.session.access_token}` }, body: JSON.stringify(body) }).catch(() => undefined);
-  }
 
   async function acceptProposal(id: string) {
     const saved = await updateDate(id, { proposal: "confirmed" });
@@ -1769,54 +1748,22 @@ function App() {
     if (date?.status === "planned") setQuickCloseId(id);
   }, [dates, routeTick]);
 
+  useNotificationTaps((url) => {
+    window.history.pushState({}, "", url);
+    setView(viewFromPath(window.location.pathname));
+    setRouteTick((tick) => tick + 1);
+  });
+
   // Old addresses of folded screens land on their new place.
   useEffect(() => {
     const target = foldedViews[view];
     if (target) navigateView(target, true);
   }, [view]);
 
-  // A notification tapped while the app is open: go there without reloading.
-  useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
-    const onMessage = (event: MessageEvent) => {
-      const data = event.data as { type?: string; url?: string } | null;
-      if (data?.type !== "nossia-open" || typeof data.url !== "string" || !data.url.startsWith("/")) return;
-      window.history.pushState({}, "", data.url);
-      setView(viewFromPath(window.location.pathname));
-      setRouteTick((tick) => tick + 1);
-    };
-    navigator.serviceWorker.addEventListener("message", onMessage);
-    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, []);
-
-  useEffect(() => {
-    if (!supabase || !couple) return;
-    let active = true;
-    void devicePushStatus().then((status) => { if (active) setMyPush(status); });
-    void supabase.rpc("partner_has_push").then(({ data, error }) => { if (active) setPartnerHasPush(error ? null : Boolean(data)); });
-    return () => { active = false; };
-  }, [couple?.id, syncTick, view]);
 
   useEffect(() => {
     if (session?.user.id) setGuideSeen(readGuideSeen(session.user.id));
   }, [session?.user.id]);
-
-  // The shared link lives in state now; the address goes back to the house.
-  useEffect(() => {
-    if (window.location.pathname.replace(/\/+$/, "") === "/partilhar") window.history.replaceState(window.history.state, "", "/hoje");
-  }, []);
-
-  async function readLinkTitle(url: string) {
-    if (!supabase) return null;
-    const { data: auth } = await supabase.auth.getSession();
-    if (!auth.session) return null;
-    try {
-      const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${auth.session.access_token}` } });
-      return response.ok ? await response.json() as { title: string | null; url: string } : null;
-    } catch {
-      return null;
-    }
-  }
 
   async function saveShared(plan: SharedPlan) {
     if (!supabase || !couple) return false;
@@ -1830,33 +1777,6 @@ function App() {
     }
     if (plan.date) return createDate(ideaId, { planned_for: plan.date, planned_start_time: plan.time });
     return true;
-  }
-
-  // A kiss, hug or wave from the other one that this person hasn't seen yet.
-  useEffect(() => {
-    if (!supabase || !couple || !mySlot) return;
-    let active = true;
-    void supabase.from("couple_affections").select("id, kind, created_at").eq("to_slot", mySlot).is("seen_at", null)
-      .gte("created_at", new Date(Date.now() - 3 * 86400000).toISOString()).order("created_at", { ascending: false }).limit(1)
-      .then(({ data }) => { if (active) setIncoming(((data ?? [])[0] as { id: string; kind: AffectionKind } | undefined) ?? null); });
-    return () => { active = false; };
-  }, [couple?.id, mySlot, syncTick]);
-
-  async function sendAffection(kind: AffectionKind) {
-    if (!supabase || !couple || !mySlot) return false;
-    const { data, error } = await supabase.from("couple_affections").insert({ couple_id: couple.id, to_slot: mySlot === "partner_one" ? "partner_two" : "partner_one", kind }).select("id").single();
-    if (error || !data) return false;
-    // The notification is a bonus: if it fails, the other one still sees it when they open the app.
-    const { data: auth } = await supabase.auth.getSession();
-    if (auth.session) void fetch("/api/affection", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.session.access_token}` }, body: JSON.stringify({ id: data.id }) }).catch(() => undefined);
-    return true;
-  }
-
-  async function markAffectionSeen() {
-    if (!supabase || !incoming) return;
-    const id = incoming.id;
-    setIncoming(null);
-    await supabase.from("couple_affections").update({ seen_at: new Date().toISOString() }).eq("id", id);
   }
 
   async function savePetAccessory(accessory: Accessory) {
@@ -2085,6 +2005,18 @@ function App() {
   }
 
   const todayHeading = new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
+  const ideaCardActions: IdeaCardActions = {
+    onPlan: openPlan,
+    onEditPlan: openEditPlan,
+    onEditMemory: openEditMemory,
+    onEditIdea: openEditIdea,
+    onDelete: (idea) => { setActiveIdeaId(idea.id); setModal("delete"); },
+    onAccept: acceptProposal,
+    onDecline: declineProposal,
+    onDone: openQuickClose,
+    onAlbum: openAlbum,
+    onHome: editCompletedHomeLocation,
+  };
   const pageHeading: Record<View, [string, string]> = {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
     discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
@@ -2265,38 +2197,14 @@ function App() {
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
           </section>}
 
-          {view === "insights" && <section className="insights-panel" aria-label={"Estatísticas dos dates"}>
-            <div className="insights-total"><span className="stat-icon green">♡</span><div><strong>{completedMoodStats.total}</strong><span>dates feitos juntos</span></div></div>
-            <div className="insights-metrics">
-              <article className="insight-metric"><span>✳</span><div><strong>{completedStats.uniqueActivities}</strong><small>atividades diferentes</small></div></article>
-              <article className="insight-metric"><span>⌖</span><div><strong>{completedStats.uniquePlaces}</strong><small>locais visitados</small></div></article>
-              <article className="insight-metric"><span>↻</span><div><strong>{completedStats.wouldRepeat}</strong><small>dates para repetir</small></div></article>
-              <article className="insight-metric"><span>€</span><div><strong>{new Intl.NumberFormat("pt-PT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(completedStats.estimatedSpend)}</strong><small>despesa estimada</small></div></article>
-              <article className="insight-metric"><span>♡</span><div><strong>{completedStats.thisMonth}</strong><small>dates este mês</small></div></article>
-              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.topCategory ? activityLabel(completedStats.topCategory) : "—"}</strong><small>o que mais fazem</small></div></article>
-              <article className="insight-metric"><span>⌂</span><div><strong>{completedStats.homeDates}</strong><small>dates em casa</small></div></article>
-              <article className="insight-metric"><span>♡</span><div><strong>{mostFrequentHome && mostFrequentHome.count > 0 ? `Casa de ${mostFrequentHome.partner === "partner_one" ? couple.partner_one_name : couple.partner_two_name}` : "—"}</strong><small>{mostFrequentHome && mostFrequentHome.count > 0 ? `${mostFrequentHome.count} dates · local mais frequente` : "local mais frequente"}</small></div></article>
-            </div>
-            <p className="insights-estimate-note">A despesa é estimada a partir do orçamento definido em cada ideia; não representa valores reais registados.</p>
-            {completedMoodStats.total < 5
-              ? <div className="insights-empty"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>A vossa história está a começar</h2><p>{`Façam mais ${5 - completedMoodStats.total} ${5 - completedMoodStats.total === 1 ? "date" : "dates"} para desbloquear o perfil de casal. Vamos mostrar os dois moods mais frequentes.`}</p><div className="insights-progress" role="progressbar" aria-label={"Dates até desbloquear o perfil de casal"} aria-valuenow={completedMoodStats.total} aria-valuemin={0} aria-valuemax={5}><span style={{ width: `${Math.min(completedMoodStats.total / 5 * 100, 100)}%` }} /></div><span className="insights-progress-label">{completedMoodStats.total} {"de"} 5 {"dates"}</span></div>
-              : <div className="insights-profile"><span className="section-kicker">O VOSSO PERFIL DE CASAL</span><h2>{`Gostam sobretudo de ${completedMoodStats.top.map((stat) => (activities.find((item) => item.value === stat.activity)?.label ?? stat.activity).toLocaleLowerCase("pt-PT")).join(" e ")}`}</h2><p>{`Com base nos vossos ${completedMoodStats.total} dates concluídos, isto é o que mais fazem juntos:`}</p><div className="insights-moods">{completedMoodStats.activities.map((stat) => <div className="insights-mood" key={stat.activity}><div><strong>{activityLabel(stat.activity)}</strong><span>{stat.count} {stat.count === 1 ? "date" : "dates"}</span></div><div className="insights-progress" aria-hidden="true"><span style={{ width: `${stat.count / completedMoodStats.total * 100}%` }} /></div></div>)}</div></div>}
-          </section>}
+          {view === "insights" && <InsightsPanel completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
           {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
             <div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div>
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
-              {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
-                <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
-                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.source_url && <a className="idea-source" href={idea.source_url} target="_blank" rel="noreferrer">Ver no {siteName(idea.source_url)}</a>}{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}{idea.status === "planned" && isProposal(idea) && (waitingOnPartner(idea, session.user.id)
-                    ? <p className="proposal-tag">À espera de {partnerName}{partnerHasPush === false ? " · vê quando abrir a app" : ""}</p>
-                    : <div className="proposal-card-actions"><p className="proposal-tag">Proposta de {partnerName}</p><div><button type="button" className="card-action" disabled={busy} onClick={() => void acceptProposal(idea.id)}>Aceitar</button><button type="button" className="card-action" disabled={busy} onClick={() => openEditPlan(idea)}>Outro dia</button><button type="button" className="card-action undo-action" disabled={busy} onClick={() => void declineProposal(idea.id)}>Agora não</button></div></div>)}
-                  {view === "memories" && (idea.memory || idea.location_name || verdictOf(idea) || idea.watched_title || idea.food_notes) && <div className="memory-details">{verdictOf(idea) && <span className={verdictOf(idea)!.wouldRepeat ? "repeat-yes" : "repeat-no"}>{verdictOf(idea)!.emoji} {verdictOf(idea)!.label}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
-                  <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => openQuickClose(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
-                </div>
-              </article>)}
+              {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} view={view} todayDate={todayDate} busy={busy} myUserId={session.user.id} partnerName={partnerName} partnerHasPush={partnerHasPush} photoCount={photos.filter((photo) => photo.date_id === idea.id).length} actions={ideaCardActions} />)}
             </div>{visibleIdeas.length > visibleIdeaLimit && <button type="button" className="show-more-ideas" onClick={() => setVisibleIdeaLimit((limit) => limit + 60)}>{`Mostrar mais ideias (${visibleIdeas.length - visibleIdeaLimit} restantes)`}</button>}</> : <div className="empty-state"><span>♡</span><h3>Ainda não há dates por aqui</h3><p>{view === "favorites" ? "Guardem as vossas ideias favoritas para as encontrarem aqui." : "Experimentem outra categoria ou adicionem uma ideia."}</p><button className="add-button" onClick={() => setQuickAddOpen(true)}>＋ Adicionar ideia</button></div>}
           </section>}
           {view === "planned" && <SchedulePanel part="agenda" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
