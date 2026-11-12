@@ -1369,3 +1369,9 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 .guide-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .guide-count{margin-right:auto;font-size:12px;font-weight:700;color:var(--ink-3)}
 @media (prefers-reduced-motion: reduce){.guide-spot{transition:none}}
+
+/* Dates listed under the shared map, in the same style as the trips. */
+.map-date-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:10px;border-radius:var(--radius-md);background:var(--paper)}
+.map-date-row>span:nth-child(2){display:grid;min-width:0}
+.map-date-row small{color:var(--ink-3)}
+.map-dates-list .trip-world-thumb{color:var(--accent);font-size:20px}

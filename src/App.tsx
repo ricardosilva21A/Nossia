@@ -25,6 +25,7 @@ import { ShareSheet } from "./ShareSheet";
 import { devicePushStatus } from "./push";
 import type { PushStatus } from "./push";
 import type { Shared, SharedPlan } from "./ShareSheet";
+import type { MapFilter } from "./TripWorld";
 import { firstUrl, siteName } from "./share";
 import type { AffectionKind } from "./affections";
 import { RoamingPet, readPetRoams, savePetRoams } from "./RoamingPet";
@@ -64,7 +65,6 @@ type AppModal = "new" | "edit" | "import" | "global-import" | "delete" | "plan" 
 // How stale the data may get before returning to the tab refreshes it in the background.
 const backgroundRefreshAfterMs = 30 * 1000;
 const syncDelayMs = 400;
-const LazyMapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
 // Screens that aren't the house load when first opened, so the app starts with less to download.
 const TripsPanel = lazy(() => import("./TripsPanel").then((module) => ({ default: module.TripsPanel })));
 const TripWorld = lazy(() => import("./TripWorld").then((module) => ({ default: module.TripWorld })));
@@ -400,6 +400,7 @@ function App() {
   const [editingPet, setEditingPet] = useState(false);
   const [petRoams, setPetRoams] = useState(readPetRoams);
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
+  const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const [guideSeen, setGuideSeen] = useState(true);
   // The house follows the clock: who is at work, asleep or out changes without anyone touching the app.
   const [clock, setClock] = useState(() => Date.now());
@@ -2238,32 +2239,25 @@ function App() {
           </>}
 
 
-          {(view === "map" || view === "tripMap") && <div className="map-switch" role="group" aria-label="O que mostrar no mapa"><button type="button" className={view === "map" ? "active" : ""} aria-pressed={view === "map"} onClick={() => navigateView("map", true)}>Dates</button><button type="button" className={view === "tripMap" ? "active" : ""} aria-pressed={view === "tripMap"} onClick={() => navigateView("tripMap", true)}>Viagens</button></div>}
-          {view === "map" && <div className="date-view-filters">
-            <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar dates"} placeholder={"Procurar date ou local..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label>
-            <div className="filters" aria-label={"Filtrar dates por categoria"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div>
-          </div>}
 
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} visited={trips.filter((trip) => trip.end_date < localDateString()).map((trip) => trip.title)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
-          {view === "tripMap" && <TripWorld coupleId={couple.id} trips={trips} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
+          {(view === "map" || view === "tripMap") && <TripWorld coupleId={couple.id} trips={trips} dates={ideas} filter={view === "tripMap" ? "trips" : mapFilter} onFilter={(next) => { setMapFilter(next); if (view === "tripMap") navigateView("map", true); }} onPinDate={(id) => {
+            const idea = ideas.find((item) => item.id === id);
+            if (!idea) return;
+            setActiveIdeaId(idea.id);
+            setLocationName(idea.location_name ?? "");
+            setLocationLatitude(idea.latitude);
+            setLocationLongitude(idea.longitude);
+            setModal("location");
+          }} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "settings" && <section className="settings-page">
             <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
           </section>}
-          {view === "map" && <Suspense fallback={<div className="map-loading">A abrir o mapa…</div>}><LazyMapView
-            ideas={visibleIdeas}
-            onPinLocation={(idea) => {
-              setActiveIdeaId(idea.id);
-              setLocationName(idea.location_name ?? "");
-              setLocationLatitude(idea.latitude);
-              setLocationLongitude(idea.longitude);
-              setModal("location");
-            }}
-          /></Suspense>}
 
           {view === "insights" && <section className="insights-panel" aria-label={"Estatísticas dos dates"}>
             <div className="insights-total"><span className="stat-icon green">♡</span><div><strong>{completedMoodStats.total}</strong><span>dates feitos juntos</span></div></div>
