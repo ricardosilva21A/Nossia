@@ -37,6 +37,7 @@ Guides: [User guide](./docs/user-guide.md) · [Guia de utilização](./docs/guia
 | **Agenda** | Planned dates and proposals, commitments and shared free time. A date one partner plans is a proposal until the other accepts. |
 | **Long weekends** | National and municipal holidays turned into long weekends and bridges that fit both partners' hours, with a reminder three weeks before. |
 | **Trips** | Destination guides, plans per day, flight searches from the couple's airport and a world map of past trips with photos. |
+| **Gifts** | A secret list of gift ideas for your partner, with upcoming occasions and a reminder. Only the writer sees it. |
 | **Memories** | A three-tap close (😍 🙂 😐, a photo), notes, what you watched and what you ate. A map of dates and trips. |
 | **Partners** | Each partner has their own account, joined with a single-use invite link. |
 | **Notifications** | Web push reminders and a private iCal feed for the iPhone calendar. |

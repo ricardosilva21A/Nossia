@@ -22,6 +22,8 @@ export type ReminderInput = {
   commitments: Array<{ id: string; title: string; event_date: string; starts_at: string | null; for_partner: PartnerSlot | null; created_by: string | null; created_at: string }>;
   blocks: Array<{ weekday: number; starts_at: string; ends_at: string; partner_slot?: PartnerSlot }>;
   trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
+  // How many gift ideas this person has saved and not bought yet (their secret list).
+  giftIdeas?: number;
 };
 
 const timeZone = "Europe/Lisbon";
@@ -110,10 +112,10 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
 
   for (const commitment of input.commitments) {
     if (commitment.for_partner && commitment.for_partner !== input.slot) continue;
-    if (soon(commitment.event_date, commitment.starts_at)) reminders.push({ key: `commitment-soon:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Daqui a pouco: ${commitment.title}`, body: at(commitment.starts_at), url: "/agenda" });
-    if (commitment.event_date === today && !commitment.starts_at && morning) reminders.push({ key: `commitment-today:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Hoje: ${commitment.title}`, body: "Não se esqueçam.", url: "/agenda" });
-    if (commitment.event_date === tomorrow && evening) reminders.push({ key: `commitment-tomorrow:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Amanhã: ${commitment.title}`, body: at(commitment.starts_at) || "Não se esqueçam.", url: "/agenda" });
-    if (commitment.created_by && commitment.created_by !== input.userId && recent(commitment.created_at) && commitment.event_date >= today) reminders.push({ key: `commitment-added:${commitment.id}`, category: "commitments", title: `${otherName} acrescentou um compromisso`, body: `${commitment.title}, ${weekdayLabel(commitment.event_date)}`, url: "/agenda" });
+    if (soon(commitment.event_date, commitment.starts_at)) reminders.push({ key: `commitment-soon:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Daqui a pouco: ${commitment.title}`, body: at(commitment.starts_at), url: "/planned" });
+    if (commitment.event_date === today && !commitment.starts_at && morning) reminders.push({ key: `commitment-today:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Hoje: ${commitment.title}`, body: "Não se esqueçam.", url: "/planned" });
+    if (commitment.event_date === tomorrow && evening) reminders.push({ key: `commitment-tomorrow:${commitment.id}:${commitment.event_date}`, category: "commitments", title: `Amanhã: ${commitment.title}`, body: at(commitment.starts_at) || "Não se esqueçam.", url: "/planned" });
+    if (commitment.created_by && commitment.created_by !== input.userId && recent(commitment.created_at) && commitment.event_date >= today) reminders.push({ key: `commitment-added:${commitment.id}`, category: "commitments", title: `${otherName} acrescentou um compromisso`, body: `${commitment.title}, ${weekdayLabel(commitment.event_date)}`, url: "/planned" });
   }
 
   // Thursday evening, if nothing is planned for the weekend and there is time for it.
@@ -142,13 +144,13 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
     }
     const anniversary = nextYearly(input.couple.relationship_date, today);
     const untilAnniversary = daysBetween(today, anniversary);
-    if (untilAnniversary === 7 || untilAnniversary === 1) reminders.push({ key: `anniversary:${anniversary}:${untilAnniversary}`, category: "special_dates", title: untilAnniversary === 1 ? "O aniversário de namoro é amanhã" : "Falta uma semana para o aniversário de namoro", body: "Já têm alguma coisa planeada?", url: "/hoje" });
+    if (untilAnniversary === 7 || untilAnniversary === 1) reminders.push({ key: `anniversary:${anniversary}:${untilAnniversary}`, category: "special_dates", title: untilAnniversary === 1 ? "O aniversário de namoro é amanhã" : "Falta uma semana para o aniversário de namoro", body: input.giftIdeas ? `Já têm alguma coisa planeada? Tens ${input.giftIdeas} ${input.giftIdeas === 1 ? "ideia de prenda guardada" : "ideias de prendas guardadas"}.` : "Já têm alguma coisa planeada?", url: input.giftIdeas ? "/prendas" : "/hoje" });
     // Only the other partner: nobody needs reminding of their own birthday.
     const birthDate = otherSlot === "partner_one" ? input.couple.partner_one_birth_date : input.couple.partner_two_birth_date;
     if (birthDate) {
       const birthday = nextYearly(birthDate, today);
       const untilBirthday = daysBetween(today, birthday);
-      if (untilBirthday === 7 || untilBirthday === 1) reminders.push({ key: `birthday:${birthday}:${untilBirthday}`, category: "special_dates", title: untilBirthday === 1 ? `Os anos de ${otherName} são amanhã` : `Falta uma semana para os anos de ${otherName}`, body: "Já tens tudo preparado?", url: "/hoje" });
+      if (untilBirthday === 7 || untilBirthday === 1) reminders.push({ key: `birthday:${birthday}:${untilBirthday}`, category: "special_dates", title: untilBirthday === 1 ? `Os anos de ${otherName} são amanhã` : `Falta uma semana para os anos de ${otherName}`, body: input.giftIdeas ? `Tens ${input.giftIdeas} ${input.giftIdeas === 1 ? "ideia de prenda guardada" : "ideias de prendas guardadas"}.` : "Já tens tudo preparado?", url: input.giftIdeas ? "/prendas" : "/hoje" });
     }
   }
 
@@ -226,13 +228,14 @@ export async function POST(request: Request) {
   if (membersError) return json({ error: membersError.message }, 500);
   const coupleIds = [...new Set((members ?? []).map((member) => member.couple_id as string))];
   const dateFloor = addDays(today, -1);
-  const [couples, dates, commitments, blocks, settings, trips] = await Promise.all([
+  const [couples, dates, commitments, blocks, settings, trips, gifts] = await Promise.all([
     db.from("couples").select("*").in("id", coupleIds),
     db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title, duration_minutes)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
     db.from("work_schedule_blocks").select("*").in("couple_id", coupleIds),
     db.from("notification_settings").select("*").in("user_id", userIds),
     db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", dateFloor),
+    db.from("gift_ideas").select("owner").in("owner", userIds).is("bought_at", null),
   ]);
   const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error ?? trips.error;
   if (loadError) return json({ error: loadError.message }, 500);
@@ -254,6 +257,7 @@ export async function POST(request: Request) {
       commitments: (commitments.data ?? []).filter((commitment) => commitment.couple_id === member.couple_id) as ReminderInput["commitments"],
       blocks: (blocks.data ?? []).filter((block) => block.couple_id === member.couple_id) as ReminderInput["blocks"],
       trips: (trips.data ?? []).filter((trip) => trip.couple_id === member.couple_id) as ReminderInput["trips"],
+      giftIdeas: (gifts.data ?? []).filter((gift) => gift.owner === member.user_id).length,
     }, now).filter((reminder) => preferences?.[reminder.category] ?? true);
 
     let sentToUser = 0;

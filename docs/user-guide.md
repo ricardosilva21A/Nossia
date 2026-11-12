@@ -40,6 +40,10 @@ Saw a place on Instagram, TikTok, WhatsApp or Maps? Copy the link and paste it i
 
 In **Explorar › Ideias** (Explore › Ideas), browse the catalogue, draw a random idea or answer a few questions to get suggestions that fit the weather and the season. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
 
+## Gifts
+
+In **Nós › Prendas** (Us › Gifts) you keep gift ideas for your partner throughout the year: a name, a link and a note. Only you see your list; your partner never does. It shows how long until their birthday, your anniversary and Christmas, and the reminder a week before says how many ideas you have saved. A shared link can also be saved as a **Prenda**.
+
 ## Restaurants and places
 
 In **Explorar › Sítios** (Places), choose between trying somewhere new and going back to one you liked.

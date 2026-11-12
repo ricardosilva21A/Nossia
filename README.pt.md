@@ -37,6 +37,7 @@ Guias: [Guia de utilização](./docs/guia-de-utilizacao.md) · [User guide](./do
 | **Agenda** | Dates marcados e propostas, compromissos e tempo livre em comum. Um date marcado por um é uma proposta até o outro aceitar. |
 | **Pontes** | Feriados nacionais e municipais transformados em fins de semana prolongados e pontes que encaixam nos horários dos dois, com aviso três semanas antes. |
 | **Viagens** | Guias de destinos, planos por dia, pesquisa de voos a partir do aeroporto do casal e mapa-mundo das viagens com fotografias. |
+| **Prendas** | Lista secreta de ideias de prendas para o par, com as próximas ocasiões e lembrete. Só quem escreve a vê. |
 | **Memórias** | Fecho em três toques (😍 🙂 😐, fotografia), notas, o que viram e o que comeram. Mapa dos dates e das viagens. |
 | **Par** | Cada pessoa tem a sua conta, ligada através de um convite de utilização única. |
 | **Notificações** | Lembretes web push e um calendário iCal privado para o iPhone. |
