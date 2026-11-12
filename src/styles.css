@@ -1326,3 +1326,12 @@ span.away-pill{cursor:default}
 .share-when{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .share-when .panel-actions{grid-column:1/-1}
 .idea-source{display:inline-block;margin:2px 0 6px;font-size:12px;font-weight:700;color:var(--cobalt-ink)}
+
+/* Proposals in the planned list, and the reminder to turn notifications on. */
+.proposal-card-actions{display:grid;gap:6px;margin:4px 0 6px}
+.proposal-card-actions>div{display:flex;flex-wrap:wrap;gap:6px}
+.sheet-note{margin:12px 0 0;font-size:13px;color:var(--ink-3);text-align:center}
+.push-hint{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;padding:14px;border-radius:var(--radius-md);background:var(--cobalt-soft);color:var(--ink)}
+.push-hint>svg{color:var(--cobalt-ink);margin-top:2px}
+.push-hint p{margin:0;font-size:14px;line-height:1.45}
+.push-hint-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}

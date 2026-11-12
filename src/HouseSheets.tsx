@@ -19,7 +19,7 @@ function Sheet({ label, onClose, children }: { label: string; onClose: () => voi
   );
 }
 
-export function AffectionSheet({ name, look, onSend, onClose }: { name: string; look: AvatarLook | null; onSend: (kind: AffectionKind) => Promise<boolean>; onClose: () => void }) {
+export function AffectionSheet({ name, look, notified = null, onSend, onClose }: { name: string; look: AvatarLook | null; notified?: boolean | null; onSend: (kind: AffectionKind) => Promise<boolean>; onClose: () => void }) {
   const [sent, setSent] = useState<AffectionKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +43,7 @@ export function AffectionSheet({ name, look, onSend, onClose }: { name: string; 
       {!chosen && <div className="affection-grid">
         {affections.map((item) => <button type="button" key={item.kind} className="affection-option" disabled={busy} onClick={() => void send(item.kind)}><span aria-hidden="true">{item.emoji}</span>{item.label}</button>)}
       </div>}
+      {notified === false && <p className="sheet-note">{name} ainda não tem as notificações ligadas: vê quando abrir a app.</p>}
       {error && <p className="error-alert" role="alert">{error}</p>}
     </Sheet>
   );

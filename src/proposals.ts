@@ -1,7 +1,18 @@
 // A date marked by one of them is a proposal until the other says yes, or moves it to another day.
 
-export type ProposalEvent = "proposed" | "moved" | "accepted";
+export type ProposalEvent = "proposed" | "moved" | "accepted" | "declined";
 export type Proposable = { id: string; status: string; planned_for: string | null; proposal?: "proposed" | "confirmed"; proposed_by?: string | null };
+
+// Only a date with a day can be agreed on; one without a day stays "dia por decidir".
+export function startsAsProposal(partnerJoined: boolean, plannedFor: string | null | undefined) {
+  return partnerJoined && Boolean(plannedFor);
+}
+
+// Changing the day or time of a planned date sends it back to the other one to agree on.
+export function needsNewAgreement(partnerJoined: boolean, before: { planned_for: string | null; planned_start_time: string | null }, after: { planned_for: string | null; planned_start_time: string | null }) {
+  if (!partnerJoined || !after.planned_for) return false;
+  return before.planned_for !== after.planned_for || (before.planned_start_time ?? "").slice(0, 5) !== (after.planned_start_time ?? "").slice(0, 5);
+}
 
 export function isProposal(date: Proposable) {
   return date.status === "planned" && date.proposal === "proposed";
@@ -31,6 +42,7 @@ export function proposalMessage(event: ProposalEvent, from: string, title: strin
   const when = whenText(date, time);
   if (event === "proposed") return { title: `💌 ${from} propôs um date`, body: `${title} · ${when}. Aceitas?` };
   if (event === "moved") return { title: `📅 ${from} sugeriu outro dia`, body: `${title} · ${when}. Fica bem?` };
+  if (event === "declined") return { title: `🙈 ${from} disse que agora não`, body: `${title} · ${when}. Que tal outro dia?` };
   return { title: `✅ ${from} aceitou o date`, body: `${title} · ${when}` };
 }
 

@@ -13,7 +13,7 @@ function json(body: unknown, status = 200) {
 }
 
 type PushDevice = { endpoint: string; user_id: string; p256dh: string; auth: string };
-const events: ProposalEvent[] = ["proposed", "moved", "accepted"];
+const events: ProposalEvent[] = ["proposed", "moved", "accepted", "declined"];
 
 export async function POST(request: Request) {
   const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
@@ -44,7 +44,10 @@ export async function POST(request: Request) {
   if (!recipient) return json({ sent: 0 });
 
   // The date has to be in the state the event claims, so nobody can send a made-up one.
-  const fits = event === "accepted" ? date.proposal === "confirmed" : date.proposal === "proposed" && date.proposed_by === userId;
+  // Accepting: it's confirmed now. Declining: it's still the other one's proposal (the app deletes it after).
+  const fits = event === "accepted" ? date.proposal === "confirmed"
+    : event === "declined" ? date.proposal === "proposed" && date.proposed_by !== userId
+      : date.proposal === "proposed" && date.proposed_by === userId;
   if (!fits) return json({ sent: 0 });
 
   const { data: settings } = await db.from("notification_settings").select("dates").eq("user_id", recipient.user_id).maybeSingle();

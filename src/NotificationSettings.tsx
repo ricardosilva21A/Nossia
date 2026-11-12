@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Share, SquarePlus } from "lucide-react";
 import { supabase } from "./lib/supabase";
+import { devicePushStatus, vapidPublicKey } from "./push";
 
 type Status = "checking" | "not-configured" | "unsupported" | "needs-install" | "denied" | "off" | "on";
 type Preferences = { dates: boolean; commitments: boolean; nudges: boolean; special_dates: boolean; affection: boolean };
 
-const publicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
 const defaults: Preferences = { dates: true, commitments: true, nudges: true, special_dates: true, affection: true };
 const options: Array<{ key: keyof Preferences; label: string; hint: string }> = [
   { key: "dates", label: "Dates", hint: "Na véspera, pouco antes, e depois para contarem como foi" },
@@ -20,13 +20,7 @@ function keyBytes(base64: string) {
   return Uint8Array.from(text, (character) => character.charCodeAt(0));
 }
 
-function isIos() {
-  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
 
-function isInstalled() {
-  return window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
 
 // Notifications belong to a device, so each partner turns them on on their own phone.
 export function NotificationSettings({ userId }: { userId: string }) {
@@ -38,16 +32,7 @@ export function NotificationSettings({ userId }: { userId: string }) {
   useEffect(() => {
     let active = true;
     void (async () => {
-      let next: Status;
-      if (!publicKey) next = "not-configured";
-      else if (isIos() && !isInstalled()) next = "needs-install";
-      else if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) next = "unsupported";
-      else if (Notification.permission === "denied") next = "denied";
-      else {
-        const registration = await navigator.serviceWorker.getRegistration();
-        const subscription = await registration?.pushManager.getSubscription();
-        next = subscription ? "on" : "off";
-      }
+      const next: Status = await devicePushStatus();
       if (!active) return;
       setStatus(next);
       const { data } = await supabase?.from("notification_settings").select("dates, commitments, nudges, special_dates, affection").eq("user_id", userId).maybeSingle() ?? { data: null };
@@ -57,7 +42,7 @@ export function NotificationSettings({ userId }: { userId: string }) {
   }, [userId]);
 
   async function turnOn() {
-    if (!supabase || !publicKey) return;
+    if (!supabase || !vapidPublicKey) return;
     setBusy(true);
     setMessage("");
     try {
@@ -68,7 +53,7 @@ export function NotificationSettings({ userId }: { userId: string }) {
       }
       const registration = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
+      const subscription = await registration.pushManager.getSubscription() ?? await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(vapidPublicKey) });
       const keys = subscription.toJSON().keys;
       const { error } = await supabase.rpc("save_push_subscription", { device_endpoint: subscription.endpoint, device_p256dh: keys?.p256dh ?? "", device_auth: keys?.auth ?? "" });
       if (error) throw error;

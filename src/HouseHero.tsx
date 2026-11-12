@@ -52,12 +52,14 @@ type Props = {
 // What the people and the animal in the house do when tapped.
 export type HouseActions = {
   mySlot: HomePartner | null;
+  // false when the other one has no notifications on: what you send waits until they open the app.
+  partnerHasPush?: boolean | null;
   onOpenProfile: () => void;
   onSendAffection: (kind: AffectionKind) => Promise<boolean>;
   onSavePetAccessory: (accessory: Accessory) => Promise<boolean>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar" | "weather"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar" | "weather") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -168,7 +170,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         <button type="button" className="house-spot spot-window" aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
       </div>
       <div className="house-bubble">{bubble}</div>
-      {sheet === "affection" && partnerSlot && <AffectionSheet name={names[partnerSlot]} look={partnerLook} onSend={onSendAffection} onClose={() => setSheet(null)} />}
+      {sheet === "affection" && partnerSlot && <AffectionSheet name={names[partnerSlot]} look={partnerLook} notified={partnerHasPush} onSend={onSendAffection} onClose={() => setSheet(null)} />}
       {sheet === "wardrobe" && pet && <WardrobeSheet pet={pet} onSave={onSavePetAccessory} onClose={() => setSheet(null)} />}
       {closeUp?.what === "weather" && <ZoomOverlay origin={closeUp.origin} label="O tempo" className="zoom-weather" onClose={() => setCloseUp(null)}>
         {(close) => <WallWeather forecast={forecast} place={weatherPlace} onChangePlace={() => { close(); window.setTimeout(onOpenWindow, 470); }} />}

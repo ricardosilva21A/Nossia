@@ -19,9 +19,11 @@ import { HomeLocationPicker } from "./HomeLocationPicker";
 import { AccountSettings } from "./AccountSettings";
 import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
-import { proposalsForMe } from "./proposals";
+import { isProposal, needsNewAgreement, proposalsForMe, startsAsProposal, waitingOnPartner } from "./proposals";
 import { QuickClose } from "./QuickClose";
 import { ShareSheet } from "./ShareSheet";
+import { devicePushStatus } from "./push";
+import type { PushStatus } from "./push";
 import type { Shared, SharedPlan } from "./ShareSheet";
 import { firstUrl, siteName } from "./share";
 import type { AffectionKind } from "./affections";
@@ -393,6 +395,9 @@ function App() {
   const [editingPet, setEditingPet] = useState(false);
   const [petRoams, setPetRoams] = useState(readPetRoams);
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
+  // Who gets notifications: this phone, and the other one on any of theirs.
+  const [myPush, setMyPush] = useState<PushStatus | null>(null);
+  const [partnerHasPush, setPartnerHasPush] = useState<boolean | null>(null);
   // Something shared into the app from another one (Instagram, TikTok, WhatsApp, Maps), or a pasted link.
   const [shared, setShared] = useState<Shared | null>(() => {
     if (window.location.pathname.replace(/\/+$/, "") !== "/partilhar") return null;
@@ -1048,8 +1053,8 @@ function App() {
     setBusy(true);
     setDataError("");
     const { data, error } = await supabase.from("couple_dates")
-      // With the other one in the app, a new date is a proposal they say yes to (or move).
-      .insert({ ...details, couple_id: couple.id, idea_id: ideaId, status: "planned", ...(partnerJoined && session ? { proposal: "proposed", proposed_by: session.user.id } : {}) })
+      // With the other one in the app, a new date with a day is a proposal they say yes to (or move).
+      .insert({ ...details, couple_id: couple.id, idea_id: ideaId, status: "planned", ...(session && startsAsProposal(partnerJoined, details.planned_for) ? { proposal: "proposed", proposed_by: session.user.id } : {}) })
       .select("*")
       .single();
     if (error) setDataError(`Não foi possível planear o date: ${error.message}`);
@@ -1073,6 +1078,21 @@ function App() {
     const saved = await updateDate(id, { proposal: "confirmed" });
     if (saved) void notifyPartner("/api/proposal", { id, event: "accepted" });
     return saved;
+  }
+
+  // "Agora não": the proposer hears about it, then the date goes (the idea stays).
+  async function declineProposal(id: string) {
+    if (!supabase) return false;
+    setBusy(true);
+    await notifyPartner("/api/proposal", { id, event: "declined" });
+    const { error } = await supabase.from("couple_dates").delete().eq("id", id);
+    setBusy(false);
+    if (error) {
+      setDataError(`Não foi possível responder: ${error.message}`);
+      return false;
+    }
+    setDates((current) => current.filter((date) => date.id !== id));
+    return true;
   }
 
   async function moveProposal(id: string, date: string, time: string | null) {
@@ -1290,8 +1310,13 @@ function App() {
       longitude: plannedLongitude,
       home_partner: plannedHomePartner,
     };
-    const saved = editingPlan ? await updateDate(currentIdea.id, details) : await createDate(currentIdea.idea_id, details);
+    // A new day or time goes back to the other one to agree on.
+    const reagree = editingPlan && session !== null && needsNewAgreement(partnerJoined, currentIdea, details);
+    const saved = editingPlan
+      ? await updateDate(currentIdea.id, reagree && session ? { ...details, proposal: "proposed", proposed_by: session.user.id } : details)
+      : await createDate(currentIdea.idea_id, details);
     if (!saved) return;
+    if (reagree) void notifyPartner("/api/proposal", { id: currentIdea.id, event: "moved" });
     setEditingPlan(false);
     setModal(null);
     setActiveIdeaId(null);
@@ -1750,6 +1775,14 @@ function App() {
     if (date?.status === "planned") setQuickCloseId(id);
   }, [dates]);
 
+  useEffect(() => {
+    if (!supabase || !couple) return;
+    let active = true;
+    void devicePushStatus().then((status) => { if (active) setMyPush(status); });
+    void supabase.rpc("partner_has_push").then(({ data, error }) => { if (active) setPartnerHasPush(error ? null : Boolean(data)); });
+    return () => { active = false; };
+  }, [couple?.id, syncTick, view]);
+
   // The shared link lives in state now; the address goes back to the house.
   useEffect(() => {
     if (window.location.pathname.replace(/\/+$/, "") === "/partilhar") window.history.replaceState(window.history.state, "", "/hoje");
@@ -2060,6 +2093,8 @@ function App() {
 
   // After the mascot exists: one pop-up at a time, swipes first, then what's missing in the profile.
   const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
+  // The other one, by name: who a proposal comes from or waits on.
+  const partnerName = mySlot === "partner_one" ? couple.partner_two_name : mySlot === "partner_two" ? couple.partner_one_name : "o teu par";
   const needsAvatar = Boolean(mascots && !avatarOf(myMascot));
   const onboardingVisible = Boolean(mySlot && mascots && (onboardingOpen || editingMascot || editingPet || needsAvatar));
   const profileMissing = [
@@ -2112,7 +2147,7 @@ function App() {
             pins={tripPins(trips, localDateString())}
             forecast={weatherForecast}
             weatherPlace={couple.weather_location_name}
-            houseActions={{ mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
+            houseActions={{ partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}
@@ -2139,6 +2174,10 @@ function App() {
             myUserId={session.user.id}
             onAcceptProposal={acceptProposal}
             onMoveProposal={moveProposal}
+            onDeclineProposal={declineProposal}
+            myPush={myPush}
+            partnerHasPush={partnerJoined ? partnerHasPush : null}
+            onOpenNotifications={() => navigateView("settings")}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
@@ -2235,7 +2274,9 @@ function App() {
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
                 <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
-                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.source_url && <a className="idea-source" href={idea.source_url} target="_blank" rel="noreferrer">Ver no {siteName(idea.source_url)}</a>}{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
+                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.source_url && <a className="idea-source" href={idea.source_url} target="_blank" rel="noreferrer">Ver no {siteName(idea.source_url)}</a>}{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}{idea.status === "planned" && isProposal(idea) && (waitingOnPartner(idea, session.user.id)
+                    ? <p className="proposal-tag">À espera de {partnerName}{partnerHasPush === false ? " · vê quando abrir a app" : ""}</p>
+                    : <div className="proposal-card-actions"><p className="proposal-tag">Proposta de {partnerName}</p><div><button type="button" className="card-action" disabled={busy} onClick={() => void acceptProposal(idea.id)}>Aceitar</button><button type="button" className="card-action" disabled={busy} onClick={() => openEditPlan(idea)}>Outro dia</button><button type="button" className="card-action undo-action" disabled={busy} onClick={() => void declineProposal(idea.id)}>Agora não</button></div></div>)}
                   {view === "memories" && (idea.memory || idea.location_name || idea.would_repeat !== null || idea.watched_title || idea.food_notes) && <div className="memory-details">{idea.would_repeat !== null && <span className={idea.would_repeat ? "repeat-yes" : "repeat-no"}>{idea.would_repeat ? "Querem repetir" : "Não repetir"}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
                   <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
                 </div>
