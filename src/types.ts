@@ -59,6 +59,9 @@ export type DateDetails = {
   would_repeat: boolean | null;
   watched_title: string | null;
   food_notes: string | null;
+  // A date one of them marked waits for the other one's yes. Missing on rows from before proposals.
+  proposal?: "proposed" | "confirmed";
+  proposed_by?: string | null;
 };
 
 export type CoupleDate = DateDetails & {

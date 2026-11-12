@@ -19,6 +19,8 @@ import { HomeLocationPicker } from "./HomeLocationPicker";
 import { AccountSettings } from "./AccountSettings";
 import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
+import { proposalsForMe } from "./proposals";
+import { QuickClose } from "./QuickClose";
 import type { AffectionKind } from "./affections";
 import { RoamingPet, readPetRoams, savePetRoams } from "./RoamingPet";
 import { WelcomeSteps, readSeenWelcome, saveSeenWelcome } from "./WelcomeSteps";
@@ -245,6 +247,8 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
       would_repeat: date.would_repeat,
       watched_title: date.watched_title,
       food_notes: date.food_notes,
+      proposal: date.proposal ?? "confirmed",
+      proposed_by: date.proposed_by ?? null,
     }] : [];
   });
   const unplannedIdeas = catalog
@@ -383,6 +387,7 @@ function App() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [editingPet, setEditingPet] = useState(false);
   const [petRoams, setPetRoams] = useState(readPetRoams);
+  const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
   const [incoming, setIncoming] = useState<{ id: string; kind: AffectionKind } | null>(null);
   const [syncTick, setSyncTick] = useState(0);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -1031,13 +1036,74 @@ function App() {
     setBusy(true);
     setDataError("");
     const { data, error } = await supabase.from("couple_dates")
-      .insert({ ...details, couple_id: couple.id, idea_id: ideaId, status: "planned" })
+      // With the other one in the app, a new date is a proposal they say yes to (or move).
+      .insert({ ...details, couple_id: couple.id, idea_id: ideaId, status: "planned", ...(partnerJoined && session ? { proposal: "proposed", proposed_by: session.user.id } : {}) })
       .select("*")
       .single();
     if (error) setDataError(`Não foi possível planear o date: ${error.message}`);
-    else setDates((current) => [...current, data as CoupleDate]);
+    else {
+      setDates((current) => [...current, data as CoupleDate]);
+      if ((data as CoupleDate).proposal === "proposed") void notifyPartner("/api/proposal", { id: (data as CoupleDate).id, event: "proposed" });
+    }
     setBusy(false);
     return !error;
+  }
+
+  // Tells the other one's phone; a bonus on top of what they see when they open the app.
+  async function notifyPartner(path: string, body: Record<string, string>) {
+    if (!supabase) return;
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) return;
+    await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${auth.session.access_token}` }, body: JSON.stringify(body) }).catch(() => undefined);
+  }
+
+  async function acceptProposal(id: string) {
+    const saved = await updateDate(id, { proposal: "confirmed" });
+    if (saved) void notifyPartner("/api/proposal", { id, event: "accepted" });
+    return saved;
+  }
+
+  async function moveProposal(id: string, date: string, time: string | null) {
+    if (!session) return false;
+    const saved = await updateDate(id, { planned_for: date, planned_start_time: time, proposal: "proposed", proposed_by: session.user.id });
+    if (saved) void notifyPartner("/api/proposal", { id, event: "moved" });
+    return saved;
+  }
+
+  // The three-tap close after a date: how it went, a photo, done.
+  function openQuickClose(id: string) {
+    setQuickCloseId(id);
+  }
+
+  async function saveQuickClose(rating: number, photo: File | null) {
+    const id = quickCloseId;
+    const current = ideas.find((idea) => idea.id === id);
+    if (!id || !current || !supabase || !couple) return false;
+    const day = current.planned_for && current.planned_for <= localDateString() ? current.planned_for : localDateString();
+    const saved = await updateDate(id, { status: "completed", completed_at: day, planned_for: null, rating, proposal: "confirmed" });
+    if (!saved) return false;
+    if (photo && ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(photo.type) && photo.size <= 10 * 1024 * 1024) {
+      const storagePath = `${couple.id}/${id}/${crypto.randomUUID()}.${photo.type.split("/")[1]}`;
+      const { error: uploadError } = await supabase.storage.from("date-photos").upload(storagePath, photo, { cacheControl: "3600", contentType: photo.type, upsert: false });
+      if (!uploadError) {
+        const { data: row, error: rowError } = await supabase.from("date_photos").insert({ couple_id: couple.id, date_id: id, storage_path: storagePath }).select("*").single();
+        if (rowError) await supabase.storage.from("date-photos").remove([storagePath]);
+        else setPhotos((list) => [...list, { ...row, signed_url: null } as DatePhoto]);
+      }
+      // The date is saved either way; a photo that didn't make it can be added from the album.
+      if (uploadError) setDataError(`O date ficou guardado, mas a fotografia não: ${uploadError.message}`);
+    }
+    return true;
+  }
+
+  function writeMoreAfterQuickClose() {
+    const id = quickCloseId;
+    const day = ideas.find((idea) => idea.id === id)?.completed_at ?? localDateString();
+    setQuickCloseId(null);
+    if (!id) return;
+    markCompleted(id);
+    setEditingMemory(true);
+    setMemoryDate(day);
   }
 
   const saveWeatherLocation = useCallback(async (name: string, latitude: number, longitude: number) => {
@@ -1654,6 +1720,17 @@ function App() {
     return () => { active = false; };
   }, [couple?.id, syncTick]);
 
+  // A "how did it go" notification opens /hoje?fechar=<date id> straight into the three-tap close.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("fechar");
+    if (!id || !dates.length) return;
+    const date = dates.find((item) => item.id === id);
+    params.delete("fechar");
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    if (date?.status === "planned") setQuickCloseId(id);
+  }, [dates]);
+
   // A kiss, hug or wave from the other one that this person hasn't seen yet.
   useEffect(() => {
     if (!supabase || !couple || !mySlot) return;
@@ -2005,7 +2082,11 @@ function App() {
             onMoreDetails={openIdeaDetails}
             onPlanSuggestion={(idea, date) => void createDate(idea.idea_id, { planned_for: date })}
             onAnotherSuggestion={() => setSuggestionSeed((seed) => seed + 1 + Math.floor(Math.random() * 7))}
-            onMarkDone={(id) => void markCompleted(id)}
+            onMarkDone={openQuickClose}
+            proposal={proposalsForMe(ideas, session.user.id, localDateString())[0] ?? null}
+            myUserId={session.user.id}
+            onAcceptProposal={acceptProposal}
+            onMoveProposal={moveProposal}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
@@ -2116,6 +2197,10 @@ function App() {
       {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
+      {quickCloseId && (() => {
+        const closing = ideas.find((idea) => idea.id === quickCloseId);
+        return closing ? <QuickClose title={closing.title} emoji={closing.emoji} onSave={saveQuickClose} onWriteMore={writeMoreAfterQuickClose} onClose={() => setQuickCloseId(null)} /> : null;
+      })()}
       {incoming && couple && mySlot && (() => {
         const message = affectionMessage(incoming.kind, mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name);
         return <div className="affection-toast" role="status"><span className="affection-toast-emoji" aria-hidden="true">{message.emoji}</span><p>{message.text}</p><div className="affection-toast-actions"><button type="button" className="button button-ghost" onClick={() => void markAffectionSeen()}>Fechar</button><button type="button" className="button button-primary" onClick={() => { void sendAffection(incoming.kind); void markAffectionSeen(); }}>Devolver {message.emoji}</button></div></div>;
