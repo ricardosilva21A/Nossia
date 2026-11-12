@@ -10,8 +10,8 @@ import { useDialog } from "./useDialog";
 type Step = { target: string; text: (names: { me: string; partner: string; pet: string }) => string };
 
 const steps: Step[] = [
-  { target: "me", text: ({ me }) => `Este és tu, ${me}. Toca em ti para abrires o teu perfil.` },
-  { target: "partner", text: ({ partner }) => `Esta é a casa de ${partner} também. Toca em ${partner} para lhe mandar um beijo, um abraço ou um aceno.` },
+  { target: "me", text: ({ me }) => `Aqui estás tu, ${me}. Toca para abrires o teu perfil.` },
+  { target: "partner", text: ({ partner }) => `Aqui está ${partner}. Toca para lhe mandar um beijo, um abraço ou um aceno.` },
   { target: "pet", text: ({ pet }) => `Sou eu, ${pet}! Toca em mim para escolheres o que visto.` },
   { target: "map", text: () => "No mapa ficam as vossas viagens, com um pin por sítio. Toca para ver de perto e marcar a próxima." },
   { target: "calendar", text: () => "O calendário: folheia os meses e toca num dia para marcar um date." },
