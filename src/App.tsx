@@ -18,6 +18,7 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { isProposal, needsNewAgreement, proposalsForMe, startsAsProposal, waitingOnPartner } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { readGuideSeen, saveGuideSeen } from "./HouseGuide";
 import { DialogSection } from "./useDialog";
 import { verdictOf, verdicts } from "./verdicts";
 import { ShareSheet } from "./ShareSheet";
@@ -399,6 +400,7 @@ function App() {
   const [editingPet, setEditingPet] = useState(false);
   const [petRoams, setPetRoams] = useState(readPetRoams);
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
+  const [guideSeen, setGuideSeen] = useState(true);
   // The house follows the clock: who is at work, asleep or out changes without anyone touching the app.
   const [clock, setClock] = useState(() => Date.now());
   useEffect(() => {
@@ -1790,6 +1792,10 @@ function App() {
     return () => { active = false; };
   }, [couple?.id, syncTick, view]);
 
+  useEffect(() => {
+    if (session?.user.id) setGuideSeen(readGuideSeen(session.user.id));
+  }, [session?.user.id]);
+
   // The shared link lives in state now; the address goes back to the house.
   useEffect(() => {
     if (window.location.pathname.replace(/\/+$/, "") === "/partilhar") window.history.replaceState(window.history.state, "", "/hoje");
@@ -2157,7 +2163,7 @@ function App() {
             pins={tripPins(trips, localDateString())}
             forecast={weatherForecast}
             weatherPlace={couple.weather_location_name}
-            houseActions={{ partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
+            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}

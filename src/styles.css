@@ -1359,3 +1359,13 @@ button.wall-day.is-selected{background:var(--accent);color:var(--canvas)}
 button.wall-day.is-selected .wall-marks b{color:var(--canvas)}
 button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:1px}
 .world-map-placeholder{aspect-ratio:720/284;width:100%}
+
+/* First-visit guide: everything dims except the thing being shown. */
+.guide-layer{position:fixed;inset:0;z-index:80}
+.guide-spot{position:fixed;border-radius:16px;box-shadow:0 0 0 9999px rgba(35,24,21,.6);transition:all .3s ease;pointer-events:none}
+.guide-card{position:fixed;left:16px;right:16px;max-width:420px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:start;padding:14px;border-radius:var(--radius-md);background:var(--paper);box-shadow:0 18px 40px rgba(35,24,21,.3)}
+.guide-card p{margin:0;font-size:15px;line-height:1.45;color:var(--ink)}
+.guide-pet svg{display:block}
+.guide-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.guide-count{margin-right:auto;font-size:12px;font-weight:700;color:var(--ink-3)}
+@media (prefers-reduced-motion: reduce){.guide-spot{transition:none}}

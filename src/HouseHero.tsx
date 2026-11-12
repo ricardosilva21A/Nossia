@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
@@ -11,6 +11,7 @@ import type { CalendarData, HouseScene, PetMode, SeasonalObject, TripPin, Window
 import { WallCalendar } from "./WallCalendar";
 import { ZoomOverlay } from "./ZoomOverlay";
 import { WallMap } from "./WallMap";
+import { HouseGuide } from "./HouseGuide";
 // The country outlines are heavy (about 77 KB): they arrive just after the room is drawn.
 const WorldMapArt = lazy(() => import("./WorldMapArt").then((module) => ({ default: module.WorldMapArt })));
 import { WallWeather } from "./WallWeather";
@@ -54,6 +55,9 @@ type Props = {
 // What the people and the animal in the house do when tapped.
 export type HouseActions = {
   mySlot: HomePartner | null;
+  // The first-visit guide: shown once the house is on screen, until they finish or skip it.
+  showGuide?: boolean;
+  onGuideDone?: () => void;
   // false when the other one has no notifications on: what you send waits until they open the app.
   partnerHasPush?: boolean | null;
   onOpenProfile: () => void;
@@ -61,7 +65,7 @@ export type HouseActions = {
   onSavePetAccessory: (accessory: Accessory) => Promise<boolean>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, showGuide = false, onGuideDone, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar" | "weather"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar" | "weather") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -71,6 +75,14 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   const mode = useMemo(() => decidePetMode(scene.poses, roll), [roll, scene.poses]);
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
+  // Wait until the room, the people and the animal are drawn before pointing at them.
+  const [guideReady, setGuideReady] = useState(false);
+  useEffect(() => {
+    if (!showGuide) { setGuideReady(false); return; }
+    const timer = window.setTimeout(() => setGuideReady(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [showGuide]);
+  const finishGuide = useCallback(() => { setGuideReady(false); onGuideDone?.(); }, [onGuideDone]);
   // Now and then the animal barks: a few seconds after the house opens, then every half a minute or so.
   const [barking, setBarking] = useState(false);
   useEffect(() => {
@@ -105,7 +117,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
     if (pose === "away") return null;
     if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-label={`À espera de ${names[slot]}`}>?</span></div>;
     return (
-      <button type="button" className={`house-seat pose-${pose}`} key={slot} aria-label={personLabel(slot, doing || "em casa")} onClick={() => tapPerson(slot)}>
+      <button type="button" data-guide={slot === mySlot ? "me" : "partner"} className={`house-seat pose-${pose}`} key={slot} aria-label={personLabel(slot, doing || "em casa")} onClick={() => tapPerson(slot)}>
         <Avatar look={avatarOf(mascot) ?? defaultAvatar} outfit={scene.outfit} size={72} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />
         {doing && <small>{short(doing)}</small>}
       </button>
@@ -115,7 +127,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   const petButton = pet && (
     // One tap, one thing: the wardrobe. The "Au!" comes back with Marta's animations.
-    <button type="button" className={`house-pet pet-${mode}${barking ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
+    <button type="button" data-guide="pet" className={`house-pet pet-${mode}${barking ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
       {barking && <span className="pet-says" aria-hidden="true">{pet.species === "cat" ? "Miau!" : pet.species === "rabbit" ? "♥" : "Au!"}</span>}
       <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed"} />
       {mode === "ball" && <span className="pet-toy" aria-hidden="true" />}
@@ -163,15 +175,16 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
           ? <div className="house-away"><span className="away-pill">♥ Os dois em date · {scene.dateNow.title}</span></div>
           : <>
             <div className="house-seats">{seat("partner_one")}{mode === "sofa" && petButton}{seat("partner_two")}</div>
-            {away.length > 0 && <div className="house-away">{away.map((slot) => <button type="button" key={slot} className="away-pill" aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}</div>}
+            {away.length > 0 && <div className="house-away">{away.map((slot) => <button type="button" key={slot} data-guide={slot === mySlot ? "me" : "partner"} className="away-pill" aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}</div>}
           </>}
         {mode !== "sofa" && petButton}
-        <button type="button" className="house-spot spot-map" aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
-        <button type="button" className="house-spot spot-calendar" aria-label="Ver o calendário de perto" onClick={open("calendar")} />
+        <button type="button" data-guide="map" className="house-spot spot-map" aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
+        <button type="button" data-guide="calendar" className="house-spot spot-calendar" aria-label="Ver o calendário de perto" onClick={open("calendar")} />
         {forecast[0] && <span className="house-weather" aria-hidden="true">{weatherEmoji(forecast[0].weatherCode)} {Math.round(forecast[0].temperatureMax)}°</span>}
-        <button type="button" className="house-spot spot-window" aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
+        <button type="button" data-guide="window" className="house-spot spot-window" aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
       </div>
-      <div className="house-bubble">{bubble}</div>
+      <div className="house-bubble" data-guide="bubble">{bubble}</div>
+      {guideReady && <HouseGuide pet={pet} names={{ me: mySlot ? names[mySlot] : "", partner: partnerSlot ? names[partnerSlot] : "" }} onDone={finishGuide} />}
       {sheet === "affection" && partnerSlot && <AffectionSheet name={names[partnerSlot]} look={partnerLook} notified={partnerHasPush} onSend={onSendAffection} onClose={() => setSheet(null)} />}
       {sheet === "wardrobe" && pet && <WardrobeSheet pet={pet} onSave={onSavePetAccessory} onClose={() => setSheet(null)} />}
       {closeUp?.what === "weather" && <ZoomOverlay origin={closeUp.origin} label="O tempo" className="zoom-weather" onClose={() => setCloseUp(null)}>
