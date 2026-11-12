@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { ErrorBoundary } from "./ErrorBoundary";
 import "./styles.css";
 
 // Kept out of the main bundle: few people ever open these.
@@ -13,6 +14,6 @@ const Page = standalone[window.location.pathname.replace(/\/+$/, "") as keyof ty
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {Page ? <Suspense fallback={null}><Page /></Suspense> : <App />}
+    <ErrorBoundary>{Page ? <Suspense fallback={null}><Page /></Suspense> : <App />}</ErrorBoundary>
   </React.StrictMode>,
 );

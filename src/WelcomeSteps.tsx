@@ -1,9 +1,10 @@
 import { Mascot as PetArt } from "./Mascot";
+import { useDialog } from "./useDialog";
 import { petLook } from "./mascots";
 import type { Pet } from "./mascots";
 
 // The pop-ups shown after someone creates their mascot, one at a time:
-// first the swipes ("a tua mascote quer conhecer-te"), then what is still missing in the profile.
+// first the swipes ("Summer quer conhecer-te"), then what is still missing in the profile.
 export type WelcomeStep = "swipes" | "profile";
 
 type Props = {
@@ -16,10 +17,11 @@ type Props = {
 };
 
 export function WelcomeSteps({ step, pet, deckSize, missing, onStart, onLater }: Props) {
+  const dialogRef = useDialog<HTMLElement>(onLater);
   const title = step === "swipes" ? `${pet.name} quer conhecer-te` : "Falta pouco para o perfil ficar completo";
   return (
     <div className="welcome-backdrop" role="presentation">
-      <section className="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
+      <section ref={dialogRef} className="welcome-sheet" role="dialog" aria-modal="true" aria-labelledby="welcome-title">
         <div className="welcome-mascot"><PetArt look={petLook(pet)} size={96} /></div>
         <h2 id="welcome-title">{title}</h2>
         {step === "swipes" ? <>

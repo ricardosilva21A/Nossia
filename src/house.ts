@@ -183,7 +183,8 @@ export function monthCells(year: number, month: number): Array<string | null> {
 export type CalendarMark = { kind: "date" | "commitment" | "trip"; title: string };
 
 export type CalendarData = {
-  dates: Array<{ title: string; planned_for: string | null }>;
+  // A date done shows on the day it was done (planned_for is cleared when it's closed).
+  dates: Array<{ title: string; planned_for: string | null; status?: string; completed_at?: string | null }>;
   commitments: Array<{ title: string; event_date: string }>;
   trips: Array<{ title: string; start_date: string; end_date: string }>;
 };
@@ -194,7 +195,10 @@ export function calendarMarks(input: CalendarData, from: string, to: string): Ma
     if (day < from || day > to) return;
     marks.set(day, [...(marks.get(day) ?? []), mark]);
   };
-  for (const date of input.dates) if (date.planned_for) add(date.planned_for.slice(0, 10), { kind: "date", title: date.title });
+  for (const date of input.dates) {
+    const day = date.status === "completed" ? date.completed_at ?? date.planned_for : date.planned_for;
+    if (day) add(day.slice(0, 10), { kind: "date", title: date.title });
+  }
   for (const item of input.commitments) add(item.event_date, { kind: "commitment", title: item.title });
   for (const trip of input.trips) {
     const cursor = new Date(`${trip.start_date}T12:00:00`);

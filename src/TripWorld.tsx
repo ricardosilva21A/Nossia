@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { DialogSection } from "./useDialog";
 import type { ChangeEvent, FormEvent } from "react";
 import { ImagePlus, Plus, Star, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
@@ -215,7 +216,7 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
       </ul>}
 
       {open && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) closeMemory(); }}>
-        <section className="modal-card trip-memory" role="dialog" aria-modal="true" aria-labelledby="trip-memory-title">
+        <DialogSection onClose={busy ? null : closeMemory} className="modal-card trip-memory" aria-labelledby="trip-memory-title">
           <button type="button" className="modal-close" aria-label="Fechar" disabled={busy} onClick={closeMemory}><X size={20} aria-hidden="true" /></button>
           {urlOf(open.cover_photo_path) && <img className="trip-memory-cover" src={urlOf(open.cover_photo_path) as string} alt={`Fotografia de capa de ${open.title}`} />}
           <h2 id="trip-memory-title">{open.title}</h2>
@@ -233,7 +234,7 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
             </figure>)}
           </div>
           <label className="button button-secondary trip-memory-upload"><ImagePlus size={16} aria-hidden="true" />{busy ? "A guardar…" : "Juntar fotografias"}<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple disabled={busy} onChange={(event) => void addPhotos(event)} /></label>
-        </section>
+        </DialogSection>
       </div>}
     </section>
   );

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DialogSection } from "./useDialog";
 import type { ReactNode } from "react";
 import { ArrowRight, Bell, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
@@ -221,7 +222,7 @@ export function TodayView({
           <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
         </> : <>
           <h2>Nada marcado ainda</h2>
-          <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou peçam uma ideia à mascote."}</p>
+          <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou vejam a sugestão no balão da casa."}</p>
         </>}
         {overdueCount > 0 && <button type="button" className="link-button today-overdue" onClick={onOpenPlanned}>{overdueCount === 1 ? "1 date já passou" : `${overdueCount} dates já passaram`}: marquem como feito ou apaguem</button>}
       </section>
@@ -236,11 +237,11 @@ export function TodayView({
       </section>
 
       {adding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setAdding(null); }}>
-        <section className="modal-card today-add-modal" role="dialog" aria-modal="true" aria-labelledby="today-add-title">
+        <DialogSection onClose={busy ? null : () => setAdding(null)} className="modal-card today-add-modal" aria-labelledby="today-add-title">
           <button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setAdding(null)}>×</button>
           <h2 id="today-add-title">{adding === "date" ? "Novo date" : adding === "commitment" ? "Novo compromisso" : "Ideia para depois"}</h2>
           <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} autoFocus onSubmit={onQuickAdd} onSaved={() => setAdding(null)} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
-        </section>
+        </DialogSection>
       </div>}
 
       {weather && <div className="today-weather">{weather}</div>}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useDialog } from "./useDialog";
 import { CalendarDays, ExternalLink, Lightbulb } from "lucide-react";
 import { guessSharedTitle, siteName } from "./share";
 
@@ -24,6 +25,7 @@ export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onCl
   const [when, setWhen] = useState<{ date: string; time: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const dialogRef = useDialog<HTMLElement>(busy ? null : onClose);
 
   // Ask the page for its name; only fills the title if they haven't typed their own.
   useEffect(() => {
@@ -50,7 +52,7 @@ export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onCl
 
   return (
     <div className="welcome-backdrop" role="presentation">
-      <section className="welcome-sheet share-sheet" role="dialog" aria-modal="true" aria-labelledby="share-title">
+      <section ref={dialogRef} className="welcome-sheet share-sheet" role="dialog" aria-modal="true" aria-labelledby="share-title">
         <button type="button" className="zoom-close" aria-label="Fechar" onClick={onClose}>×</button>
         <h2 id="share-title">Bora fazer isto?</h2>
         {url && <a className="share-source" href={url} target="_blank" rel="noreferrer"><ExternalLink size={14} aria-hidden="true" />{siteName(url)}</a>}
