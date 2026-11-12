@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
@@ -59,12 +59,6 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   // A new roll each time the house opens, so the animal is doing something different.
   const [roll] = useState(() => Math.random());
   const mode = useMemo(() => decidePetMode(scene.poses, roll), [roll, scene.poses]);
-  const [happy, setHappy] = useState(false);
-  useEffect(() => {
-    if (!happy) return;
-    const timer = window.setTimeout(() => setHappy(false), 1600);
-    return () => window.clearTimeout(timer);
-  }, [happy]);
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
   const partnerSlot: HomePartner | null = mySlot ? (mySlot === "partner_one" ? "partner_two" : "partner_one") : null;
@@ -93,9 +87,9 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   const away = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.poses[slot] === "away");
 
   const petButton = pet && (
-    <button type="button" className={`house-pet pet-${mode}${happy ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => { setHappy(true); window.setTimeout(() => setSheet("wardrobe"), 450); }}>
-      {happy && <span className="pet-says" aria-hidden="true">Au!</span>}
-      <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed" && !happy} />
+    // One tap, one thing: the wardrobe. The "Au!" comes back with Marta's animations.
+    <button type="button" className={`house-pet pet-${mode}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
+      <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed"} />
       {mode === "ball" && <span className="pet-toy" aria-hidden="true" />}
     </button>
   );

@@ -4,6 +4,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
+import { askHowItWentAt } from "../src/proposals.js";
 import { addDays as addCalendarDays, daysBetween as calendarDaysBetween, describeOpportunity, findOpportunities } from "../src/holidays.js";
 
 declare const process: { env: Record<string, string | undefined> };
@@ -17,7 +18,7 @@ export type ReminderInput = {
   userId: string;
   slot: PartnerSlot;
   couple: { partner_one_name: string; partner_two_name: string; partner_one_birth_date: string | null; partner_two_birth_date: string | null; relationship_date: string; municipality?: string | null };
-  dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string }>;
+  dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string; duration_minutes?: number | null }>;
   commitments: Array<{ id: string; title: string; event_date: string; starts_at: string | null; for_partner: PartnerSlot | null; created_by: string | null; created_at: string }>;
   blocks: Array<{ weekday: number; starts_at: string; ends_at: string; partner_slot?: PartnerSlot }>;
   trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
@@ -100,7 +101,10 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
     if (soon(date.planned_for, date.planned_start_time)) reminders.push({ key: `date-soon:${date.id}:${date.planned_for}`, category: "dates", title: `Daqui a pouco: ${date.title}`, body: details, url: "/hoje" });
     if (date.planned_for === today && !date.planned_start_time && morning) reminders.push({ key: `date-today:${date.id}:${date.planned_for}`, category: "dates", title: "Hoje há date", body: date.title, url: "/hoje" });
     if (date.planned_for === tomorrow && evening) reminders.push({ key: `date-tomorrow:${date.id}:${date.planned_for}`, category: "dates", title: "Amanhã há date", body: [date.title, details].filter(Boolean).join(" · "), url: "/hoje" });
-    if (date.planned_for === yesterday && morning) reminders.push({ key: `date-after:${date.id}:${date.planned_for}`, category: "dates", title: "Como foi o date?", body: `Marquem “${date.title}” como feito e guardem a memória.`, url: "/planned" });
+    // How did it go: an hour after it should have ended, or the next morning when there was no time.
+    const after = askHowItWentAt(date.planned_for, date.planned_start_time, date.duration_minutes ?? null);
+    const overToday = after !== null && after.date === today && minutes >= after.minutes;
+    if (overToday || (date.planned_for === yesterday && morning)) reminders.push({ key: `date-after:${date.id}:${date.planned_for}`, category: "dates", title: `Como correu ${date.title}?`, body: "Três toques e fica guardado nas vossas memórias.", url: `/hoje?fechar=${date.id}` });
     if (date.created_by && date.created_by !== input.userId && recent(date.created_at) && date.planned_for >= today) reminders.push({ key: `date-added:${date.id}`, category: "dates", title: `${otherName} marcou um date`, body: `${date.title}, ${weekdayLabel(date.planned_for)}`, url: "/planned" });
   }
 
@@ -224,7 +228,7 @@ export async function POST(request: Request) {
   const dateFloor = addDays(today, -1);
   const [couples, dates, commitments, blocks, settings, trips] = await Promise.all([
     db.from("couples").select("*").in("id", coupleIds),
-    db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
+    db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title, duration_minutes)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
     db.from("work_schedule_blocks").select("*").in("couple_id", coupleIds),
     db.from("notification_settings").select("*").in("user_id", userIds),
@@ -243,8 +247,9 @@ export async function POST(request: Request) {
       slot: member.partner_slot as PartnerSlot,
       couple,
       dates: (dates.data ?? []).filter((date) => date.couple_id === member.couple_id).map((date) => {
-        const idea = date.ideas as unknown as { title: string } | { title: string }[] | null;
-        return { ...date, title: (Array.isArray(idea) ? idea[0]?.title : idea?.title) ?? "Date" } as ReminderInput["dates"][number];
+        const joined = date.ideas as unknown as { title: string; duration_minutes: number | null } | Array<{ title: string; duration_minutes: number | null }> | null;
+        const idea = Array.isArray(joined) ? joined[0] : joined;
+        return { ...date, title: idea?.title ?? "Date", duration_minutes: idea?.duration_minutes ?? null } as ReminderInput["dates"][number];
       }),
       commitments: (commitments.data ?? []).filter((commitment) => commitment.couple_id === member.couple_id) as ReminderInput["commitments"],
       blocks: (blocks.data ?? []).filter((block) => block.couple_id === member.couple_id) as ReminderInput["blocks"],

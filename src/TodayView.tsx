@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
+import { waitingOnPartner } from "./proposals";
 import type { HouseActions } from "./HouseHero";
 import type { CalendarData, HouseScene, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
@@ -60,6 +61,10 @@ export function TodayView({
   onPlanSuggestion,
   onAnotherSuggestion,
   onMarkDone,
+  proposal,
+  myUserId,
+  onAcceptProposal,
+  onMoveProposal,
   onEditDate,
   onOpenPlaces,
   onOpenPlanned,
@@ -99,6 +104,11 @@ export function TodayView({
   onPlanSuggestion: (idea: DateIdea, date: string) => void;
   onAnotherSuggestion: () => void;
   onMarkDone: (id: string) => void;
+  // A date the other one proposed that this person still has to answer.
+  proposal: DateIdea | null;
+  myUserId: string;
+  onAcceptProposal: (id: string) => Promise<boolean>;
+  onMoveProposal: (id: string, date: string, time: string | null) => Promise<boolean>;
   onEditDate: (id: string) => void;
   onOpenPlaces: () => void;
   onOpenPlanned: () => void;
@@ -106,6 +116,9 @@ export function TodayView({
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
   const [dismissedBack, setDismissedBack] = useState<string | null>(null);
+  const [moving, setMoving] = useState<{ date: string; time: string } | null>(null);
+  const otherSlot = houseActions.mySlot === "partner_two" ? "partner_one" : "partner_two";
+  const otherName = otherSlot === "partner_one" ? partnerOneName : partnerTwoName;
   const now = new Date();
   const today = dateKey(now);
   const [nextDate] = upcomingDates;
@@ -129,7 +142,16 @@ export function TodayView({
   ].sort((first, second) => first.days - second.days).slice(0, 3);
 
   const back = scene.backFromDate && dismissedBack !== scene.backFromDate.id ? scene.backFromDate : null;
-  const bubble = back ? <>
+  const bubble = proposal ? <>
+    <p className="house-bubble-title"><strong>{otherName} propôs {proposal.emoji} {proposal.title}</strong></p>
+    <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{proposal.planned_for ? shortDay(proposal.planned_for) : ""}{proposal.planned_start_time && <><Clock size={16} aria-hidden="true" />{proposal.planned_start_time.slice(0, 5)}</>}</p>
+    {moving ? <form className="proposal-move" onSubmit={(event) => { event.preventDefault(); void onMoveProposal(proposal.id, moving.date, moving.time || null).then((ok) => { if (ok) setMoving(null); }); }}>
+      <label className="form-label">Dia<input className="form-input" type="date" required min={today} value={moving.date} onChange={(event) => setMoving({ ...moving, date: event.target.value })} /></label>
+      <label className="form-label">Hora<input className="form-input" type="time" value={moving.time} onChange={(event) => setMoving({ ...moving, time: event.target.value })} /></label>
+      <div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setMoving(null)}>Voltar</button><button type="submit" className="button button-primary" disabled={busy || !moving.date}>Sugerir a {otherName}</button></div>
+    </form>
+    : <div className="panel-actions"><button type="button" className="button button-primary" disabled={busy} onClick={() => void onAcceptProposal(proposal.id)}><Check size={16} aria-hidden="true" />Aceitar</button><button type="button" className="button button-ghost" onClick={() => setMoving({ date: proposal.planned_for ?? today, time: proposal.planned_start_time?.slice(0, 5) ?? "" })}>Outro dia</button></div>}
+  </> : back ? <>
     <p className="house-bubble-title"><strong>Já voltaram? Como correu {back.title}?</strong></p>
     <p className="panel-copy">Guardem a memória enquanto está fresca. Fotografias e notas são opcionais.</p>
     <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(back.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => setDismissedBack(back.id)}>Ainda não</button></div>
@@ -161,6 +183,7 @@ export function TodayView({
         <p className="panel-label">Próximo date</p>
         {nextDate ? <>
           <h2>{nextDate.emoji} {nextDate.title}</h2>
+          {waitingOnPartner(nextDate, myUserId) && <p className="proposal-tag">À espera de {otherName}</p>}
           <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{nextDate.planned_for ? shortDay(nextDate.planned_for) : "Dia por decidir"}{nextDate.planned_start_time && <><Clock size={16} aria-hidden="true" />{nextDate.planned_start_time.slice(0, 5)}</>}</p>
           {nextDate.location_name && <p className="today-meta"><MapPin size={16} aria-hidden="true" />{nextDate.location_name}</p>}
           <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
