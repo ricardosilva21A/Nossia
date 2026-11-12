@@ -1393,3 +1393,14 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 .gift-list li a{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--cobalt-ink)}
 .gift-list.is-bought li{opacity:.7}
 .gift-actions{display:flex;gap:6px;flex:none}
+
+/* A small sparkle on what can be tapped in the house, until it has been tapped once. */
+.house-room .house-seat.has-hint,.house-room .away-pill.has-hint{position:relative}
+.house-room .has-hint::after{content:"";position:absolute;top:2px;right:2px;width:10px;height:10px;border-radius:50%;background:#E3C07A;box-shadow:0 0 0 2px var(--paper);animation:tap-hint 1.8s ease-in-out infinite;pointer-events:none}
+.house-room .house-spot.has-hint::after{top:6%;right:6%}
+.house-room .house-pet.has-hint::after,.house-room .house-seat.has-hint::after{top:8%;right:14%}
+.house-room.guide-on .has-hint::after{display:none}
+@keyframes tap-hint{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.55}}
+@media (prefers-reduced-motion: reduce){.house-room .has-hint::after{animation:none}}
+.house-room .away-pill.has-hint{padding-right:20px}
+.house-room .away-pill.has-hint::after{top:50%;right:6px;margin-top:-5px;width:8px;height:8px}
