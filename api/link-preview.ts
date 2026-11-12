@@ -34,11 +34,21 @@ function titleFromHtml(html: string) {
   return decode(raw);
 }
 
+// Follows up to 3 redirects by hand, checking each address, so a link can't bounce us somewhere internal.
 async function fetchWithTimeout(url: string, ms: number) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
-    return await fetch(url, { signal: controller.signal, redirect: "follow", headers: { "User-Agent": "Mozilla/5.0 (compatible; NossiaBot/1.0; +https://nossia.vercel.app)", "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.6" } });
+    let current = url;
+    for (let hop = 0; hop <= 3; hop += 1) {
+      const response = await fetch(current, { signal: controller.signal, redirect: "manual", headers: { "User-Agent": "Mozilla/5.0 (compatible; NossiaBot/1.0; +https://nossia.vercel.app)", "Accept-Language": "pt-PT,pt;q=0.9,en;q=0.6" } });
+      const location = response.status >= 300 && response.status < 400 ? response.headers.get("location") : null;
+      if (!location) return { response, url: current };
+      const next = allowed(new URL(location, current).href);
+      if (!next) throw new Error("blocked_redirect");
+      current = next.href;
+    }
+    throw new Error("too_many_redirects");
   } finally {
     clearTimeout(timer);
   }
@@ -62,15 +72,14 @@ export async function GET(request: Request) {
     const oembed = /(^|\.)tiktok\.com$/.test(host) ? `https://www.tiktok.com/oembed?url=${encodeURIComponent(target.href)}`
       : /(^|\.)(youtube\.com|youtu\.be)$/.test(host) ? `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(target.href)}` : null;
     if (oembed) {
-      const response = await fetchWithTimeout(oembed, 4000);
+      const { response } = await fetchWithTimeout(oembed, 4000);
       if (response.ok) {
         const data = await response.json() as { title?: string };
         const title = decode(data.title ?? "");
         return json({ title: generic.test(title) ? null : title.slice(0, 200), url: target.href });
       }
     }
-    const response = await fetchWithTimeout(target.href, 4000);
-    const finalUrl = allowed(response.url)?.href ?? target.href;
+    const { response, url: finalUrl } = await fetchWithTimeout(target.href, 4000);
     const type = response.headers.get("content-type") ?? "";
     if (!response.ok || !type.includes("html")) return json({ title: null, url: finalUrl });
     const html = (await response.text()).slice(0, 300_000);

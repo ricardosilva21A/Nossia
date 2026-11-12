@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDialog } from "./useDialog";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
 import { accessoryOptions, petLook } from "./mascots";
@@ -9,9 +10,10 @@ import type { AffectionKind } from "./affections";
 // Small sheets that open from the house: what you can do with the other person, and the animal's clothes.
 
 function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+  const dialogRef = useDialog<HTMLElement>(onClose);
   return (
     <div className="welcome-backdrop house-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="welcome-sheet house-sheet" role="dialog" aria-modal="true" aria-label={label}>
+      <section ref={dialogRef} className="welcome-sheet house-sheet" role="dialog" aria-modal="true" aria-label={label}>
         <button type="button" className="zoom-close" aria-label="Fechar" onClick={onClose}>×</button>
         {children}
       </section>
@@ -19,7 +21,7 @@ function Sheet({ label, onClose, children }: { label: string; onClose: () => voi
   );
 }
 
-export function AffectionSheet({ name, look, onSend, onClose }: { name: string; look: AvatarLook | null; onSend: (kind: AffectionKind) => Promise<boolean>; onClose: () => void }) {
+export function AffectionSheet({ name, look, notified = null, onSend, onClose }: { name: string; look: AvatarLook | null; notified?: boolean | null; onSend: (kind: AffectionKind) => Promise<boolean>; onClose: () => void }) {
   const [sent, setSent] = useState<AffectionKind | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +45,7 @@ export function AffectionSheet({ name, look, onSend, onClose }: { name: string; 
       {!chosen && <div className="affection-grid">
         {affections.map((item) => <button type="button" key={item.kind} className="affection-option" disabled={busy} onClick={() => void send(item.kind)}><span aria-hidden="true">{item.emoji}</span>{item.label}</button>)}
       </div>}
+      {notified === false && <p className="sheet-note">{name} ainda não tem as notificações ligadas: vê quando abrir a app.</p>}
       {error && <p className="error-alert" role="alert">{error}</p>}
     </Sheet>
   );

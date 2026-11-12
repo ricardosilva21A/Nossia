@@ -82,7 +82,7 @@ export function describeWindows(windows: FreeWindow[]) {
   return windows.map((window) => `${clock(window.start)}–${clock(window.end)}`).join(" · ");
 }
 
-export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, onRemoveCommitment, onUpdateCommitment, onBlocksChange, onFindDate }: { part: "week" | "settings"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void;  onFindDate: () => void }) {
+export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, blocks, commitments, trips, onRemoveCommitment, onUpdateCommitment, onBlocksChange, onFindDate }: { part: "agenda" | "hours" | "settings" | "tasks"; couple: ScheduleCouple; userId: string; mySlot: HomePartner | null; plannedDates: DateIdea[]; blocks: WorkScheduleBlock[]; commitments: CoupleCommitment[]; trips: CoupleTrip[]; busy: boolean; onRemoveCommitment: (id: string) => void; onUpdateCommitment: (id: string, patch: Partial<CoupleCommitment>) => Promise<boolean>; onBlocksChange: (update: (current: WorkScheduleBlock[]) => WorkScheduleBlock[]) => void;  onFindDate: () => void }) {
   const setBlocks = onBlocksChange;
   const [tasks, setTasks] = useState<CoupleTask[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -235,7 +235,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
     <section className="schedule-page" aria-label={"Agenda do casal"}>
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
 
-      {part === "week" && <>
+      {part === "agenda" && <>
       <article className="schedule-card free-time-card">
         <div className="schedule-card-heading"><div><p className="section-kicker">{"PRÓXIMOS 7 DIAS"}</p><h2>{"Quando estão os dois livres"}</h2></div><button type="button" className="add-button" onClick={onFindDate}>{"Encontrar um date"}</button></div>
         {loaded && blocks.length === 0 && <p className="schedule-hint">{"Adicionem o horário de trabalho de cada um, aqui em baixo, para verem só o tempo que têm em comum."}</p>}
@@ -261,8 +261,9 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
         </ul>}
       </article>
 
-      <div className="schedule-columns">
-        <article className="schedule-card">
+      </>}
+
+      {part === "hours" && <article className="schedule-card">
           <p className="section-kicker">{"HORÁRIO DE TRABALHO"}</p>
           <h2>{"A semana de cada um"}</h2>
           {(["partner_one", "partner_two"] as const).map((slot) => {
@@ -281,9 +282,10 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
             <label className="form-label">{"Saída"}<input className="form-input" type="time" required value={blockEnd} onChange={(event) => setBlockEnd(event.target.value)} /></label>
             <button className="modal-submit" type="submit" disabled={busy || blockStart === blockEnd}>{"Adicionar horário"}</button>
           </form>
-        </article>
+        </article>}
 
-        <article className="schedule-card">
+      {/* Tasks: hidden from the app for now (nobody used them); the code stays to bring them back. */}
+      {part === "tasks" && <article className="schedule-card">
           <p className="section-kicker">{"COISAS A FAZER"}</p>
           <h2>{"Tarefas do casal"} <span className="heading-count">{openTasks.length}</span></h2>
           <form className="task-form" onSubmit={(event) => void addTask(event)}>
@@ -306,10 +308,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
           {showDone && <ul className="task-list done-tasks">
             {doneTasks.map((task) => <li key={task.id}><input type="checkbox" checked aria-label={`Voltar a abrir "${task.title}"`} onChange={() => void toggleTask(task)} /><div><strong>{task.title}</strong><small>{assigneeLabel(task)}</small></div><button type="button" aria-label={"Apagar tarefa"} onClick={() => void removeTask(task.id)}>×</button></li>)}
           </ul>}
-        </article>
-      </div>
-
-      </>}
+        </article>}
 
       {part === "settings" && <>
       <article className="schedule-card calendar-sync-card">

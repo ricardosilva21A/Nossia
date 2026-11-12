@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { DialogSection } from "./useDialog";
 import type { ReactNode } from "react";
-import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
+import { ArrowRight, Bell, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
 import { HouseHero } from "./HouseHero";
 import { waitingOnPartner } from "./proposals";
 import type { HouseActions } from "./HouseHero";
 import type { DailyWeather } from "./weather";
+import type { PushStatus } from "./push";
 import type { CalendarData, HouseScene, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
@@ -68,6 +70,10 @@ export function TodayView({
   myUserId,
   onAcceptProposal,
   onMoveProposal,
+  onDeclineProposal,
+  myPush,
+  partnerHasPush,
+  onOpenNotifications,
   onEditDate,
   onOpenPlaces,
   onOpenPlanned,
@@ -114,14 +120,29 @@ export function TodayView({
   myUserId: string;
   onAcceptProposal: (id: string) => Promise<boolean>;
   onMoveProposal: (id: string, date: string, time: string | null) => Promise<boolean>;
+  onDeclineProposal: (id: string) => Promise<boolean>;
+  myPush: PushStatus | null;
+  partnerHasPush: boolean | null;
+  onOpenNotifications: () => void;
   onEditDate: (id: string) => void;
   onOpenPlaces: () => void;
   onOpenPlanned: () => void;
   onOpenAgenda: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
+  const [planDay, setPlanDay] = useState<string | null>(null);
+  if (!adding && planDay) setPlanDay(null);
   const [dismissedBack, setDismissedBack] = useState<string | null>(null);
   const [moving, setMoving] = useState<{ date: string; time: string } | null>(null);
+  // A reminder to turn notifications on, until they do (or wave it away for two weeks).
+  const [pushHidden, setPushHidden] = useState(() => {
+    try { return Number(window.localStorage.getItem("nossia-push-hint") ?? 0) > Date.now(); } catch { return false; }
+  });
+  const pushHint = !pushHidden && (myPush === "off" || myPush === "needs-install" || myPush === "denied");
+  const hidePushHint = () => {
+    setPushHidden(true);
+    try { window.localStorage.setItem("nossia-push-hint", String(Date.now() + 14 * 86400000)); } catch { /* the hint simply shows again next time */ }
+  };
   const otherSlot = houseActions.mySlot === "partner_two" ? "partner_one" : "partner_two";
   const otherName = otherSlot === "partner_one" ? partnerOneName : partnerTwoName;
   const now = new Date();
@@ -155,7 +176,7 @@ export function TodayView({
       <label className="form-label">Hora<input className="form-input" type="time" value={moving.time} onChange={(event) => setMoving({ ...moving, time: event.target.value })} /></label>
       <div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setMoving(null)}>Voltar</button><button type="submit" className="button button-primary" disabled={busy || !moving.date}>Sugerir a {otherName}</button></div>
     </form>
-    : <div className="panel-actions"><button type="button" className="button button-primary" disabled={busy} onClick={() => void onAcceptProposal(proposal.id)}><Check size={16} aria-hidden="true" />Aceitar</button><button type="button" className="button button-ghost" onClick={() => setMoving({ date: proposal.planned_for ?? today, time: proposal.planned_start_time?.slice(0, 5) ?? "" })}>Outro dia</button></div>}
+    : <div className="panel-actions"><button type="button" className="button button-primary" disabled={busy} onClick={() => void onAcceptProposal(proposal.id)}><Check size={16} aria-hidden="true" />Aceitar</button><button type="button" className="button button-ghost" onClick={() => setMoving({ date: proposal.planned_for ?? today, time: proposal.planned_start_time?.slice(0, 5) ?? "" })}>Outro dia</button><button type="button" className="button button-ghost" disabled={busy} onClick={() => void onDeclineProposal(proposal.id)}>Agora não</button></div>}
   </> : back ? <>
     <p className="house-bubble-title"><strong>Já voltaram? Como correu {back.title}?</strong></p>
     <p className="panel-copy">Guardem a memória enquanto está fresca. Fotografias e notas são opcionais.</p>
@@ -177,25 +198,35 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
 
-      {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
-        <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
-        <button type="button" className="button button-ghost today-soon-more" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button>
+      {pushHint && <section className="push-hint" aria-label="Notificações">
+        <Bell size={20} aria-hidden="true" />
+        <p>{myPush === "needs-install"
+          ? <>Põe a Nossia no ecrã principal (Safari › Partilhar › <strong>Adicionar ao ecrã principal</strong>) e abre-a de lá: só assim recebes as propostas e os carinhos de {otherName}.</>
+          : myPush === "denied" ? <>As notificações estão bloqueadas neste telemóvel. Liga-as nas definições do telemóvel para saberes quando {otherName} te propõe um date.</>
+            : <>Liga as notificações para saberes logo quando {otherName} te propõe um date ou manda um carinho.</>}</p>
+        <div className="push-hint-actions">{myPush === "off" && <button type="button" className="button button-primary" onClick={onOpenNotifications}>Ligar</button>}<button type="button" className="button button-ghost" onClick={hidePushHint}>Agora não</button></div>
       </section>}
 
-      <section className="panel today-next" aria-label="Próximo date">
+      {/* One card for what's next: the next date, then whatever else is coming this week. */}
+      <section className="panel today-next" aria-label="A seguir">
         <p className="panel-label">Próximo date</p>
         {nextDate ? <>
           <h2>{nextDate.emoji} {nextDate.title}</h2>
-          {waitingOnPartner(nextDate, myUserId) && <p className="proposal-tag">À espera de {otherName}</p>}
+          {waitingOnPartner(nextDate, myUserId) && <p className="proposal-tag">À espera de {otherName}{partnerHasPush === false ? " · vê quando abrir a app" : ""}</p>}
           <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{nextDate.planned_for ? shortDay(nextDate.planned_for) : "Dia por decidir"}{nextDate.planned_start_time && <><Clock size={16} aria-hidden="true" />{nextDate.planned_start_time.slice(0, 5)}</>}</p>
           {nextDate.location_name && <p className="today-meta"><MapPin size={16} aria-hidden="true" />{nextDate.location_name}</p>}
-          <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button><button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
+          <div className="panel-actions">{(!nextDate.planned_for || nextDate.planned_for <= today) && <button type="button" className="button button-secondary" disabled={busy} onClick={() => onMarkDone(nextDate.id)}><Check size={16} aria-hidden="true" />Já fizemos</button>}<button type="button" className="button button-ghost" onClick={() => onEditDate(nextDate.id)}><Pencil size={16} aria-hidden="true" />Alterar</button></div>
         </> : <>
           <h2>Nada marcado ainda</h2>
-          <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou peçam uma ideia à mascote."}</p>
+          <p className="panel-copy">{firstFreeDay ? `Estão os dois livres ${shortDay(firstFreeDay.key)}.` : "Marquem algo aqui em baixo, ou vejam a sugestão no balão da casa."}</p>
         </>}
+        {soon.length > 0 && <div className="today-soon">
+          <p className="panel-label">Em breve</p>
+          <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
+          <button type="button" className="button button-ghost today-soon-more" onClick={onOpenAgenda}>Agenda<ArrowRight size={16} aria-hidden="true" /></button>
+        </div>}
         {overdueCount > 0 && <button type="button" className="link-button today-overdue" onClick={onOpenPlanned}>{overdueCount === 1 ? "1 date já passou" : `${overdueCount} dates já passaram`}: marquem como feito ou apaguem</button>}
       </section>
 
@@ -209,11 +240,11 @@ export function TodayView({
       </section>
 
       {adding && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setAdding(null); }}>
-        <section className="modal-card today-add-modal" role="dialog" aria-modal="true" aria-labelledby="today-add-title">
+        <DialogSection onClose={busy ? null : () => setAdding(null)} className="modal-card today-add-modal" aria-labelledby="today-add-title">
           <button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setAdding(null)}>×</button>
           <h2 id="today-add-title">{adding === "date" ? "Novo date" : adding === "commitment" ? "Novo compromisso" : "Ideia para depois"}</h2>
-          <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} autoFocus onSubmit={onQuickAdd} onSaved={() => setAdding(null)} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
-        </section>
+          <QuickAddBox key={adding} partnerOneName={partnerOneName} partnerTwoName={partnerTwoName} busy={busy} fixedKind={adding} freeDay={firstFreeDay?.key ?? null} initialDay={planDay} autoFocus onSubmit={onQuickAdd} onSaved={() => { setAdding(null); setPlanDay(null); }} onMoreDetails={(title) => { setAdding(null); onMoreDetails(title); }} onOpenPlaces={() => { setAdding(null); onOpenPlaces(); }} />
+        </DialogSection>
       </div>}
 
       {weather && <div className="today-weather">{weather}</div>}

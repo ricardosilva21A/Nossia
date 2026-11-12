@@ -14,8 +14,10 @@ export function WeatherPanel({
   onSaveLocation,
   onConditionChange,
   onForecastChange,
+  locationOnly = false,
 }: {
-  
+  // In the settings only the place is chosen; the forecast itself lives in the house window.
+  locationOnly?: boolean;
   location: SavedWeatherLocation;
   onSaveLocation: (name: string, latitude: number, longitude: number) => Promise<boolean>;
   onConditionChange: (condition: WeatherCondition) => void;
@@ -113,7 +115,7 @@ export function WeatherPanel({
   return (
     <section className="weather-panel" aria-label={"Meteorologia e localização"}>
       <div className="weather-panel-heading">
-        <div><span className="section-kicker">{"A IDEIA CERTA, AO AR LIVRE OU NÃO"}</span><h2>{"O tempo para os vossos dates"}</h2></div>
+        <div><span className="section-kicker">{locationOnly ? "TEMPO" : "A IDEIA CERTA, AO AR LIVRE OU NÃO"}</span><h2>{locationOnly ? "Onde vivem" : "O tempo para os vossos dates"}</h2></div>
         {location.name && <button className="weather-edit-button" type="button" onClick={() => setShowLocationEditor((visible) => !visible)}>{showLocationEditor ? "Fechar" : "Alterar local"}</button>}
       </div>
       {showLocationPrompt && <div className="weather-location-prompt">
@@ -134,7 +136,7 @@ export function WeatherPanel({
       </div> : location.name ? <div className="weather-summary"><span>⌖ {location.name}</span>{loading && <small>{"A carregar previsão…"}</small>}</div> : null}
       {!location.name && !showLocationPrompt && !showLocationEditor && <button className="weather-edit-button weather-set-location" type="button" onClick={() => setShowLocationEditor(true)}>{"Escolher localização"}</button>}
       {error && <p className="weather-error" role="status">{error}</p>}
-      {today && <>
+      {today && !locationOnly && <>
         <div className="weather-today"><span className="weather-symbol">{weatherEmoji(today.weatherCode)}</span><div><strong>{weatherLabel(today)}</strong><span>{Math.round(today.temperatureMin)}° / {Math.round(today.temperatureMax)}° · {`Chuva ${today.precipitationProbability}%`}</span></div><span className={`weather-condition condition-${condition}`}>{"Adequação avaliada por atividade"}</span></div>
         <p className="weather-context-note">{"Um dia sem chuva não é automaticamente um bom dia para todas as atividades. A app considera os fatores relevantes para cada ideia."}</p>
         <div className="weather-factors" aria-label={"Fatores da previsão"}>
@@ -145,7 +147,7 @@ export function WeatherPanel({
           {today.sunshineHours !== null && <span>{"Sol"} <strong>{today.sunshineHours.toFixed(1)}h</strong></span>}
         </div>
       </>}
-      {forecast.length > 1 && <div className="weather-week">{forecast.slice(1, 5).map((day) => <div className="weather-day" key={day.date}><span>{new Intl.DateTimeFormat("pt-PT", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span><span>{weatherEmoji(day.weatherCode)}</span><strong>{Math.round(day.temperatureMax)}°</strong><small>{day.precipitationProbability}% ☂</small></div>)}</div>}
+      {forecast.length > 1 && !locationOnly && <div className="weather-week">{forecast.slice(1, 5).map((day) => <div className="weather-day" key={day.date}><span>{new Intl.DateTimeFormat("pt-PT", { weekday: "short" }).format(new Date(`${day.date}T12:00:00`))}</span><span>{weatherEmoji(day.weatherCode)}</span><strong>{Math.round(day.temperatureMax)}°</strong><small>{day.precipitationProbability}% ☂</small></div>)}</div>}
       <p className="weather-attribution">{"Previsão fornecida por Open-Meteo. Se não estiver disponível, as sugestões continuam sem filtro meteorológico."}</p>
     </section>
   );

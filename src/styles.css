@@ -1326,3 +1326,46 @@ span.away-pill{cursor:default}
 .share-when{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .share-when .panel-actions{grid-column:1/-1}
 .idea-source{display:inline-block;margin:2px 0 6px;font-size:12px;font-weight:700;color:var(--cobalt-ink)}
+
+/* Proposals in the planned list, and the reminder to turn notifications on. */
+.proposal-card-actions{display:grid;gap:6px;margin:4px 0 6px}
+.proposal-card-actions>div{display:flex;flex-wrap:wrap;gap:6px}
+.sheet-note{margin:12px 0 0;font-size:13px;color:var(--ink-3);text-align:center}
+.push-hint{grid-column:1/-1;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;align-items:start;padding:14px;border-radius:var(--radius-md);background:var(--cobalt-soft);color:var(--ink)}
+.push-hint>svg{color:var(--cobalt-ink);margin-top:2px}
+.push-hint p{margin:0;font-size:14px;line-height:1.45}
+.push-hint-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}
+
+.crash-screen{max-width:420px;margin:15vh auto 0;padding:24px;text-align:center}
+.crash-screen h1{margin:0 0 8px}
+.crash-screen p{color:var(--ink-2)}
+.crash-screen .panel-actions{justify-content:center}
+
+/* "Em breve" now lives inside the next-date card (bordô), so its text turns light. */
+.today-next .today-soon{margin-top:14px;padding:12px 0 0;border-top:1px solid rgba(245,239,198,.28)}
+.today-next .today-soon li,.today-next .today-soon-when,.today-next .today-soon .link-button,.today-next .today-soon-more{color:var(--canvas)}
+.today-next .today-soon-more{border-color:rgba(245,239,198,.4);background:transparent}
+.today-next .today-soon .panel-label{color:var(--canvas);opacity:.8}
+
+/* One map, two halves. */
+.map-switch{display:inline-flex;gap:4px;margin:0 0 12px;padding:4px;border-radius:999px;background:var(--paper)}
+.map-switch button{min-height:40px;padding:0 18px;border:0;border-radius:999px;background:transparent;color:var(--ink-2);font:600 14px "DM Sans",sans-serif;cursor:pointer}
+.map-switch button.active{background:var(--ink);color:#fff}
+
+/* Days on the wall calendar can be tapped. */
+button.wall-day{border:0;background:transparent;font:inherit;cursor:pointer;padding:0}
+button.wall-day.has-trip{background:#F3E2C2}
+button.wall-day.is-selected{background:var(--accent);color:var(--canvas)}
+button.wall-day.is-selected .wall-marks b{color:var(--canvas)}
+button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:1px}
+.world-map-placeholder{aspect-ratio:720/284;width:100%}
+
+/* First-visit guide: everything dims except the thing being shown. */
+.guide-layer{position:fixed;inset:0;z-index:80}
+.guide-spot{position:fixed;border-radius:16px;box-shadow:0 0 0 9999px rgba(35,24,21,.6);transition:all .3s ease;pointer-events:none}
+.guide-card{position:fixed;left:16px;right:16px;max-width:420px;margin:0 auto;display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:start;padding:14px;border-radius:var(--radius-md);background:var(--paper);box-shadow:0 18px 40px rgba(35,24,21,.3)}
+.guide-card p{margin:0;font-size:15px;line-height:1.45;color:var(--ink)}
+.guide-pet svg{display:block}
+.guide-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.guide-count{margin-right:auto;font-size:12px;font-weight:700;color:var(--ink-3)}
+@media (prefers-reduced-motion: reduce){.guide-spot{transition:none}}

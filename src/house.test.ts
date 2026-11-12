@@ -135,7 +135,7 @@ describe("wall calendar", () => {
 
   it("marks dates, commitments and every day of a trip inside the page", () => {
     const marks = calendarMarks({
-      dates: [{ title: "Jantar", planned_for: "2026-11-14T20:00:00" }, { title: "Sem dia", planned_for: null }],
+      dates: [{ title: "Jantar", planned_for: "2026-11-14T20:00:00" }, { title: "Sem dia", planned_for: null }, { title: "Feito", planned_for: null, status: "completed", completed_at: "2026-11-03" }],
       commitments: [{ title: "Dentista", event_date: "2026-11-14" }],
       trips: [{ title: "Lisboa", start_date: "2026-11-29", end_date: "2026-12-02" }],
     }, "2026-11-01", "2026-11-30");
@@ -143,5 +143,6 @@ describe("wall calendar", () => {
     expect(marks.get("2026-11-29")).toEqual([{ kind: "trip", title: "Lisboa" }]);
     expect(marks.get("2026-11-30")).toHaveLength(1);
     expect(marks.has("2026-12-01")).toBe(false);
+    expect(marks.get("2026-11-03")).toEqual([{ kind: "date", title: "Feito" }]);
   });
 });

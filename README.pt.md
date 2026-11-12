@@ -28,16 +28,16 @@ Guias: [Guia de utilização](./docs/guia-de-utilizacao.md) · [User guide](./do
 
 | Área | O que faz |
 |---|---|
-| **Casa** | A mascote de cada pessoa numa casa partilhada que reage ao tempo, à época, aos horários e aos dates. |
-| **Hoje** | Próximo date, sugestões de acordo com a época e o tempo, e uma caixa que percebe frases como "Jantar sexta às 20h". |
+| **Casa** | Os avatares dos dois e a Summer, o animal da casa, numa sala que reage ao tempo, à época, aos horários e aos dates. A janela mostra o tempo, o mapa na parede as viagens e o calendário os planos. Toca no teu par para mandar um carinho. |
+| **Hoje** | Propostas para aceitar, o próximo date, sugestões de acordo com a época e o tempo, e uma caixa que percebe frases como "Jantar sexta às 20h". |
 | **Gostos** | Cada pessoa escolhe ideias em privado. O que os dois passam desaparece e o que os dois gostam vem primeiro. |
-| **Ideias** | Catálogo partilhado, favoritas, sorteio, perguntas para escolher pelo feeling e importação de CSV/XLSX. |
-| **Eventos** | Eventos reais a menos de 60 km do casal, inseridos no admin e marcados com um toque. |
+| **Ideias** | Catálogo partilhado, sorteio, perguntas para escolher pelo feeling, links partilhados de outras apps e importação de CSV/XLSX. |
+| **Eventos** | Eventos reais a menos de 60 km do casal, inseridos no admin e marcados com um toque. O separador só aparece quando há eventos. |
 | **Sítios** | Procura restaurantes, cafés e bares com o OpenStreetMap e separa-os em queremos ir, aprovados e não repetir. |
-| **Agenda** | Dates marcados, calendário, horários de trabalho, tempo livre em comum, compromissos e tarefas. |
+| **Agenda** | Dates marcados e propostas, compromissos e tempo livre em comum. Um date marcado por um é uma proposta até o outro aceitar. |
 | **Pontes** | Feriados nacionais e municipais transformados em fins de semana prolongados e pontes que encaixam nos horários dos dois, com aviso três semanas antes. |
 | **Viagens** | Guias de destinos, planos por dia, pesquisa de voos a partir do aeroporto do casal e mapa-mundo das viagens com fotografias. |
-| **Memórias** | Notas, fotografias, se querem repetir, o que viram e o que comeram. |
+| **Memórias** | Fecho em três toques (😍 🙂 😐, fotografia), notas, o que viram e o que comeram. Mapa dos dates e das viagens. |
 | **Par** | Cada pessoa tem a sua conta, ligada através de um convite de utilização única. |
 | **Notificações** | Lembretes web push e um calendário iCal privado para o iPhone. |
 | **Conta** | Guia inicial, política de privacidade e apagar conta. |

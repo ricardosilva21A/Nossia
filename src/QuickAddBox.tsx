@@ -36,7 +36,7 @@ const kinds: Array<{ value: QuickKind; label: string; button: string }> = [
 const previewKinds: Record<QuickKind, string> = { date: "Date", commitment: "Compromisso", idea: "Ideia", done: "Já feito" };
 
 // One box for everything: type a sentence and the day, time and kind are worked out from it.
-export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind = "date", fixedKind, freeDay, autoFocus = false, onSubmit, onSaved, onMoreDetails, onOpenPlaces }: {
+export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind = "date", fixedKind, freeDay, initialDay = null, autoFocus = false, onSubmit, onSaved, onMoreDetails, onOpenPlaces }: {
   partnerOneName: string;
   partnerTwoName: string;
   busy: boolean;
@@ -45,6 +45,8 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
   fixedKind?: QuickKind;
   // The next day both are free, offered as a choice beside Hoje and Amanhã.
   freeDay?: string | null;
+  // A day already picked (on the wall calendar).
+  initialDay?: string | null;
   autoFocus?: boolean;
   onSubmit: (value: QuickAddValue) => Promise<boolean>;
   onSaved?: () => void;
@@ -58,7 +60,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
   const suggestedDay = freeDay && freeDay > tomorrow ? freeDay : saturday;
   const [text, setText] = useState("");
   const [chosenKind, setChosenKind] = useState<QuickKind | null>(null);
-  const [chosenDay, setChosenDay] = useState<string | null>(null);
+  const [chosenDay, setChosenDay] = useState<string | null>(initialDay);
   const [otherDay, setOtherDay] = useState(false);
   const [chosenTime, setChosenTime] = useState<string | null>(null);
   const [forPartner, setForPartner] = useState<HomePartner | null>(null);

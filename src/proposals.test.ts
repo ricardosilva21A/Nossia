@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { askHowItWentAt, proposalMessage, proposalsForMe, waitingOnPartner } from "./proposals";
+import { askHowItWentAt, needsNewAgreement, proposalMessage, proposalsForMe, startsAsProposal, waitingOnPartner } from "./proposals";
 
 const base = { status: "planned", planned_for: "2026-11-14", proposal: "proposed" as const };
 
@@ -26,5 +26,26 @@ describe("date proposals", () => {
     expect(askHowItWentAt("2026-11-14", "20:00", 120)).toEqual({ date: "2026-11-14", minutes: 20 * 60 + 180 });
     expect(askHowItWentAt("2026-11-14", "10:00", null)?.minutes).toBe(600 + 180);
     expect(askHowItWentAt("2026-11-14", null, 90)).toBeNull();
+  });
+});
+
+describe("when a date needs the other one's yes", () => {
+  it("only proposes dates that have a day, and only with the other one in the app", () => {
+    expect(startsAsProposal(true, "2026-11-14")).toBe(true);
+    expect(startsAsProposal(true, null)).toBe(false);
+    expect(startsAsProposal(false, "2026-11-14")).toBe(false);
+  });
+
+  it("asks again when the day or the time changes", () => {
+    const before = { planned_for: "2026-11-14", planned_start_time: "20:00:00" };
+    expect(needsNewAgreement(true, before, { planned_for: "2026-11-14", planned_start_time: "20:00" })).toBe(false);
+    expect(needsNewAgreement(true, before, { planned_for: "2026-11-15", planned_start_time: "20:00" })).toBe(true);
+    expect(needsNewAgreement(true, before, { planned_for: "2026-11-14", planned_start_time: "21:00" })).toBe(true);
+    expect(needsNewAgreement(true, before, { planned_for: null, planned_start_time: null })).toBe(false);
+    expect(needsNewAgreement(false, before, { planned_for: "2026-11-15", planned_start_time: null })).toBe(false);
+  });
+
+  it("tells the proposer when the other says not now", () => {
+    expect(proposalMessage("declined", "Marta", "Cinema", "2026-11-15", null)).toEqual({ title: "🙈 Marta disse que agora não", body: "Cinema · domingo, 15 de novembro. Que tal outro dia?" });
   });
 });

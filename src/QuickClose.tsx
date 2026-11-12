@@ -1,14 +1,11 @@
 import { useState } from "react";
+import { useDialog } from "./useDialog";
 import { Camera, Check } from "lucide-react";
+import { verdicts } from "./verdicts";
 
 // Closing a date in three taps: how it went, a photo if they want, done. The full memory
 // (notes, place, would you repeat) stays one tap away for whoever wants to write more.
 
-const verdicts = [
-  { rating: 5, emoji: "😍", label: "Adorámos" },
-  { rating: 4, emoji: "🙂", label: "Foi bom" },
-  { rating: 3, emoji: "😐", label: "Mais ou menos" },
-];
 
 type Props = {
   title: string;
@@ -19,6 +16,7 @@ type Props = {
 };
 
 export function QuickClose({ title, emoji, onSave, onWriteMore, onClose }: Props) {
+  const dialogRef = useDialog<HTMLElement>(onClose);
   const [rating, setRating] = useState<number | null>(null);
   const [step, setStep] = useState<"rating" | "photo" | "done">("rating");
   const [busy, setBusy] = useState(false);
@@ -36,7 +34,7 @@ export function QuickClose({ title, emoji, onSave, onWriteMore, onClose }: Props
 
   return (
     <div className="welcome-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget && step !== "photo") onClose(); }}>
-      <section className="welcome-sheet quick-close" role="dialog" aria-modal="true" aria-labelledby="quick-close-title">
+      <section ref={dialogRef} className="welcome-sheet quick-close" role="dialog" aria-modal="true" aria-labelledby="quick-close-title">
         <button type="button" className="zoom-close" aria-label="Fechar" onClick={onClose}>×</button>
         <p className="quick-close-step" aria-hidden="true">{step === "rating" ? "1" : step === "photo" ? "2" : "3"} de 3</p>
         {step === "rating" && <>

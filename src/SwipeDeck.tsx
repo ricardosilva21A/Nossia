@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useDialog } from "./useDialog";
 import type { PointerEvent } from "react";
 import { Heart, X } from "lucide-react";
 import type { DateIdea } from "./types";
@@ -6,6 +7,7 @@ import type { DateIdea } from "./types";
 const swipeDistance = 90;
 
 export function SwipeDeck({ deck, onVote, onClose }: { deck: DateIdea[]; onVote: (idea: DateIdea, vote: "like" | "pass") => Promise<boolean>; onClose: () => void }) {
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
   const [index, setIndex] = useState(0);
   const [dragX, setDragX] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ export function SwipeDeck({ deck, onVote, onClose }: { deck: DateIdea[]; onVote:
   }
 
   return (
-    <div className="onboarding swipe-screen" role="dialog" aria-modal="true" aria-label="Escolher ideias">
+    <div ref={dialogRef} className="onboarding swipe-screen" role="dialog" aria-modal="true" aria-label="Escolher ideias">
       <div className="onboarding-card">
         {idea ? <>
           <div className="swipe-head"><p className="swipe-progress">{index + 1} de {deck.length}</p><button type="button" className="button button-ghost" onClick={onClose}>Agora não</button></div>
@@ -57,7 +59,7 @@ export function SwipeDeck({ deck, onVote, onClose }: { deck: DateIdea[]; onVote:
           <div className="swipe-actions"><button type="button" className="button button-ghost" disabled={saving} onClick={() => void vote("pass")}><X size={20} aria-hidden="true" />Passo</button><button type="button" className="button button-primary" disabled={saving} onClick={() => void vote("like")}><Heart size={20} aria-hidden="true" />Gosto</button></div>
         </> : <>
           <h1>Obrigado!</h1>
-          <p className="modal-copy">A mascote já vos conhece um pouco melhor. Podem mudar de ideias nas Definições.</p>
+          <p className="modal-copy">A casa já vos conhece um pouco melhor. Podem mudar de ideias nas Definições.</p>
           <div className="onboarding-actions panel-actions"><button type="button" className="button button-primary" onClick={onClose}>Voltar</button></div>
         </>}
       </div>

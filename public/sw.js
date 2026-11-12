@@ -23,7 +23,8 @@ self.addEventListener("notificationclick", (event) => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     const open = windows[0];
     if (open) {
-      await open.navigate(url).catch(() => undefined);
+      // The app is already open: tell it where to go instead of reloading it.
+      open.postMessage({ type: "nossia-open", url });
       return open.focus();
     }
     return self.clients.openWindow(url);
