@@ -38,6 +38,10 @@ Viste um sítio no Instagram, TikTok, WhatsApp ou Maps? Copia o link e cola-o em
 
 Em **Explorar › Ideias**, vejam o catálogo, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
 
+## Prendas
+
+Em **Nós › Prendas** guardas ideias de prendas para o teu par ao longo do ano: o nome, um link e uma nota. Só tu vês a tua lista; o teu par nunca a vê. Mostra quanto falta para os anos, o aniversário de namoro e o Natal, e o lembrete de uma semana antes diz quantas ideias tens guardadas. Também podes guardar um link partilhado como **Prenda**.
+
 ## Restaurantes e sítios
 
 Em **Explorar › Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram.

@@ -75,6 +75,16 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   const mode = useMemo(() => decidePetMode(scene.poses, roll), [roll, scene.poses]);
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
+  // A small sparkle on each thing that can be tapped, until it has been tapped once (per phone).
+  const [tapped, setTapped] = useState<Set<string>>(readTapped);
+  const hint = (key: string) => (tapped.has(key) ? "" : " has-hint");
+  const noteTap = (event: MouseEvent<HTMLElement>) => {
+    const key = (event.target as HTMLElement).closest<HTMLElement>("[data-guide]")?.dataset.guide;
+    if (!key || tapped.has(key)) return;
+    const next = new Set(tapped).add(key);
+    setTapped(next);
+    saveTapped(next);
+  };
   // Wait until the room, the people and the animal are drawn before pointing at them.
   const [guideReady, setGuideReady] = useState(false);
   useEffect(() => {
@@ -117,7 +127,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
     if (pose === "away") return null;
     if (!mascot) return <div className="house-seat" key={slot}><span className="mascot-waiting" aria-label={`À espera de ${names[slot]}`}>?</span></div>;
     return (
-      <button type="button" data-guide={slot === mySlot ? "me" : "partner"} className={`house-seat pose-${pose}`} key={slot} aria-label={personLabel(slot, doing || "em casa")} onClick={() => tapPerson(slot)}>
+      <button type="button" data-guide={slot === mySlot ? "me" : "partner"} className={`house-seat pose-${pose}${hint(slot === mySlot ? "me" : "partner")}`} key={slot} aria-label={personLabel(slot, doing || "em casa")} onClick={() => tapPerson(slot)}>
         <Avatar look={avatarOf(mascot) ?? defaultAvatar} outfit={scene.outfit} size={72} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />
         {doing && <small>{short(doing)}</small>}
       </button>
@@ -127,7 +137,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   const petButton = pet && (
     // One tap, one thing: the wardrobe. The "Au!" comes back with Marta's animations.
-    <button type="button" data-guide="pet" className={`house-pet pet-${mode}${barking ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
+    <button type="button" data-guide="pet" className={`house-pet pet-${mode}${hint("pet")}${barking ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
       {barking && <span className="pet-says" aria-hidden="true">{pet.species === "cat" ? "Miau!" : pet.species === "rabbit" ? "♥" : "Au!"}</span>}
       <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed"} />
       {mode === "ball" && <span className="pet-toy" aria-hidden="true" />}
@@ -136,7 +146,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   return (
     <section className="house" aria-label="A vossa casa">
-      <div className="house-room">
+      <div className={`house-room${guideReady ? " guide-on" : ""}`} onClickCapture={noteTap}>
         <svg className="house-art" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1080" height="400" fill="#f4e8d4" />
           <rect y="400" width="1080" height="120" fill="#d8bd97" />
@@ -175,13 +185,13 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
           ? <div className="house-away"><span className="away-pill">♥ Os dois em date · {scene.dateNow.title}</span></div>
           : <>
             <div className="house-seats">{seat("partner_one")}{mode === "sofa" && petButton}{seat("partner_two")}</div>
-            {away.length > 0 && <div className="house-away">{away.map((slot) => <button type="button" key={slot} data-guide={slot === mySlot ? "me" : "partner"} className="away-pill" aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}</div>}
+            {away.length > 0 && <div className="house-away">{away.map((slot) => <button type="button" key={slot} data-guide={slot === mySlot ? "me" : "partner"} className={`away-pill${hint(slot === mySlot ? "me" : "partner")}`} aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}</div>}
           </>}
         {mode !== "sofa" && petButton}
-        <button type="button" data-guide="map" className="house-spot spot-map" aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
-        <button type="button" data-guide="calendar" className="house-spot spot-calendar" aria-label="Ver o calendário de perto" onClick={open("calendar")} />
+        <button type="button" data-guide="map" className={`house-spot spot-map${hint("map")}`} aria-label={placedPast.length ? `Mapa-mundo com pins em ${placedPast.map((pin) => pin.title).join(", ")}. Ver de perto` : "Mapa-mundo das viagens. Ver de perto"} onClick={open("map")} />
+        <button type="button" data-guide="calendar" className={`house-spot spot-calendar${hint("calendar")}`} aria-label="Ver o calendário de perto" onClick={open("calendar")} />
         {forecast[0] && <span className="house-weather" aria-hidden="true">{weatherEmoji(forecast[0].weatherCode)} {Math.round(forecast[0].temperatureMax)}°</span>}
-        <button type="button" data-guide="window" className="house-spot spot-window" aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
+        <button type="button" data-guide="window" className={`house-spot spot-window${hint("window")}`} aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
       </div>
       <div className="house-bubble" data-guide="bubble">{bubble}</div>
       {guideReady && <HouseGuide pet={pet} names={{ me: mySlot ? names[mySlot] : "", partner: partnerSlot ? names[partnerSlot] : "" }} onDone={finishGuide} />}
@@ -198,4 +208,21 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
       </ZoomOverlay>}
     </section>
   );
+}
+
+const tappedKey = "nossia-house-tapped";
+function readTapped() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(tappedKey) ?? "[]");
+    return new Set<string>(Array.isArray(saved) ? saved.filter((item): item is string => typeof item === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+function saveTapped(keys: Set<string>) {
+  try {
+    window.localStorage.setItem(tappedKey, JSON.stringify([...keys]));
+  } catch {
+    // Blocked storage: the sparkles come back next visit, which is harmless.
+  }
 }

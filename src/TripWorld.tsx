@@ -4,7 +4,10 @@ import type { ChangeEvent, FormEvent } from "react";
 import { ImagePlus, Plus, Star, Trash2, X } from "lucide-react";
 import { supabase } from "./lib/supabase";
 import { destinationGuides, findGuide } from "./destinations";
-import type { CoupleTrip, TripPhoto } from "./types";
+import type { CoupleTrip, DateIdea, TripPhoto } from "./types";
+
+export type MapFilter = "all" | "dates" | "trips";
+type MapDate = Pick<DateIdea, "id" | "title" | "status" | "planned_for" | "completed_at" | "location_name" | "latitude" | "longitude">;
 
 const LazyTripWorldMap = lazy(() => import("./TripWorldMap").then((module) => ({ default: module.TripWorldMap })));
 
@@ -22,7 +25,9 @@ function longDate(date: string) {
 
 const imageExtensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
 
-export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChange }: { coupleId: string; trips: CoupleTrip[]; openTripId: string | null; onOpenTrip: (id: string | null) => void; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void }) {
+// The couple's map: past trips (with their photos and memories) and the places of their dates,
+// in one map with one layout. The filter picks what shows.
+export function TripWorld({ coupleId, trips, dates = [], filter = "all", onFilter, onPinDate, openTripId, onOpenTrip, onTripsChange }: { coupleId: string; trips: CoupleTrip[]; dates?: MapDate[]; filter?: MapFilter; onFilter?: (filter: MapFilter) => void; onPinDate?: (id: string) => void; openTripId: string | null; onOpenTrip: (id: string | null) => void; onTripsChange: (update: (current: CoupleTrip[]) => CoupleTrip[]) => void }) {
   const [photos, setPhotos] = useState<ShownPhoto[]>([]);
   const [city, setCity] = useState("");
   const [start, setStart] = useState("");
@@ -100,6 +105,21 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
     coverUrl: photos.find((photo) => photo.storage_path === trip.cover_photo_path)?.url ?? null,
     emoji: findGuide(trip.title)?.flag ?? "✈️",
   }] : []), [past, photos]);
+
+  const datedList = useMemo(() => dates
+    .filter((date) => date.status === "planned" || date.status === "completed")
+    .map((date) => ({ ...date, day: date.status === "completed" ? date.completed_at : date.planned_for }))
+    .sort((first, second) => (second.day ?? "").localeCompare(first.day ?? "")), [dates]);
+  const datePins = useMemo(() => datedList.flatMap((date) => date.latitude !== null && date.longitude !== null ? [{
+    id: date.id,
+    title: date.title,
+    latitude: date.latitude,
+    longitude: date.longitude,
+    when: date.day ? longDate(date.day) : "Dia por decidir",
+    place: date.location_name,
+  }] : []), [datedList]);
+  const showTrips = filter !== "dates";
+  const showDates = filter !== "trips";
 
   async function addPastTrip(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -190,12 +210,16 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
   }
 
   return (
-    <section className="trip-world" aria-label="Mapa das viagens">
+    <section className="trip-world" aria-label="O vosso mapa">
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
+      {onFilter && <div className="map-switch" role="group" aria-label="O que mostrar no mapa">
+        {([["all", "Tudo"], ["dates", `Dates · ${datePins.length}`], ["trips", `Viagens · ${pins.length}`]] as Array<[MapFilter, string]>).map(([value, label]) => <button type="button" key={value} className={filter === value ? "active" : ""} aria-pressed={filter === value} onClick={() => onFilter(value)}>{label}</button>)}
+      </div>}
       <div className="trip-world-frame">
-        <Suspense fallback={<div className="map-loading">A abrir o mapa…</div>}><LazyTripWorldMap pins={pins} onOpen={onOpenTrip} /></Suspense>
+        <Suspense fallback={<div className="map-loading">A abrir o mapa…</div>}><LazyTripWorldMap pins={showTrips ? pins : []} datePins={showDates ? datePins : []} onOpen={onOpenTrip} /></Suspense>
       </div>
 
+      {showTrips && <>
       {adding ? <form className="panel trip-past-form" onSubmit={(event) => void addPastTrip(event)}>
         <label className="form-label">Para onde foram?<input className="form-input" list="past-trip-guides" required maxLength={120} value={city} onChange={(event) => setCity(event.target.value)} /></label>
         <datalist id="past-trip-guides">{destinationGuides.map((guide) => <option key={guide.city} value={guide.city}>{guide.country}</option>)}</datalist>
@@ -213,6 +237,17 @@ export function TripWorld({ coupleId, trips, openTripId, onOpenTrip, onTripsChan
           <span className="trip-world-thumb">{urlOf(trip.cover_photo_path) ? <img src={urlOf(trip.cover_photo_path) as string} alt="" /> : findGuide(trip.title)?.flag ?? "✈️"}</span>
           <span><strong>{trip.title}</strong><small>{longDate(trip.start_date)}</small></span>
         </button></li>)}
+      </ul>}
+      </>}
+
+      {showDates && datedList.length > 0 && <ul className="trip-world-list map-dates-list" aria-label="Dates">
+        {datedList.map((date) => <li key={date.id}>
+          <div className="map-date-row">
+            <span className="trip-world-thumb" aria-hidden="true">♥</span>
+            <span><strong>{date.title}</strong><small>{date.day ? longDate(date.day) : "Dia por decidir"}{date.location_name ? ` · ${date.location_name}` : ""}</small></span>
+            {date.latitude === null && onPinDate ? <button type="button" className="button button-ghost" onClick={() => onPinDate(date.id)}>Pôr no mapa</button> : <small>{date.status === "completed" ? "Memória" : "Planeado"}</small>}
+          </div>
+        </li>)}
       </ul>}
 
       {open && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) closeMemory(); }}>

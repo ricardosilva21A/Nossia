@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDialog } from "./useDialog";
-import { CalendarDays, ExternalLink, Lightbulb } from "lucide-react";
+import { CalendarDays, ExternalLink, Gift, Lightbulb } from "lucide-react";
 import { guessSharedTitle, siteName } from "./share";
 
 // What opens when something is shared into the app (or a link is pasted): name it, then keep it
@@ -15,10 +15,12 @@ type Props = {
   today: string;
   readTitle: (url: string) => Promise<{ title: string | null; url: string } | null>;
   onSave: (plan: SharedPlan) => Promise<boolean>;
+  // A gift idea for the other one goes to the secret list instead of the shared ideas.
+  onSaveGift?: (gift: { title: string; url: string | null }) => Promise<boolean>;
   onClose: () => void;
 };
 
-export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onClose }: Props) {
+export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onSaveGift, onClose }: Props) {
   const [url, setUrl] = useState(shared.url);
   const [title, setTitle] = useState(() => guessSharedTitle(shared));
   const [touched, setTouched] = useState(false);
@@ -39,6 +41,16 @@ export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onCl
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shared.url]);
+
+  async function saveGift() {
+    if (!onSaveGift || !title.trim()) return;
+    setBusy(true);
+    setError("");
+    const ok = await onSaveGift({ title: title.trim(), url });
+    setBusy(false);
+    if (ok) onClose();
+    else setError("Não foi possível guardar. Tenta outra vez.");
+  }
 
   async function save(withDay: boolean) {
     if (!title.trim()) return;
@@ -64,6 +76,7 @@ export function ShareSheet({ shared, partnerName, today, readTitle, onSave, onCl
         </div> : <div className="share-actions">
           <button type="button" className="share-choice" disabled={busy || !title.trim()} onClick={() => void save(false)}><Lightbulb size={20} aria-hidden="true" /><strong>Guardar para depois</strong><small>Fica nas vossas ideias</small></button>
           <button type="button" className="share-choice" disabled={busy || !title.trim()} onClick={() => setWhen({ date: today, time: "" })}><CalendarDays size={20} aria-hidden="true" /><strong>Marcar um dia</strong><small>{partnerName ? `${partnerName} recebe a proposta` : "Fica na agenda"}</small></button>
+          {onSaveGift && partnerName && <button type="button" className="share-choice share-gift" disabled={busy || !title.trim()} onClick={() => void saveGift()}><Gift size={20} aria-hidden="true" /><strong>Prenda para {partnerName}</strong><small>Fica na tua lista secreta</small></button>}
         </div>}
         {error && <p className="error-alert" role="alert">{error}</p>}
       </section>
