@@ -65,6 +65,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
   const [message, setMessage] = useState("");
 
   const parsed = useMemo(() => parseQuickText(text), [text]);
+  const hasLink = /https?:\/\//i.test(text);
   const kind = fixedKind ?? chosenKind ?? (defaultKind === "commitment" ? "commitment" : defaultKind === "idea" && !parsed.date ? "idea" : parsed.kind);
   const day = kind === "idea" ? null : chosenDay ?? parsed.date ?? (otherDay ? null : kind === "done" ? today : suggestedDay);
   const time = chosenTime ?? parsed.startTime ?? "";
@@ -81,14 +82,15 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
   const showDateInput = otherDay || (day !== null && !onChip);
   const dayWord = (key: string) => key === today ? "hoje" : key === tomorrow ? "amanhã" : longDay(key);
   const submitLabel = kind === "date" && day ? `Marcar para ${dayWord(day)}${time ? ` às ${time.slice(0, 5)}` : ""}` : kinds.find((item) => item.value === kind)?.button ?? "Guardar";
-  const canSubmit = !busy && parsed.title.length > 0 && (kind === "idea" || day !== null);
+  const canSubmit = !busy && (hasLink || (parsed.title.length > 0 && (kind === "idea" || day !== null)));
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!canSubmit) return;
     const saved = await onSubmit({
-      kind,
-      title: parsed.title,
+      // A pasted link goes through untouched; the app turns it into a shared post.
+      kind: hasLink ? "idea" : kind,
+      title: hasLink ? text.trim() : parsed.title,
       date: day,
       startTime: kind === "idea" ? null : time || null,
       endTime: kind === "commitment" && chosenTime === null ? parsed.endTime : null,
@@ -110,7 +112,7 @@ export function QuickAddBox({ partnerOneName, partnerTwoName, busy, defaultKind 
 
   return (
     <form className="quick-add" onSubmit={(event) => void submit(event)}>
-      <input className="form-input quick-add-input" required maxLength={160} autoFocus={autoFocus} aria-label={fixedKind === "commitment" ? "Que compromisso" : fixedKind === "idea" ? "Que ideia" : "O que querem marcar"} placeholder={fixedKind === "commitment" ? "ex.: Dentista" : fixedKind === "idea" ? "ex.: Aula de cerâmica" : "ex.: Jantar sushi"} value={text} onChange={(event) => { setText(event.target.value); setMessage(""); }} />
+      <input className="form-input quick-add-input" required maxLength={hasLink ? 1000 : 160} autoFocus={autoFocus} aria-label={fixedKind === "commitment" ? "Que compromisso" : fixedKind === "idea" ? "Que ideia" : "O que querem marcar"} placeholder={fixedKind === "commitment" ? "ex.: Dentista" : fixedKind === "idea" ? "ex.: Aula de cerâmica, ou cola um link" : "ex.: Jantar sushi"} value={text} onChange={(event) => { setText(event.target.value); setMessage(""); }} />
       {parsed.title && <p className="quick-preview" role="status"><strong>{previewKinds[kind]}</strong>{day && kind !== "idea" ? ` · ${longDay(day)}` : ""}{time && kind !== "idea" ? ` · ${time}` : ""}{kind === "commitment" ? ` · ${forPartner === "partner_one" ? partnerOneName : forPartner === "partner_two" ? partnerTwoName : "os dois"}` : ""}</p>}
       {!fixedKind && <div className="chip-row" role="group" aria-label="Tipo">
         {kinds.map((item) => <button type="button" key={item.value} className={`chip ${kind === item.value ? "selected" : ""}`} aria-pressed={kind === item.value} onClick={() => setChosenKind(item.value)}>{item.label}</button>)}

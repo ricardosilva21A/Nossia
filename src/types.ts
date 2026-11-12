@@ -33,6 +33,8 @@ export type IdeaDetails = {
   seasons: SeasonKey[];
   repeatable: boolean;
   tags: string[];
+  // The post or page it came from, when it was shared into the app.
+  source_url?: string | null;
   activity?: Activity;
   special?: boolean;
 };
