@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { track } from "./usage";
 import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
@@ -80,6 +81,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   const hint = (key: string) => (tapped.has(key) ? "" : " has-hint");
   const noteTap = (event: MouseEvent<HTMLElement>) => {
     const key = (event.target as HTMLElement).closest<HTMLElement>("[data-guide]")?.dataset.guide;
+    if (key) track(`tap:${key}`);
     if (!key || tapped.has(key)) return;
     const next = new Set(tapped).add(key);
     setTapped(next);

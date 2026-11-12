@@ -5,12 +5,15 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { askHowItWentAt } from "../src/proposals.js";
+import { monthSummary, previousMonth, summaryLine } from "../src/monthSummary.js";
+import { fetchNudgeForecast, weatherNudge } from "../src/weatherNudge.js";
+import type { NudgeDay } from "../src/weatherNudge.js";
 import { addDays as addCalendarDays, daysBetween as calendarDaysBetween, describeOpportunity, findOpportunities } from "../src/holidays.js";
 
 declare const process: { env: Record<string, string | undefined> };
 
 type PartnerSlot = "partner_one" | "partner_two";
-type Category = "dates" | "commitments" | "nudges" | "special_dates";
+type Category = "dates" | "commitments" | "nudges" | "special_dates" | "weather";
 
 export type Reminder = { key: string; category: Category; title: string; body: string; url: string };
 
@@ -18,12 +21,17 @@ export type ReminderInput = {
   userId: string;
   slot: PartnerSlot;
   couple: { partner_one_name: string; partner_two_name: string; partner_one_birth_date: string | null; partner_two_birth_date: string | null; relationship_date: string; municipality?: string | null };
-  dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string; duration_minutes?: number | null }>;
+  dates: Array<{ id: string; title: string; planned_for: string; planned_start_time: string | null; location_name: string | null; created_by: string | null; created_at: string; duration_minutes?: number | null; weather_setting?: string | null }>;
   commitments: Array<{ id: string; title: string; event_date: string; starts_at: string | null; for_partner: PartnerSlot | null; created_by: string | null; created_at: string }>;
   blocks: Array<{ weekday: number; starts_at: string; ends_at: string; partner_slot?: PartnerSlot }>;
   trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
   // How many gift ideas this person has saved and not bought yet (their secret list).
   giftIdeas?: number;
+  // The month that just ended, for the review on the 1st.
+  lastMonth?: { label: string; line: string; month: string } | null;
+  // Where they live, the next days, and outdoor ideas they saved: for the weather that changes a plan.
+  forecast?: NudgeDay[];
+  outdoorIdeas?: string[];
 };
 
 const timeZone = "Europe/Lisbon";
@@ -130,6 +138,15 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
     if (!planned && freeDay) reminders.push({ key: `nudge:${saturday}`, category: "nudges", title: "Ainda não há nada marcado para o fim de semana", body: `${freeDay === saturday ? "Sábado" : "Domingo"} estão livres. Vejam a sugestão da Nossia.`, url: "/hoje" });
   }
 
+  if (morning && input.forecast?.length) {
+    const nudge = weatherNudge({ today, forecast: input.forecast, dates: input.dates, outdoorIdeas: input.outdoorIdeas ?? [], isFree: (date) => hasFreeTime(input.blocks, date) && !(input.trips ?? []).some((trip) => trip.start_date <= date && trip.end_date >= date) });
+    if (nudge) reminders.push({ ...nudge, category: "weather" });
+  }
+
+  if (morning && today.endsWith("-01") && input.lastMonth) {
+    reminders.push({ key: `month:${input.lastMonth.month}`, category: "dates", title: `O vosso ${input.lastMonth.label}`, body: `${input.lastMonth.line}. Vejam o resumo.`, url: "/insights" });
+  }
+
   if (morning) {
     // Three weeks ahead is enough to ask for the day off.
     const slotted = input.blocks.flatMap((block) => block.partner_slot ? [{ partner_slot: block.partner_slot, weekday: block.weekday }] : []);
@@ -228,17 +245,37 @@ export async function POST(request: Request) {
   if (membersError) return json({ error: membersError.message }, 500);
   const coupleIds = [...new Set((members ?? []).map((member) => member.couple_id as string))];
   const dateFloor = addDays(today, -1);
-  const [couples, dates, commitments, blocks, settings, trips, gifts] = await Promise.all([
+  const [couples, dates, commitments, blocks, settings, trips, gifts, monthDates, outdoor, monthTrips] = await Promise.all([
     db.from("couples").select("*").in("id", coupleIds),
-    db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title, duration_minutes)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
+    db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title, duration_minutes, weather_setting)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
     db.from("work_schedule_blocks").select("*").in("couple_id", coupleIds),
     db.from("notification_settings").select("*").in("user_id", userIds),
     db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", dateFloor),
     db.from("gift_ideas").select("owner").in("owner", userIds).is("bought_at", null),
+    // Only on the 1st: last month's dates and trips, for the month review.
+    today.endsWith("-01")
+      ? db.from("couple_dates").select("id, couple_id, status, completed_at, rating, location_name, ideas(title, emoji)").in("couple_id", coupleIds).eq("status", "completed").gte("completed_at", `${previousMonth(today)}-01`).lt("completed_at", today)
+      : Promise.resolve({ data: [], error: null }),
+    db.from("ideas").select("created_by_couple_id, title, created_at").in("created_by_couple_id", coupleIds).eq("weather_setting", "outdoor").order("created_at", { ascending: false }),
+    today.endsWith("-01") ? db.from("couple_trips").select("couple_id, title, end_date").in("couple_id", coupleIds).gte("end_date", `${previousMonth(today)}-01`).lt("end_date", today) : Promise.resolve({ data: [], error: null }),
   ]);
   const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error ?? trips.error;
   if (loadError) return json({ error: loadError.message }, 500);
+
+  // The forecast where each couple lives, fetched only in the morning hours the weather note can go out.
+  const forecasts = new Map<string, NudgeDay[]>();
+  const clock = lisbonClock(now);
+  if (clock.hour >= 10 && clock.hour < 12) {
+    await Promise.all((couples.data ?? []).map(async (couple) => {
+      if (couple.weather_latitude == null || couple.weather_longitude == null) return;
+      try {
+        forecasts.set(couple.id, await fetchNudgeForecast(couple.weather_latitude, couple.weather_longitude));
+      } catch {
+        // No forecast this hour: no weather note, everything else goes out as usual.
+      }
+    }));
+  }
 
   let sent = 0;
   for (const member of members ?? []) {
@@ -250,14 +287,27 @@ export async function POST(request: Request) {
       slot: member.partner_slot as PartnerSlot,
       couple,
       dates: (dates.data ?? []).filter((date) => date.couple_id === member.couple_id).map((date) => {
-        const joined = date.ideas as unknown as { title: string; duration_minutes: number | null } | Array<{ title: string; duration_minutes: number | null }> | null;
+        const joined = date.ideas as unknown as { title: string; duration_minutes: number | null; weather_setting: string | null } | Array<{ title: string; duration_minutes: number | null; weather_setting: string | null }> | null;
         const idea = Array.isArray(joined) ? joined[0] : joined;
-        return { ...date, title: idea?.title ?? "Date", duration_minutes: idea?.duration_minutes ?? null } as ReminderInput["dates"][number];
+        return { ...date, title: idea?.title ?? "Date", duration_minutes: idea?.duration_minutes ?? null, weather_setting: idea?.weather_setting ?? null } as ReminderInput["dates"][number];
       }),
       commitments: (commitments.data ?? []).filter((commitment) => commitment.couple_id === member.couple_id) as ReminderInput["commitments"],
       blocks: (blocks.data ?? []).filter((block) => block.couple_id === member.couple_id) as ReminderInput["blocks"],
       trips: (trips.data ?? []).filter((trip) => trip.couple_id === member.couple_id) as ReminderInput["trips"],
       giftIdeas: (gifts.data ?? []).filter((gift) => gift.owner === member.user_id).length,
+      forecast: forecasts.get(member.couple_id),
+      outdoorIdeas: ((outdoor.data ?? []) as Array<{ created_by_couple_id: string; title: string }>).filter((idea) => idea.created_by_couple_id === member.couple_id).map((idea) => idea.title),
+      lastMonth: (() => {
+        const done = ((monthDates.data ?? []) as Array<{ id: string; couple_id: string; status: string; completed_at: string | null; rating: number | null; location_name: string | null; ideas: unknown }>)
+          .filter((date) => date.couple_id === member.couple_id)
+          .map((date) => {
+            const joined = date.ideas as { title: string; emoji: string } | Array<{ title: string; emoji: string }> | null;
+            const idea = Array.isArray(joined) ? joined[0] : joined;
+            return { ...date, title: idea?.title ?? "Date", emoji: idea?.emoji ?? "" };
+          });
+        const summary = monthSummary(previousMonth(today), done, ((monthTrips.data ?? []) as Array<{ couple_id: string; title: string; end_date: string }>).filter((trip) => trip.couple_id === member.couple_id), new Map());
+        return summary ? { label: summary.label, line: summaryLine(summary), month: summary.month } : null;
+      })(),
     }, now).filter((reminder) => preferences?.[reminder.category] ?? true);
 
     let sentToUser = 0;
@@ -284,5 +334,7 @@ export async function POST(request: Request) {
   }
 
   await db.from("notification_log").delete().lt("sent_at", new Date(now.getTime() - 90 * 86400000).toISOString());
+  // Usage counts are kept for six months.
+  await db.from("app_events").delete().lt("created_at", new Date(now.getTime() - 180 * 86400000).toISOString());
   return json({ users: userIds.length, sent, failures });
 }

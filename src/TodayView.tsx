@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "./usage";
 import { DialogSection } from "./useDialog";
 import type { ReactNode } from "react";
 import { ArrowRight, Bell, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Pencil, Shuffle } from "lucide-react";
@@ -7,6 +8,8 @@ import { waitingOnPartner } from "./proposals";
 import type { HouseActions } from "./HouseHero";
 import type { DailyWeather } from "./weather";
 import type { PushStatus } from "./push";
+import { summaryLine } from "./monthSummary";
+import type { MonthSummary } from "./monthSummary";
 import type { CalendarData, HouseScene, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
@@ -74,6 +77,8 @@ export function TodayView({
   myPush,
   partnerHasPush,
   onOpenNotifications,
+  monthSummary,
+  onOpenInsights,
   onEditDate,
   onOpenPlaces,
   onOpenPlanned,
@@ -124,6 +129,9 @@ export function TodayView({
   myPush: PushStatus | null;
   partnerHasPush: boolean | null;
   onOpenNotifications: () => void;
+  // The month that just ended, shown for the first week of the new one.
+  monthSummary: MonthSummary | null;
+  onOpenInsights: () => void;
   onEditDate: (id: string) => void;
   onOpenPlaces: () => void;
   onOpenPlanned: () => void;
@@ -138,6 +146,14 @@ export function TodayView({
   const [pushHidden, setPushHidden] = useState(() => {
     try { return Number(window.localStorage.getItem("nossia-push-hint") ?? 0) > Date.now(); } catch { return false; }
   });
+  const [monthHidden, setMonthHidden] = useState(() => {
+    try { return monthSummary ? window.localStorage.getItem("nossia-month-seen") === monthSummary.month : true; } catch { return false; }
+  });
+  const showMonth = monthSummary && !monthHidden && new Date().getDate() <= 7;
+  const hideMonth = () => {
+    setMonthHidden(true);
+    try { if (monthSummary) window.localStorage.setItem("nossia-month-seen", monthSummary.month); } catch { /* shows again next time */ }
+  };
   const pushHint = !pushHidden && (myPush === "off" || myPush === "needs-install" || myPush === "denied");
   const hidePushHint = () => {
     setPushHidden(true);
@@ -199,6 +215,13 @@ export function TodayView({
   return (
     <div className="today-grid">
       <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
+
+      {showMonth && monthSummary && <section className="month-card" aria-label={`O vosso ${monthSummary.label}`}>
+        <p className="panel-label">O vosso {monthSummary.label}</p>
+        <h2>{summaryLine(monthSummary)}</h2>
+        {monthSummary.favorite && <p className="panel-copy">O favorito: {monthSummary.favorite.emoji} {monthSummary.favorite.title}</p>}
+        <div className="panel-actions"><button type="button" className="button button-ghost" onClick={hideMonth}>Fechar</button><button type="button" className="button button-primary" onClick={() => { hideMonth(); track("month:opened"); onOpenInsights(); }}>Ver mais</button></div>
+      </section>}
 
       {pushHint && <section className="push-hint" aria-label="Notificações">
         <Bell size={20} aria-hidden="true" />

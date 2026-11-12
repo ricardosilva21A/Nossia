@@ -4,15 +4,16 @@ import { supabase } from "./lib/supabase";
 import { devicePushStatus, vapidPublicKey } from "./push";
 
 type Status = "checking" | "not-configured" | "unsupported" | "needs-install" | "denied" | "off" | "on";
-type Preferences = { dates: boolean; commitments: boolean; nudges: boolean; special_dates: boolean; affection: boolean };
+type Preferences = { dates: boolean; commitments: boolean; nudges: boolean; special_dates: boolean; affection: boolean; weather: boolean };
 
-const defaults: Preferences = { dates: true, commitments: true, nudges: true, special_dates: true, affection: true };
+const defaults: Preferences = { dates: true, commitments: true, nudges: true, special_dates: true, affection: true, weather: true };
 const options: Array<{ key: keyof Preferences; label: string; hint: string }> = [
   { key: "dates", label: "Dates", hint: "Na véspera, pouco antes, e depois para contarem como foi" },
   { key: "commitments", label: "Compromissos", hint: "Na véspera e pouco antes" },
   { key: "nudges", label: "Marcar o fim de semana", hint: "À quinta, se estiverem livres e sem nada marcado" },
   { key: "special_dates", label: "Datas especiais", hint: "Aniversário de namoro e anos, uma semana antes e na véspera" },
   { key: "affection", label: "Carinhos", hint: "Quando o teu par te manda um beijo, um abraço ou um aceno" },
+  { key: "weather", label: "Tempo", hint: "Só quando muda um plano (chuva num date ao ar livre, um fim de semana de sol livre), no máximo uma vez por semana" },
 ];
 
 function keyBytes(base64: string) {
@@ -35,7 +36,7 @@ export function NotificationSettings({ userId }: { userId: string }) {
       const next: Status = await devicePushStatus();
       if (!active) return;
       setStatus(next);
-      const { data } = await supabase?.from("notification_settings").select("dates, commitments, nudges, special_dates, affection").eq("user_id", userId).maybeSingle() ?? { data: null };
+      const { data } = await supabase?.from("notification_settings").select("dates, commitments, nudges, special_dates, affection, weather").eq("user_id", userId).maybeSingle() ?? { data: null };
       if (active && data) setPreferences(data as Preferences);
     })().catch(() => { if (active) setStatus("unsupported"); });
     return () => { active = false; };

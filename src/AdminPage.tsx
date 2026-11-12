@@ -217,6 +217,7 @@ function AdminDashboard({ email }: { email: string }) {
         <div className="admin-tiles">{tiles.map(([label, value, detail]) => <article className="admin-tile" key={label}><strong>{value ?? "—"}</strong><span>{label}</span>{detail && <small>{detail}</small>}</article>)}</div>
         {overview && <div className="admin-weeks"><h2>Novas contas por semana</h2><ol>{overview.signups_by_week.map((week) => <li key={week.week}><span className="admin-week-label">{week.week.slice(8)}/{week.week.slice(5, 7)}</span><span className="admin-week-bar" style={{ width: `${(week.count / biggestWeek) * 100}%` }} /><span>{week.count}</span></li>)}</ol></div>}
       </section>
+      <AdminUsage />
       <div className="chip-row" role="tablist" aria-label="Gerir">{([["catalog", "Catálogo de ideias"], ["events", "Eventos"]] as const).map(([value, label]) => <button type="button" role="tab" key={value} aria-selected={tab === value} className={`chip ${tab === value ? "selected" : ""}`} onClick={() => setTab(value)}>{label}</button>)}</div>
       {tab === "events" ? <AdminEvents /> : <section className="admin-catalog" aria-label="Catálogo">
         <div className="admin-catalog-head"><h2>Catálogo ({ideas.length})</h2><input className="form-input" type="search" placeholder="Procurar ideia" aria-label="Procurar ideia" value={search} onChange={(event) => setSearch(event.target.value)} /><button type="button" className="button button-primary" onClick={() => setDraft(emptyDraft)}><Plus size={16} aria-hidden="true" />Nova ideia</button></div>
@@ -254,4 +255,27 @@ export default function AdminPage() {
     return <main className="admin-center"><div className="admin-card"><h1>Sem acesso</h1><p>Esta conta não é de administração.</p><button type="button" className="button button-primary admin-wide" onClick={() => void supabase?.auth.signOut()}>Sair</button></div></main>;
   }
   return <AdminDashboard email={session.user.email ?? ""} />;
+}
+
+type UsageRow = { name: string; uses: number; devices: number; last_used: string };
+
+// What gets used, by name: totals and how many devices, so unused parts can be simplified or cut.
+function AdminUsage() {
+  const [days, setDays] = useState(30);
+  const [rows, setRows] = useState<UsageRow[] | null>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    void supabase.rpc("usage_overview", { days }).then(({ data }) => { if (active) setRows((data ?? []) as UsageRow[]); });
+    return () => { active = false; };
+  }, [days]);
+  return (
+    <section className="admin-usage" aria-label="Uso da aplicação">
+      <div className="admin-catalog-head"><h2>Uso da app</h2><div className="chip-row" role="group" aria-label="Período">{[7, 30, 90].map((value) => <button type="button" key={value} className={`chip ${days === value ? "selected" : ""}`} aria-pressed={days === value} onClick={() => setDays(value)}>{value} dias</button>)}</div></div>
+      {rows === null ? <p className="admin-note">A carregar…</p> : rows.length === 0 ? <p className="admin-note">Ainda sem dados neste período.</p>
+        : <table className="admin-usage-table"><thead><tr><th>O quê</th><th>Vezes</th><th>Dispositivos</th><th>Última vez</th></tr></thead><tbody>
+          {rows.map((row) => <tr key={row.name}><td>{row.name}</td><td>{row.uses}</td><td>{row.devices}</td><td>{new Intl.DateTimeFormat("pt-PT", { day: "numeric", month: "short" }).format(new Date(row.last_used))}</td></tr>)}
+        </tbody></table>}
+    </section>
+  );
 }

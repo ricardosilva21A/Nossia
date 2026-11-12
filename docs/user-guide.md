@@ -70,6 +70,10 @@ In **Definições**, under **As minhas férias** (my holidays), each person says
 
 In **Definições**, turn on notifications and choose what you want (dates, commitments, affection…). On iPhone they only work with Nossia on the Home Screen; Today reminds you until they're on. In the same settings you can subscribe to your dates in the iPhone calendar.
 
+## Month review and weather
+
+On the 1st you get a review of the month that ended (dates, 😍, trips), which also shows on Today during the first week and in **Nós › Números**. Weather notes only come when they change a plan: rain on an outdoor date, or a sunny weekend when you're both free, at most once a week. Turn them off in **Definições**, under **Tempo**.
+
 ## Deleting the account
 
 It's in **Definições**. If your partner has an account, the couple's data stays with them. If it's just you, everything is deleted, including photos.

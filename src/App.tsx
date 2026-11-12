@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { setUsageAllowed, track, usageAllowed } from "./usage";
 import type { ChangeEvent, FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
@@ -18,6 +19,7 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { monthSummary, previousMonth } from "./monthSummary";
 import { IdeaCard } from "./IdeaCard";
 import { InsightsPanel } from "./InsightsPanel";
 import type { IdeaCardActions } from "./IdeaCard";
@@ -407,6 +409,7 @@ function App() {
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
   const [guideSeen, setGuideSeen] = useState(true);
+  const [shareUsage, setShareUsage] = useState(usageAllowed);
   const [syncTick, setSyncTick] = useState(0);
   const clock = useClock();
   const { myPush, partnerHasPush } = usePushStatus(couple?.id, `${syncTick}:${view}`);
@@ -765,6 +768,11 @@ function App() {
     const days = sharedFreeDays(workBlocks, plannedDates, commitments, trips, 60);
     return { free: new Set(days.filter((day) => day.dates.length === 0 && longestWindow(day.windows) >= 360).map((day) => day.key)), end: days[days.length - 1].key };
   }, [commitments, plannedDates, trips, workBlocks]);
+  const lastMonth = useMemo(() => {
+    const photosByDate = new Map<string, number>();
+    photos.forEach((photo) => photosByDate.set(photo.date_id, (photosByDate.get(photo.date_id) ?? 0) + 1));
+    return monthSummary(previousMonth(localDateString()), ideas.filter((idea) => idea.status === "completed"), trips, photosByDate);
+  }, [ideas, photos, trips]);
   const deckAvailable = useMemo(() => buildDeck(ideas, votes, localDateString(), new Date()), [ideas, votes]);
   const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
@@ -1068,7 +1076,10 @@ function App() {
     if (error) setDataError(`Não foi possível planear o date: ${error.message}`);
     else {
       setDates((current) => [...current, data as CoupleDate]);
-      if ((data as CoupleDate).proposal === "proposed") void notifyPartner("/api/proposal", { id: (data as CoupleDate).id, event: "proposed" });
+      if ((data as CoupleDate).proposal === "proposed") {
+        track("proposal:sent");
+        void notifyPartner("/api/proposal", { id: (data as CoupleDate).id, event: "proposed" });
+      }
     }
     setBusy(false);
     return !error;
@@ -1077,7 +1088,10 @@ function App() {
 
   async function acceptProposal(id: string) {
     const saved = await updateDate(id, { proposal: "confirmed" });
-    if (saved) void notifyPartner("/api/proposal", { id, event: "accepted" });
+    if (saved) {
+      track("proposal:accepted");
+      void notifyPartner("/api/proposal", { id, event: "accepted" });
+    }
     return saved;
   }
 
@@ -1093,13 +1107,17 @@ function App() {
       return false;
     }
     setDates((current) => current.filter((date) => date.id !== id));
+    track("proposal:declined");
     return true;
   }
 
   async function moveProposal(id: string, date: string, time: string | null) {
     if (!session) return false;
     const saved = await updateDate(id, { planned_for: date, planned_start_time: time, proposal: "proposed", proposed_by: session.user.id });
-    if (saved) void notifyPartner("/api/proposal", { id, event: "moved" });
+    if (saved) {
+      track("proposal:moved");
+      void notifyPartner("/api/proposal", { id, event: "moved" });
+    }
     return saved;
   }
 
@@ -1115,6 +1133,7 @@ function App() {
     const day = current.planned_for && current.planned_for <= localDateString() ? current.planned_for : localDateString();
     const saved = await updateDate(id, { status: "completed", completed_at: day, planned_for: null, rating, would_repeat: verdicts.find((verdict) => verdict.rating === rating)?.wouldRepeat ?? null, proposal: "confirmed" });
     if (!saved) return false;
+    track(photo ? "date:closed_photo" : "date:closed");
     if (photo && ["image/jpeg", "image/png", "image/webp", "image/gif"].includes(photo.type) && photo.size <= 10 * 1024 * 1024) {
       const storagePath = `${couple.id}/${id}/${crypto.randomUUID()}.${photo.type.split("/")[1]}`;
       const { error: uploadError } = await supabase.storage.from("date-photos").upload(storagePath, photo, { cacheControl: "3600", contentType: photo.type, upsert: false });
@@ -1644,6 +1663,7 @@ function App() {
     if (pastedUrl) {
       setQuickAddOpen(false);
       setShared({ title: null, text: value.title, url: pastedUrl });
+      track("share:pasted");
       return true;
     }
     const exact = catalog.some((idea) => plain(idea.title) === plain(value.title));
@@ -1754,6 +1774,11 @@ function App() {
     setRouteTick((tick) => tick + 1);
   });
 
+  // Which screens get opened (by name only; see usage.ts).
+  useEffect(() => {
+    if (session) track(`view:${view}`);
+  }, [view, session?.user.id]);
+
   // Old addresses of folded screens land on their new place.
   useEffect(() => {
     const target = foldedViews[view];
@@ -1775,6 +1800,7 @@ function App() {
       const { data } = await supabase.from("ideas").update({ source_url: plan.url }).eq("id", ideaId).eq("created_by_couple_id", couple.id).select("*").maybeSingle();
       if (data) setCatalog((current) => current.some((idea) => idea.id === ideaId) ? current.map((idea) => idea.id === ideaId ? data as Idea : idea) : [...current, data as Idea]);
     }
+    track(plan.date ? "share:saved_date" : "share:saved_idea");
     if (plan.date) return createDate(ideaId, { planned_for: plan.date, planned_start_time: plan.time });
     return true;
   }
@@ -2132,6 +2158,8 @@ function App() {
             myPush={myPush}
             partnerHasPush={partnerJoined ? partnerHasPush : null}
             onOpenNotifications={() => navigateView("settings")}
+            monthSummary={lastMonth}
+            onOpenInsights={() => navigateView("insights")}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
@@ -2191,13 +2219,13 @@ function App() {
             setModal("location");
           }} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><article className="schedule-card settings-usage"><h2>Ajudar a melhorar a Nossia</h2><p className="schedule-hint">Contamos que partes da app são usadas (por exemplo, "abriu o mapa"), sem nomes, títulos, mensagens nem locais, para saber o que simplificar.</p><label className="settings-toggle"><input type="checkbox" checked={shareUsage} onChange={(event) => { setShareUsage(event.target.checked); setUsageAllowed(event.target.checked); }} />Partilhar contagens anónimas de uso</label></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
           </section>}
 
-          {view === "insights" && <InsightsPanel completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
+          {view === "insights" && <InsightsPanel monthSummary={lastMonth} completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
           {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
@@ -2215,7 +2243,7 @@ function App() {
       {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><DialogSection onClose={busy ? null : () => setQuickAddOpen(false)} className="modal-card quick-add-modal" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></DialogSection></div>}
-      {shared && couple && <ShareSheet shared={shared} partnerName={partnerJoined && mySlot ? (mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name) : null} today={localDateString()} readTitle={readLinkTitle} onSave={saveShared} onSaveGift={async (gift) => { if (!supabase) return false; const { error } = await supabase.from("gift_ideas").insert({ couple_id: couple.id, title: gift.title, url: gift.url }); return !error; }} onClose={() => setShared(null)} />}
+      {shared && couple && <ShareSheet shared={shared} partnerName={partnerJoined && mySlot ? (mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name) : null} today={localDateString()} readTitle={readLinkTitle} onSave={saveShared} onSaveGift={async (gift) => { if (!supabase) return false; const { error } = await supabase.from("gift_ideas").insert({ couple_id: couple.id, title: gift.title, url: gift.url }); if (!error) track("share:saved_gift"); return !error; }} onClose={() => setShared(null)} />}
       {quickCloseId && (() => {
         const closing = ideas.find((idea) => idea.id === quickCloseId);
         return closing ? <QuickClose title={closing.title} emoji={closing.emoji} onSave={saveQuickClose} onWriteMore={writeMoreAfterQuickClose} onClose={() => setQuickCloseId(null)} /> : null;

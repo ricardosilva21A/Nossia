@@ -1,6 +1,8 @@
 import { activities, activityLabel } from "./activities";
 import type { Activity } from "./activities";
 import type { HomePartner } from "./types";
+import { summaryLine } from "./monthSummary";
+import type { MonthSummary } from "./monthSummary";
 
 // Nós › Números: what they have done together, in a few numbers and their favourite kinds of date.
 
@@ -18,15 +20,17 @@ export type CompletedStats = {
 export type MoodStats = { total: number; activities: Array<{ activity: Activity; count: number }>; top: Array<{ activity: Activity; count: number }> };
 
 type Props = {
+  monthSummary?: MonthSummary | null;
   completedStats: CompletedStats;
   completedMoodStats: MoodStats;
   mostFrequentHome: { partner: HomePartner; count: number } | null;
   couple: { partner_one_name: string; partner_two_name: string };
 };
 
-export function InsightsPanel({ completedStats, completedMoodStats, mostFrequentHome, couple }: Props) {
+export function InsightsPanel({ monthSummary = null, completedStats, completedMoodStats, mostFrequentHome, couple }: Props) {
   return (
     <section className="insights-panel" aria-label={"Estatísticas dos dates"}>
+      {monthSummary && <div className="month-review"><p className="panel-label">O vosso {monthSummary.label}</p><h2>{summaryLine(monthSummary)}</h2><ul>{monthSummary.favorite && <li>Favorito: {monthSummary.favorite.emoji} {monthSummary.favorite.title}</li>}{monthSummary.places > 0 && <li>{monthSummary.places} {monthSummary.places === 1 ? "sítio" : "sítios"}</li>}{monthSummary.photos > 0 && <li>{monthSummary.photos} {monthSummary.photos === 1 ? "fotografia" : "fotografias"}</li>}</ul></div>}
               <div className="insights-total"><span className="stat-icon green">♡</span><div><strong>{completedMoodStats.total}</strong><span>dates feitos juntos</span></div></div>
               <div className="insights-metrics">
                 <article className="insight-metric"><span>✳</span><div><strong>{completedStats.uniqueActivities}</strong><small>atividades diferentes</small></div></article>
