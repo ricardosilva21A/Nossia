@@ -1293,3 +1293,36 @@ span.away-pill{cursor:default}
 .quick-close .welcome-actions{justify-content:center}
 .quick-close label.button{cursor:pointer;display:inline-flex;align-items:center;gap:6px}
 .quick-close-done{display:grid;place-items:center;width:64px;height:64px;margin:4px auto 8px;border-radius:50%;background:var(--accent);color:var(--canvas)}
+
+/* Today's weather sits on the window; tapping the window opens the next days. */
+.house-weather{position:absolute;left:9%;top:13.5%;z-index:1;padding:2px 8px;border-radius:999px;background:rgba(255,253,243,.92);color:var(--ink);font:700 clamp(10px,2.8cqw,13px)/1.4 "DM Sans",sans-serif;box-shadow:0 1px 3px rgba(35,24,21,.15);pointer-events:none;white-space:nowrap}
+.zoom-panel.zoom-weather{width:min(100%,420px)}
+.wall-weather{display:grid;gap:12px;margin-top:20px}
+.weather-today{display:flex;align-items:center;gap:14px;padding:14px;border-radius:18px;background:var(--cobalt-soft)}
+.weather-today-emoji{font-size:48px;line-height:1}
+.weather-today>div>strong{display:block;font-size:30px;line-height:1.1;color:var(--ink)}
+.weather-today strong small{font-size:18px;color:var(--ink-3);font-weight:600}
+.weather-today .panel-copy{margin:2px 0 0}
+.weather-days{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.weather-days li{display:grid;grid-template-columns:1fr 32px 44px 72px;align-items:center;gap:6px;padding:8px 4px;border-bottom:1px solid var(--line);font-size:15px}
+.weather-days li:last-child{border-bottom:0}
+.weather-day-name{display:grid;font-weight:600}
+.weather-day-name small{font-weight:500;color:var(--ink-3);text-transform:none}
+.weather-days li>span:nth-child(2){font-size:22px;text-align:center}
+.weather-day-rain{font-size:12px;font-weight:700;color:var(--cobalt-ink);text-align:right}
+.weather-day-temp{text-align:right;color:var(--ink-3)}
+.weather-day-temp strong{color:var(--ink)}
+
+/* Shared into the app: name it, then keep it or put a day on it. */
+.share-sheet{position:relative;padding-top:28px;text-align:left}
+.share-sheet h2{text-align:center}
+.share-source{display:inline-flex;align-items:center;gap:6px;margin:0 auto 10px;padding:4px 12px;border-radius:999px;background:var(--canvas);color:var(--ink-2);font-size:13px;font-weight:700;text-decoration:none}
+.share-sheet .share-source{display:flex;width:max-content}
+.share-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.share-choice{display:grid;justify-items:start;gap:2px;min-height:96px;padding:12px;border:1px solid var(--line);border-radius:18px;background:var(--paper);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.share-choice svg{color:var(--accent);margin-bottom:4px}
+.share-choice small{color:var(--ink-3)}
+.share-choice:disabled{opacity:.5;cursor:default}
+.share-when{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.share-when .panel-actions{grid-column:1/-1}
+.idea-source{display:inline-block;margin:2px 0 6px;font-size:12px;font-weight:700;color:var(--cobalt-ink)}

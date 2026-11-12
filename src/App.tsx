@@ -21,6 +21,9 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { proposalsForMe } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { ShareSheet } from "./ShareSheet";
+import type { Shared, SharedPlan } from "./ShareSheet";
+import { firstUrl, siteName } from "./share";
 import type { AffectionKind } from "./affections";
 import { RoamingPet, readPetRoams, savePetRoams } from "./RoamingPet";
 import { WelcomeSteps, readSeenWelcome, saveSeenWelcome } from "./WelcomeSteps";
@@ -126,6 +129,7 @@ function viewFromPath(pathname: string): View {
   const routes: Record<string, View> = {
     "": "today",
     hoje: "today",
+    partilhar: "today",
     today: "today",
     dates: "discover",
     ideias: "discover",
@@ -224,6 +228,7 @@ function buildDateIdeas(catalog: Idea[], dates: CoupleDate[], favoriteIdeaIds: S
     seasons: idea.seasons ?? [],
     tags: idea.tags ?? [],
     repeatable: idea.repeatable ?? false,
+    source_url: idea.source_url ?? null,
     favorite: favoriteIdeaIds.has(idea.id),
     is_own_idea: idea.created_by_couple_id !== null && idea.created_by_couple_id === coupleId,
   });
@@ -388,6 +393,13 @@ function App() {
   const [editingPet, setEditingPet] = useState(false);
   const [petRoams, setPetRoams] = useState(readPetRoams);
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
+  // Something shared into the app from another one (Instagram, TikTok, WhatsApp, Maps), or a pasted link.
+  const [shared, setShared] = useState<Shared | null>(() => {
+    if (window.location.pathname.replace(/\/+$/, "") !== "/partilhar") return null;
+    const params = new URLSearchParams(window.location.search);
+    const value = { title: params.get("title"), text: params.get("text"), url: firstUrl(params.get("url"), params.get("text"), params.get("title")) };
+    return value.url || value.text || value.title ? value : null;
+  });
   const [incoming, setIncoming] = useState<{ id: string; kind: AffectionKind } | null>(null);
   const [syncTick, setSyncTick] = useState(0);
   const [votes, setVotes] = useState<Vote[]>([]);
@@ -1620,6 +1632,13 @@ function App() {
       setCommitments((current) => [...current, data as CoupleCommitment]);
       return true;
     }
+    // A pasted link becomes a shared post: it gets a name from the page and keeps the link.
+    const pastedUrl = value.kind === "idea" ? firstUrl(value.title) : null;
+    if (pastedUrl) {
+      setQuickAddOpen(false);
+      setShared({ title: null, text: value.title, url: pastedUrl });
+      return true;
+    }
     const exact = catalog.some((idea) => plain(idea.title) === plain(value.title));
     const sharedWatching = value.kind !== "idea" && !exact && isWatchingAtHome(value.title) ? catalog.find((idea) => idea.title === watchingIdeaTitle) : undefined;
     const ideaId = sharedWatching?.id ?? await findOrCreateIdea(value.title);
@@ -1730,6 +1749,37 @@ function App() {
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
     if (date?.status === "planned") setQuickCloseId(id);
   }, [dates]);
+
+  // The shared link lives in state now; the address goes back to the house.
+  useEffect(() => {
+    if (window.location.pathname.replace(/\/+$/, "") === "/partilhar") window.history.replaceState(window.history.state, "", "/hoje");
+  }, []);
+
+  async function readLinkTitle(url: string) {
+    if (!supabase) return null;
+    const { data: auth } = await supabase.auth.getSession();
+    if (!auth.session) return null;
+    try {
+      const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`, { headers: { Authorization: `Bearer ${auth.session.access_token}` } });
+      return response.ok ? await response.json() as { title: string | null; url: string } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function saveShared(plan: SharedPlan) {
+    if (!supabase || !couple) return false;
+    const ideaId = await findOrCreateIdea(plan.title);
+    if (!ideaId) return false;
+    // Keep the link on their own idea (never on a shared catalog one), so the post is a tap away.
+    const own = catalog.find((idea) => idea.id === ideaId);
+    if (plan.url && (!own || own.created_by_couple_id === couple.id)) {
+      const { data } = await supabase.from("ideas").update({ source_url: plan.url }).eq("id", ideaId).eq("created_by_couple_id", couple.id).select("*").maybeSingle();
+      if (data) setCatalog((current) => current.some((idea) => idea.id === ideaId) ? current.map((idea) => idea.id === ideaId ? data as Idea : idea) : [...current, data as Idea]);
+    }
+    if (plan.date) return createDate(ideaId, { planned_for: plan.date, planned_start_time: plan.time });
+    return true;
+  }
 
   // A kiss, hug or wave from the other one that this person hasn't seen yet.
   useEffect(() => {
@@ -2060,6 +2110,8 @@ function App() {
             mascots={mascots ?? []}
             pet={pet}
             pins={tripPins(trips, localDateString())}
+            forecast={weatherForecast}
+            weatherPlace={couple.weather_location_name}
             houseActions={{ mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
@@ -2183,7 +2235,7 @@ function App() {
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <article className="idea-card" key={idea.id} style={{ animationDelay: `${index * 45}ms` }}>
                 <div className={`idea-art art-${index % 6}`}><span className="idea-emoji">{idea.emoji}</span><span className="category-label">{activityLabel(activityOf(idea))}{isSpecial(idea) ? " · ✨" : ""}</span><button className={`favorite-button ${idea.favorite ? "is-favorite" : ""}`} aria-label={idea.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} onClick={() => void toggleFavorite(idea.id)}><Bookmark size={17} fill={idea.favorite ? "currentColor" : "none"} aria-hidden="true" /></button>{idea.status === "idea" && activeSeasonFor(idea.seasons, todayDate) && <span className="season-label">{seasonDetails[activeSeasonFor(idea.seasons, todayDate)!].label}</span>}{idea.status === "planned" && <span className="planned-label">PLANEADO</span>}{idea.status === "completed" && <span className="completed-label">FEITO</span>}</div>
-                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
+                <div className="idea-body"><div className="idea-title-row"><h3>{idea.title}</h3>{(idea.status !== "idea" || idea.is_own_idea) && <div className="idea-management"><button type="button" aria-label={`Editar ${idea.title}`} title={idea.status === "idea" ? "Editar ideia" : "Alterar"} onClick={() => idea.status === "planned" ? openEditPlan(idea) : idea.status === "completed" ? openEditMemory(idea) : openEditIdea(idea)}><Pencil size={15} aria-hidden="true" /></button><button type="button" aria-label={`Apagar ${idea.title}`} title={"Apagar"} onClick={() => { setActiveIdeaId(idea.id); setModal("delete"); }}><Trash2 size={15} aria-hidden="true" /></button></div>}</div><p className="idea-description">{idea.description}</p>{idea.source_url && <a className="idea-source" href={idea.source_url} target="_blank" rel="noreferrer">Ver no {siteName(idea.source_url)}</a>}{idea.planned_for && <p className="planned-date"><CalendarDays size={15} aria-hidden="true" />{formatDate(idea.planned_for)}{idea.planned_start_time ? ` · ${idea.planned_start_time.slice(0, 5)}` : ""}</p>}
                   {view === "memories" && (idea.memory || idea.location_name || idea.would_repeat !== null || idea.watched_title || idea.food_notes) && <div className="memory-details">{idea.would_repeat !== null && <span className={idea.would_repeat ? "repeat-yes" : "repeat-no"}>{idea.would_repeat ? "Querem repetir" : "Não repetir"}</span>}{idea.watched_title && <span>🎬 {idea.watched_title}</span>}{idea.food_notes && <span>🍽️ {idea.food_notes}</span>}{idea.location_name && <span>⌖ {idea.location_name}</span>}{idea.memory && <p>{idea.memory}</p>}</div>}
                   <div className="idea-footer"><div className="idea-meta"><Clock size={14} aria-hidden="true" /><span>{durationLabel(idea.duration_minutes, idea.duration)}</span><i /><span>{budgetLabel(idea.budget_eur)}</span></div>{idea.status === "idea" ? <button className="card-action" disabled={busy} onClick={() => openPlan(idea)}>Marcar</button> : idea.status === "planned" ? <button className="card-action done-action" disabled={busy} onClick={() => void markCompleted(idea.id)}><Check size={15} aria-hidden="true" />Já fizemos</button> : <div className="memory-card-actions"><button className="card-action album-action" disabled={busy} onClick={() => void openAlbum(idea)}>{"Álbum"} ({photos.filter((photo) => photo.date_id === idea.id).length})</button><button className="card-action" disabled={busy} onClick={() => editCompletedHomeLocation(idea)}>{idea.home_partner ? "Alterar casa" : "Definir casa"}</button><button className="card-action undo-action" disabled={busy} onClick={() => openPlan(idea)}>Repetir</button></div>}</div>
                 </div>
@@ -2197,6 +2249,7 @@ function App() {
       {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><section className="modal-card quick-add-modal" role="dialog" aria-modal="true" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></section></div>}
+      {shared && couple && <ShareSheet shared={shared} partnerName={partnerJoined && mySlot ? (mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name) : null} today={localDateString()} readTitle={readLinkTitle} onSave={saveShared} onClose={() => setShared(null)} />}
       {quickCloseId && (() => {
         const closing = ideas.find((idea) => idea.id === quickCloseId);
         return closing ? <QuickClose title={closing.title} emoji={closing.emoji} onSave={saveQuickClose} onWriteMore={writeMoreAfterQuickClose} onClose={() => setQuickCloseId(null)} /> : null;

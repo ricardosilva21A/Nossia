@@ -4,6 +4,7 @@ import { ArrowRight, CalendarDays, Check, Clock, Heart, Lightbulb, MapPin, Penci
 import { HouseHero } from "./HouseHero";
 import { waitingOnPartner } from "./proposals";
 import type { HouseActions } from "./HouseHero";
+import type { DailyWeather } from "./weather";
 import type { CalendarData, HouseScene, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
@@ -44,6 +45,8 @@ export function TodayView({
   pins,
   calendar,
   houseActions,
+  forecast,
+  weatherPlace,
   deckSize,
   onOpenDeck,
   onOpenCalendar,
@@ -86,6 +89,8 @@ export function TodayView({
   pet: Pet | null;
   pins: TripPin[];
   houseActions: HouseActions;
+  forecast: DailyWeather[];
+  weatherPlace: string | null;
   calendar: CalendarData;
   deckSize: number;
   onOpenDeck: () => void;
@@ -172,7 +177,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
 
       {soon.length > 0 && <section className="today-soon" aria-label="Em breve">
         <ul>{soon.map((item) => <li key={item.key}><span className="today-soon-when">{item.when}</span>{item.onClick ? <button type="button" className="link-button" onClick={item.onClick}>{item.what}</button> : <span>{item.what}</span>}</li>)}</ul>
