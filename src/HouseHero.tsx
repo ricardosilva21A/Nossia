@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { Avatar } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
@@ -9,9 +9,10 @@ import { AffectionSheet, WardrobeSheet } from "./HouseSheets";
 import { decidePetMode } from "./house";
 import type { CalendarData, HouseScene, PetMode, SeasonalObject, TripPin, WindowView } from "./house";
 import { WallCalendar } from "./WallCalendar";
-import { WallMap } from "./WallMap";
-import { WorldMapArt } from "./WorldMapArt";
 import { ZoomOverlay } from "./ZoomOverlay";
+import { WallMap } from "./WallMap";
+// The country outlines are heavy (about 77 KB): they arrive just after the room is drawn.
+const WorldMapArt = lazy(() => import("./WorldMapArt").then((module) => ({ default: module.WorldMapArt })));
 import { WallWeather } from "./WallWeather";
 import { weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather } from "./weather";
@@ -138,7 +139,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
           <rect x="356" y="58" width="308" height="152" rx="8" fill="#6B4A35" />
           <rect x="368" y="70" width="284" height="128" rx="3" fill="#EADBBE" />
           <path d="M368 102h284M368 134h284M368 166h284" stroke="#DCC9A6" strokeWidth="2" />
-          <WorldMapArt x={374} y={76} width={272} height={116} pins={pins} pinScale={2.2} />
+          <Suspense fallback={null}><WorldMapArt x={374} y={76} width={272} height={116} pins={pins} pinScale={2.2} /></Suspense>
           {/* Wall calendar with today's date */}
           <rect x="700" y="70" width="130" height="130" rx="8" fill="#fff" stroke="#d9d3c4" strokeWidth="4" />
           <rect x="700" y="70" width="130" height="34" rx="8" fill="#4d0e12" />

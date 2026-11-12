@@ -1358,3 +1358,4 @@ button.wall-day.has-trip{background:#F3E2C2}
 button.wall-day.is-selected{background:var(--accent);color:var(--canvas)}
 button.wall-day.is-selected .wall-marks b{color:var(--canvas)}
 button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:1px}
+.world-map-placeholder{aspect-ratio:720/284;width:100%}

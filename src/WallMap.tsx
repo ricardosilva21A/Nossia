@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { WorldMapArt } from "./WorldMapArt";
+import { lazy, Suspense, useState } from "react";
+// Same chunk the house already loaded for the frame on the wall.
+const WorldMapArt = lazy(() => import("./WorldMapArt").then((module) => ({ default: module.WorldMapArt })));
 import type { TripPin } from "./house";
 
 const shortDate = new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numeric" });
@@ -20,7 +21,7 @@ export function WallMap({ pins, onPlanTrip, onOpenWorldMap }: { pins: TripPin[];
   );
   return (
     <div className="wall-map">
-      <div className="wall-map-frame"><WorldMapArt pins={pins} pinScale={2.4} selected={selected} onPick={pick} /></div>
+      <div className="wall-map-frame"><Suspense fallback={<div className="world-map-art world-map-placeholder" />}><WorldMapArt pins={pins} pinScale={2.4} selected={selected} onPick={pick} /></Suspense></div>
       <p className="wall-map-count">{past.length === 0 ? "Ainda sem pins: a primeira viagem fica aqui marcada." : past.length === 1 ? "1 sítio onde já estiveram juntos." : `${past.length} sítios onde já estiveram juntos.`}</p>
       {past.length > 0 && <><p className="form-label">Onde já foram</p><ul className="wall-trips">{[...past].reverse().map(row)}</ul></>}
       {coming.length > 0 && <><p className="form-label">Próximas</p><ul className="wall-trips">{coming.map(row)}</ul></>}

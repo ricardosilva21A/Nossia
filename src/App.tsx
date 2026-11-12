@@ -4,9 +4,6 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { LocationSearch } from "./CalendarMap";
 import { SchedulePanel, sharedFreeDays } from "./SchedulePanel";
-import { TripsPanel } from "./TripsPanel";
-import { TripWorld } from "./TripWorld";
-import { PlacesPanel } from "./PlacesPanel";
 import type { PlaceToPlan } from "./PlacesPanel";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
@@ -40,9 +37,6 @@ import { decideHouse, tripPins } from "./house";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
-import { EventsPanel } from "./EventsPanel";
-import { Opportunities } from "./Opportunities";
-import { VacationSettings } from "./VacationSettings";
 import type { VacationPeriod, VacationProfile } from "./VacationSettings";
 import type { VacationRules } from "./holidays";
 import { eventsNear } from "./events";
@@ -55,7 +49,6 @@ import type { Activity } from "./activities";
 import { ArrowRight, CalendarDays, Check, Clock, Heart, Home, Lightbulb, LogOut, Pencil, Plus, Search, Shuffle, SlidersHorizontal, Trash2, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
-import { previewIdeaImport } from "./ideaImport";
 import type { ImportPreview } from "./ideaImport";
 import type { CouplePlace, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails, DateIdea, FeelingAnswers, GeocodedPlace, HomePartner, Idea, WeatherSetting, WorkScheduleBlock } from "./types";
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
@@ -71,6 +64,13 @@ type AppModal = "new" | "edit" | "import" | "global-import" | "delete" | "plan" 
 const backgroundRefreshAfterMs = 30 * 1000;
 const syncDelayMs = 400;
 const LazyMapView = lazy(() => import("./MapView").then((module) => ({ default: module.MapView })));
+// Screens that aren't the house load when first opened, so the app starts with less to download.
+const TripsPanel = lazy(() => import("./TripsPanel").then((module) => ({ default: module.TripsPanel })));
+const TripWorld = lazy(() => import("./TripWorld").then((module) => ({ default: module.TripWorld })));
+const PlacesPanel = lazy(() => import("./PlacesPanel").then((module) => ({ default: module.PlacesPanel })));
+const EventsPanel = lazy(() => import("./EventsPanel").then((module) => ({ default: module.EventsPanel })));
+const Opportunities = lazy(() => import("./Opportunities").then((module) => ({ default: module.Opportunities })));
+const VacationSettings = lazy(() => import("./VacationSettings").then((module) => ({ default: module.VacationSettings })));
 type DatePhoto = {
   id: string;
   couple_id: string;
@@ -713,7 +713,7 @@ function App() {
       return !season ? 0 : seasonDetails[season].event ? 2 : 1;
     };
     return matching.map((idea, index) => ({ idea, index })).sort((first, second) => seasonRank(second.idea) - seasonRank(first.idea) || first.index - second.index).map(({ idea }) => idea);
-  }, [category, ideas, placeFilter, search, view]);
+  }, [category, ideas, placeFilter, search, signals, view]);
 
   const todayContext = useMemo(() => {
     const today = localDateString();
@@ -919,6 +919,7 @@ function App() {
     setImportPreview(null);
     try {
       const globalImport = importTarget === "global";
+      const { previewIdeaImport } = await import("./ideaImport");
       setImportPreview(await previewIdeaImport(file, globalImport ? 5000 : 200, globalImport ? 10 : 2));
     } catch (caught) {
       setImportError(translateImportMessage(caught instanceof Error ? caught.message : "The file could not be read."));
@@ -1765,7 +1766,6 @@ function App() {
   useEffect(() => {
     const target = foldedViews[view];
     if (target) navigateView(target, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
   // A notification tapped while the app is open: go there without reloading.
@@ -2137,7 +2137,7 @@ function App() {
           <div className="topbar-right"><span className="today-label">{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span><button type="button" className={`top-avatar ${couplePhotoUrl ? "has-photo" : ""}`} onClick={() => navigateView("settings")} aria-label="Abrir definições" title="Definições">{couplePhotoUrl ? <img src={couplePhotoUrl} alt="" /> : <>{couple.partner_one_name.slice(0, 1)}<span>{couple.partner_two_name.slice(0, 1)}</span></>}</button></div>
         </header>
 
-        <div className="content">
+        <div className="content"><Suspense fallback={<p className="map-loading">A carregar…</p>}>
           <section className="welcome-row"><div><h1>{view !== "settings" && shownViews(sectionOf(view)).length > 1 ? sectionOf(view).label : pageHeading[view][0]}</h1><p className="welcome-copy">{pageHeading[view][1]}</p></div>{view === "discover" && <div className="welcome-actions">{isCatalogAdmin && catalogAvailable && <button className="button button-ghost" onClick={() => openImport("global")}>Carregar ideias globais</button>}<button className="button button-ghost" onClick={() => openImport("couple")}><Upload size={16} aria-hidden="true" />Importar</button><button className="button button-primary" onClick={() => setQuickAddOpen(true)}><Plus size={16} aria-hidden="true" />Nova ideia</button></div>}</section>
 
           {view !== "settings" && shownViews(sectionOf(view)).length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{shownViews(sectionOf(view)).map((item) => { const current = view === item || (item === "map" && view === "tripMap"); return <button type="button" key={item} className={current ? "active" : ""} aria-current={current ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>; })}</nav>}
@@ -2294,7 +2294,7 @@ function App() {
             </div>{visibleIdeas.length > visibleIdeaLimit && <button type="button" className="show-more-ideas" onClick={() => setVisibleIdeaLimit((limit) => limit + 60)}>{`Mostrar mais ideias (${visibleIdeas.length - visibleIdeaLimit} restantes)`}</button>}</> : <div className="empty-state"><span>♡</span><h3>Ainda não há dates por aqui</h3><p>{view === "favorites" ? "Guardem as vossas ideias favoritas para as encontrarem aqui." : "Experimentem outra categoria ou adicionem uma ideia."}</p><button className="add-button" onClick={() => setQuickAddOpen(true)}>＋ Adicionar ideia</button></div>}
           </section>}
           {view === "planned" && <SchedulePanel part="agenda" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />}
-        </div>
+        </Suspense></div>
       </main>
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
