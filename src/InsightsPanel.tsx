@@ -30,7 +30,7 @@ type Props = {
 export function InsightsPanel({ monthSummary = null, completedStats, completedMoodStats, mostFrequentHome, couple }: Props) {
   return (
     <section className="insights-panel" aria-label={"Estatísticas dos dates"}>
-      {monthSummary && <div className="month-review"><span className="section-kicker">O VOSSO {monthSummary.label.toLocaleUpperCase("pt-PT")}</span><h2>{summaryLine(monthSummary)}</h2><ul>{monthSummary.favorite && <li>Favorito: {monthSummary.favorite.emoji} {monthSummary.favorite.title}</li>}{monthSummary.places > 0 && <li>{monthSummary.places} {monthSummary.places === 1 ? "sítio" : "sítios"}</li>}{monthSummary.photos > 0 && <li>{monthSummary.photos} {monthSummary.photos === 1 ? "fotografia" : "fotografias"}</li>}</ul></div>}
+      {monthSummary && <div className="month-review"><p className="panel-label">O vosso {monthSummary.label}</p><h2>{summaryLine(monthSummary)}</h2><ul>{monthSummary.favorite && <li>Favorito: {monthSummary.favorite.emoji} {monthSummary.favorite.title}</li>}{monthSummary.places > 0 && <li>{monthSummary.places} {monthSummary.places === 1 ? "sítio" : "sítios"}</li>}{monthSummary.photos > 0 && <li>{monthSummary.photos} {monthSummary.photos === 1 ? "fotografia" : "fotografias"}</li>}</ul></div>}
               <div className="insights-total"><span className="stat-icon green">♡</span><div><strong>{completedMoodStats.total}</strong><span>dates feitos juntos</span></div></div>
               <div className="insights-metrics">
                 <article className="insight-metric"><span>✳</span><div><strong>{completedStats.uniqueActivities}</strong><small>atividades diferentes</small></div></article>
