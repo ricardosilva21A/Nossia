@@ -18,6 +18,7 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { monthSummary, previousMonth } from "./monthSummary";
 import { IdeaCard } from "./IdeaCard";
 import { InsightsPanel } from "./InsightsPanel";
 import type { IdeaCardActions } from "./IdeaCard";
@@ -765,6 +766,11 @@ function App() {
     const days = sharedFreeDays(workBlocks, plannedDates, commitments, trips, 60);
     return { free: new Set(days.filter((day) => day.dates.length === 0 && longestWindow(day.windows) >= 360).map((day) => day.key)), end: days[days.length - 1].key };
   }, [commitments, plannedDates, trips, workBlocks]);
+  const lastMonth = useMemo(() => {
+    const photosByDate = new Map<string, number>();
+    photos.forEach((photo) => photosByDate.set(photo.date_id, (photosByDate.get(photo.date_id) ?? 0) + 1));
+    return monthSummary(previousMonth(localDateString()), ideas.filter((idea) => idea.status === "completed"), trips, photosByDate);
+  }, [ideas, photos, trips]);
   const deckAvailable = useMemo(() => buildDeck(ideas, votes, localDateString(), new Date()), [ideas, votes]);
   const activeIdeaWeatherAdvice = activeIdea ? activityWeatherAdvice(activeIdea, weatherForecast[0]) : null;
   const plannedDateForecast = plannedDate ? weatherForecast.find((day) => day.date === plannedDate) : undefined;
@@ -2132,6 +2138,8 @@ function App() {
             myPush={myPush}
             partnerHasPush={partnerJoined ? partnerHasPush : null}
             onOpenNotifications={() => navigateView("settings")}
+            monthSummary={lastMonth}
+            onOpenInsights={() => navigateView("insights")}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
@@ -2197,7 +2205,7 @@ function App() {
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
           </section>}
 
-          {view === "insights" && <InsightsPanel completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
+          {view === "insights" && <InsightsPanel monthSummary={lastMonth} completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
           {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>

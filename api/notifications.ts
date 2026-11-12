@@ -5,6 +5,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { askHowItWentAt } from "../src/proposals.js";
+import { monthSummary, previousMonth, summaryLine } from "../src/monthSummary.js";
 import { addDays as addCalendarDays, daysBetween as calendarDaysBetween, describeOpportunity, findOpportunities } from "../src/holidays.js";
 
 declare const process: { env: Record<string, string | undefined> };
@@ -24,6 +25,8 @@ export type ReminderInput = {
   trips?: Array<{ id: string; title: string; start_date: string; end_date: string }>;
   // How many gift ideas this person has saved and not bought yet (their secret list).
   giftIdeas?: number;
+  // The month that just ended, for the review on the 1st.
+  lastMonth?: { label: string; line: string; month: string } | null;
 };
 
 const timeZone = "Europe/Lisbon";
@@ -130,6 +133,10 @@ export function remindersFor(input: ReminderInput, now: Date): Reminder[] {
     if (!planned && freeDay) reminders.push({ key: `nudge:${saturday}`, category: "nudges", title: "Ainda não há nada marcado para o fim de semana", body: `${freeDay === saturday ? "Sábado" : "Domingo"} estão livres. Vejam a sugestão da Nossia.`, url: "/hoje" });
   }
 
+  if (morning && today.endsWith("-01") && input.lastMonth) {
+    reminders.push({ key: `month:${input.lastMonth.month}`, category: "dates", title: `O vosso ${input.lastMonth.label}`, body: `${input.lastMonth.line}. Vejam o resumo.`, url: "/insights" });
+  }
+
   if (morning) {
     // Three weeks ahead is enough to ask for the day off.
     const slotted = input.blocks.flatMap((block) => block.partner_slot ? [{ partner_slot: block.partner_slot, weekday: block.weekday }] : []);
@@ -228,7 +235,7 @@ export async function POST(request: Request) {
   if (membersError) return json({ error: membersError.message }, 500);
   const coupleIds = [...new Set((members ?? []).map((member) => member.couple_id as string))];
   const dateFloor = addDays(today, -1);
-  const [couples, dates, commitments, blocks, settings, trips, gifts] = await Promise.all([
+  const [couples, dates, commitments, blocks, settings, trips, gifts, monthDates, monthTrips] = await Promise.all([
     db.from("couples").select("*").in("id", coupleIds),
     db.from("couple_dates").select("id, couple_id, planned_for, planned_start_time, location_name, created_by, created_at, ideas(title, duration_minutes)").in("couple_id", coupleIds).eq("status", "planned").gte("planned_for", dateFloor),
     db.from("couple_commitments").select("*").in("couple_id", coupleIds).gte("event_date", today),
@@ -236,6 +243,11 @@ export async function POST(request: Request) {
     db.from("notification_settings").select("*").in("user_id", userIds),
     db.from("couple_trips").select("*").in("couple_id", coupleIds).gte("end_date", dateFloor),
     db.from("gift_ideas").select("owner").in("owner", userIds).is("bought_at", null),
+    // Only on the 1st: last month's dates and trips, for the month review.
+    today.endsWith("-01")
+      ? db.from("couple_dates").select("id, couple_id, status, completed_at, rating, location_name, ideas(title, emoji)").in("couple_id", coupleIds).eq("status", "completed").gte("completed_at", `${previousMonth(today)}-01`).lt("completed_at", today)
+      : Promise.resolve({ data: [], error: null }),
+    today.endsWith("-01") ? db.from("couple_trips").select("couple_id, title, end_date").in("couple_id", coupleIds).gte("end_date", `${previousMonth(today)}-01`).lt("end_date", today) : Promise.resolve({ data: [], error: null }),
   ]);
   const loadError = couples.error ?? dates.error ?? commitments.error ?? blocks.error ?? settings.error ?? trips.error;
   if (loadError) return json({ error: loadError.message }, 500);
@@ -258,6 +270,17 @@ export async function POST(request: Request) {
       blocks: (blocks.data ?? []).filter((block) => block.couple_id === member.couple_id) as ReminderInput["blocks"],
       trips: (trips.data ?? []).filter((trip) => trip.couple_id === member.couple_id) as ReminderInput["trips"],
       giftIdeas: (gifts.data ?? []).filter((gift) => gift.owner === member.user_id).length,
+      lastMonth: (() => {
+        const done = ((monthDates.data ?? []) as Array<{ id: string; couple_id: string; status: string; completed_at: string | null; rating: number | null; location_name: string | null; ideas: unknown }>)
+          .filter((date) => date.couple_id === member.couple_id)
+          .map((date) => {
+            const joined = date.ideas as { title: string; emoji: string } | Array<{ title: string; emoji: string }> | null;
+            const idea = Array.isArray(joined) ? joined[0] : joined;
+            return { ...date, title: idea?.title ?? "Date", emoji: idea?.emoji ?? "" };
+          });
+        const summary = monthSummary(previousMonth(today), done, ((monthTrips.data ?? []) as Array<{ couple_id: string; title: string; end_date: string }>).filter((trip) => trip.couple_id === member.couple_id), new Map());
+        return summary ? { label: summary.label, line: summaryLine(summary), month: summary.month } : null;
+      })(),
     }, now).filter((reminder) => preferences?.[reminder.category] ?? true);
 
     let sentToUser = 0;

@@ -1524,3 +1524,12 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 @media (prefers-reduced-motion: reduce){.guide-spot{transition:none}}
 @keyframes tap-hint{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.55}}
 @media (prefers-reduced-motion: reduce){.house-room .has-hint::after{animation:none}}
+
+/* The month that just ended. */
+.month-card{grid-column:1/-1;padding:16px;border-radius:var(--radius-lg);background:var(--cobalt);color:var(--ink)}
+.month-card h2{margin:2px 0 4px;font-size:20px}
+.month-card .panel-label{color:var(--ink-2)}
+.month-card .panel-actions{justify-content:flex-end}
+.month-review{grid-column:1/-1;padding:18px;border-radius:var(--radius-lg);background:var(--cobalt-soft)}
+.month-review h2{margin:4px 0 6px}
+.month-review ul{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;padding:0;list-style:none;color:var(--ink-2)}
