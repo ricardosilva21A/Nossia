@@ -87,6 +87,7 @@ export function TodayView({
   game = null,
   petRoll,
   petPlace,
+  petFromGarden = false,
   occasion = null,
   onPlanOccasion,
   onOccasionLater,
@@ -152,6 +153,7 @@ export function TodayView({
   onOpenGame?: () => void;
   petRoll?: number;
   petPlace?: { mode: PetMode; room: Room };
+  petFromGarden?: boolean;
   // A birthday or the anniversary coming up with nothing planned yet.
   occasion?: { title: string; emoji: string; days: number } | null;
   onPlanOccasion?: () => void;
@@ -247,7 +249,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} petRoll={petRoll} petPlace={petPlace} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} petRoll={petRoll} petPlace={petPlace} petFromGarden={petFromGarden} bubble={bubble} />
 
       {showMonth && monthSummary && <section className="month-card" aria-label={`O vosso ${monthSummary.label}`}>
         <p className="panel-label">O vosso {monthSummary.label}</p>

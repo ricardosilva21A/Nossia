@@ -46,6 +46,8 @@ export type HouseInput = {
   blocks: Array<Pick<WorkScheduleBlock, "partner_slot" | "weekday" | "starts_at" | "ends_at">>;
   commitments: Array<Pick<CoupleCommitment, "event_date" | "starts_at" | "ends_at" | "for_partner"> & { title?: string }>;
   dates: Array<Pick<CoupleDate, "planned_for" | "planned_start_time" | "completed_at"> & { status: string; id?: string; title?: string }>;
+  // Who plays on the computer (set in each person's profile): only they sit at the desk.
+  gamers?: HomePartner[];
 };
 
 const dateOutMinutes = 180;
@@ -117,7 +119,7 @@ function seasonalFor(now: Date, today: string): SeasonalObject | null {
   return isSeasonActive("carnaval", today) ? "mask" : null;
 }
 
-export function decideHouse({ now, weather, blocks, commitments, dates }: HouseInput): HouseScene {
+export function decideHouse({ now, weather, blocks, commitments, dates, gamers = [] }: HouseInput): HouseScene {
   const today = dayKey(now);
   const minute = now.getHours() * 60 + now.getMinutes();
   const weekday = now.getDay() === 0 ? 7 : now.getDay();
@@ -174,16 +176,20 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     if (pose !== "sofa") return pose;
     // Home while the other is at work: something to do around the house, changing every 45 minutes.
     if (otherPose === "away") {
-      const chores: Pose[] = ["cooking", "tidying", "sofa", "gaming"];
+      const chores: Pose[] = gamers.includes(slot) ? ["cooking", "tidying", "sofa", "gaming"] : ["cooking", "tidying", "sofa"];
       return chores[(hashOf(`${today}:${slot}`) + slotIndex) % chores.length];
     }
     if (otherPose !== "sofa") return pose;
-    // Both home: dinner together, and some evenings (or weekend afternoons) one plays on the
-    // computer in the bedroom while the other lies on the bed with the animal.
+    // Both home: dinner together, and some evenings (or weekend afternoons) whoever plays sits at
+    // the computer while the other lies on the bed with the animal, and once in a while joins in.
     if (minute >= 19 * 60 + 30 && minute < 20 * 60 + 30) return "cooking";
-    if (minute >= 17 * 60 || (weekend && minute >= 14 * 60)) {
+    if (gamers.length && (minute >= 17 * 60 || (weekend && minute >= 14 * 60))) {
       const roll = hashOf(`${today}:evening:${slotIndex}`);
-      if (roll % 3 === 0) return slot === (roll % 2 ? "partner_one" : "partner_two") ? "gaming" : "bed_rest";
+      if (roll % 3 === 0) {
+        const gamer = gamers.length === 2 ? (roll % 2 ? "partner_one" : "partner_two") : gamers[0];
+        if (slot === gamer) return "gaming";
+        return roll % 10 === 1 ? "gaming" : "bed_rest";
+      }
     }
     return pose;
   };
@@ -210,7 +216,7 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     if (pose === "sleeping") return "a dormir";
     if (pose === "breakfast") return "a tomar o pequeno-almoço";
     if (pose === "cooking") return minute >= 17 * 60 ? (poseOf(slot === "partner_one" ? "partner_two" : "partner_one") === "cooking" ? "a fazer o jantar juntos" : "a fazer o jantar") : "a cozinhar";
-    if (pose === "gaming") return "a jogar no computador";
+    if (pose === "gaming") return poseOf(slot === "partner_one" ? "partner_two" : "partner_one") === "gaming" ? "a jogar juntos" : "a jogar no computador";
     if (pose === "bed_rest") return "na cama";
     if (pose === "tidying") return "a arrumar a casa";
     if (pose === "celebrating") return "a festejar o date";
@@ -240,7 +246,7 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
 // What the animal is doing when the app opens, and in which room. It waits at the door when
 // nobody's home, sleeps in its bed in the bedroom when everyone at home is asleep, and keeps
 // whoever is home alone company. With both home it picks something different each time.
-export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting" | "eating" | "resting" | "cuddle" | "party" | "footbed";
+export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting" | "eating" | "resting" | "cuddle" | "party" | "footbed" | "feet";
 
 const freeModes: PetMode[] = ["sofa", "ball", "running", "sitting"];
 
@@ -251,6 +257,8 @@ export function decidePet(scene: Pick<HouseScene, "poses" | "rooms"> & Partial<P
   if (!home.length || (scene.arrivingSoon && awake.length)) return { mode: "door", room: "sala" };
   if (!awake.length) return { mode: scene.weekendNight ? "footbed" : "bed", room: "quarto" };
   if (slots.some((slot) => scene.poses[slot] === "bed_rest")) return { mode: "cuddle", room: "quarto" };
+  // Whoever is playing on the computer gets it lying at their feet.
+  if (awake.some((slot) => scene.poses[slot] === "gaming")) return { mode: "feet", room: "quarto" };
   if (awake.length === 2 && awake.every((slot) => scene.poses[slot] === "celebrating")) return { mode: "party", room: "sala" };
   if (awake.length === 1 || scene.rooms[awake[0]] !== "sala" || scene.rooms[awake[1]] !== "sala") {
     // Follows the one who's up: on the sofa with them, at their feet in the kitchen, on its bed by the desk.
@@ -273,7 +281,7 @@ export function petPlaceFor(scene: Pick<HouseScene, "poses" | "rooms"> & Partial
   const slots: HomePartner[] = ["partner_one", "partner_two"];
   const awake = slots.some((slot) => scene.rooms[slot] !== null && scene.poses[slot] !== "sleeping");
   // Waiting at the door, cuddled up on the bed or partying: it stays where it is.
-  if (base.mode === "door" || base.mode === "cuddle" || base.mode === "party" || !awake) return base;
+  if (base.mode === "door" || base.mode === "cuddle" || base.mode === "party" || base.mode === "feet" || !awake) return base;
   if (viewer === "cozinha") return { mode: "eating", room: "cozinha" };
   if (viewer === "quarto") return { mode: "resting", room: "quarto" };
   if (viewer === "jardim") return { mode: "ball", room: "jardim" };

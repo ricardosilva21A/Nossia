@@ -1693,3 +1693,10 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .game-duelist.is-miss svg{animation:duel-bonk .3s .75s ease-out 2 alternate}
 @keyframes duel-bonk{0%{transform:none}100%{transform:rotate(12deg) translateX(4px)}}
 @media (prefers-reduced-motion:reduce){.game-duelist svg,.game-pillow{animation:none}.game-pillow{display:none}}
+/* Gaming at the desk: seen from behind, the animal lying at their feet */
+.room-quarto .room-person.pose-gaming small{order:-1;margin-bottom:2px}
+.room-quarto .room-pet.pet-feet{left:21%;bottom:3%}
+.room-quarto .room-pet.pet-feet svg{width:clamp(24px,6.5cqw,46px)}
+.house-pet.pet-arrive-door svg{animation:pet-in-door 1s ease-out both}
+@keyframes pet-in-door{0%{transform:translateX(26cqw) scale(.85);opacity:0}25%{opacity:1}100%{transform:none}}
+@media (prefers-reduced-motion:reduce){.house-pet.pet-arrive-door svg{animation:none}}

@@ -444,6 +444,16 @@ function App() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
+  // Which room the animal is coming from: back in from the garden it uses the front door.
+  const [petFrom, setPetFrom] = useState<string | null>(null);
+  const lastRoomView = useRef<string | null>(null);
+  useEffect(() => {
+    const roomOfView: Record<string, string> = { today: "sala", discover: "jardim", planned: "cozinha", memories: "quarto" };
+    const room = roomOfView[view] ?? null;
+    if (!room) return;
+    setPetFrom(lastRoomView.current);
+    lastRoomView.current = room;
+  }, [view]);
   // A birthday or the anniversary being planned (see OccasionPlanner).
   const [occasionOpen, setOccasionOpen] = useState<Occasion | null>(null);
   const [occasionLater, setOccasionLater] = useState(() => { try { return window.localStorage.getItem("nossia-occasion-later") ?? ""; } catch { return ""; } });
@@ -1882,6 +1892,14 @@ function App() {
     return true;
   }
 
+  // Whether I play on the computer: the house sits me at the desk now and then.
+  async function savePlaysGames(on: boolean) {
+    if (!supabase || !session) return;
+    const { data, error } = await supabase.from("couple_mascots").update({ plays_games: on, updated_at: new Date().toISOString() }).eq("user_id", session.user.id).select("*").single();
+    if (error) setDataError(`Não foi possível guardar: ${error.message}`);
+    else setMascots((current) => (current ?? []).map((item) => (item.user_id === session.user.id ? data as Mascot : item)));
+  }
+
   async function savePetAccessory(accessory: Accessory) {
     if (!supabase || !pet) return false;
     const { data, error } = await supabase.from("couple_pets").update({ accessory, updated_at: new Date().toISOString() }).eq("couple_id", pet.couple_id).select("*").single();
@@ -2172,7 +2190,7 @@ function App() {
   // The house's game bubble: answers to see, then the other one waiting, then today's question.
   // Only once the other one has joined: there's nobody to play with before.
   // Who is in which room right now: the living room is Hoje, the other rooms top the other tabs.
-  const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") });
+  const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea"), gamers: (mascots ?? []).filter((item) => item.plays_games).map((item) => item.partner_slot) });
   const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", planned: "cozinha", memories: "quarto" };
   const roomHere = roomFor[view];
   const arrived = arrivalDone ? null : lastArrival(workBlocks, new Date(arrivalSince), new Date(clock));
@@ -2243,6 +2261,7 @@ function App() {
             scene={houseScene}
             petRoll={petRoll}
             petPlace={petPlaceFor(houseScene, petRoll, "sala")}
+            petFromGarden={petFrom === "jardim"}
             mascots={mascots ?? []}
             pet={pet}
             pins={tripPins(trips, localDateString())}
@@ -2353,7 +2372,7 @@ function App() {
             setModal("location");
           }} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
           {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><article className="schedule-card settings-usage"><h2>Ajudar a melhorar a Nossia</h2><p className="schedule-hint">Contamos que partes da app são usadas (por exemplo, "abriu o mapa"), sem nomes, títulos, mensagens nem locais, para saber o que simplificar.</p><label className="settings-toggle"><input type="checkbox" checked={shareUsage} onChange={(event) => { setShareUsage(event.target.checked); setUsageAllowed(event.target.checked); }} />Partilhar contagens anónimas de uso</label></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
+            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div>{myMascot && <label className="settings-toggle"><input type="checkbox" checked={Boolean(myMascot.plays_games)} onChange={(event) => void savePlaysGames(event.target.checked)} />Jogo no computador (apareço na secretária do quarto)</label>}</article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><article className="schedule-card settings-usage"><h2>Ajudar a melhorar a Nossia</h2><p className="schedule-hint">Contamos que partes da app são usadas (por exemplo, "abriu o mapa"), sem nomes, títulos, mensagens nem locais, para saber o que simplificar.</p><label className="settings-toggle"><input type="checkbox" checked={shareUsage} onChange={(event) => { setShareUsage(event.target.checked); setUsageAllowed(event.target.checked); }} />Partilhar contagens anónimas de uso</label></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
             <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
