@@ -47,7 +47,7 @@ import { Mascot as PetArt } from "./Mascot";
 import { Avatar } from "./Avatar";
 import { avatarOf, petLook } from "./mascots";
 import type { Accessory, Mascot, Pet } from "./mascots";
-import { decideHouse, petPlaceFor, tripPins } from "./house";
+import { decideHouse, lastArrival, petPlaceFor, tripPins } from "./house";
 import { HouseRoom } from "./HouseRooms";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
@@ -429,6 +429,21 @@ function App() {
   const games = useGames(couple?.id, session?.user.id, syncTick);
   // One roll per visit for what the animal is up to, shared by every room of the house.
   const [petRoll] = useState(() => Math.random());
+  // When the app was last on screen: anyone who got home since then gets their welcome replayed.
+  const [arrivalSince, setArrivalSince] = useState(() => { try { return Number(window.localStorage.getItem("nossia-last-open") ?? Date.now()); } catch { return Date.now(); } });
+  const [arrivalDone, setArrivalDone] = useState(false);
+  useEffect(() => {
+    const save = () => { try { window.localStorage.setItem("nossia-last-open", String(Date.now())); } catch { /* replays again next time */ } };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") { save(); return; }
+      try { setArrivalSince(Number(window.localStorage.getItem("nossia-last-open") ?? Date.now())); } catch { /* keep the old one */ }
+      setArrivalDone(false);
+      save();
+    };
+    save();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
   // A birthday or the anniversary being planned (see OccasionPlanner).
   const [occasionOpen, setOccasionOpen] = useState<Occasion | null>(null);
   const [occasionLater, setOccasionLater] = useState(() => { try { return window.localStorage.getItem("nossia-occasion-later") ?? ""; } catch { return ""; } });
@@ -2160,6 +2175,8 @@ function App() {
   const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") });
   const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", planned: "cozinha", memories: "quarto" };
   const roomHere = roomFor[view];
+  const arrived = arrivalDone ? null : lastArrival(workBlocks, new Date(arrivalSince), new Date(clock));
+  const arrival = arrived && houseScene.rooms[arrived.slot] !== null ? { slot: arrived.slot, time: `${String(arrived.at.getHours()).padStart(2, "0")}:${String(arrived.at.getMinutes()).padStart(2, "0")}` } : null;
   const gameBubble = (() => {
     if (!partnerJoined || !mySlot) return null;
     const reveal = games.reveals.map(questionById).find(Boolean);
@@ -2231,7 +2248,7 @@ function App() {
             pins={tripPins(trips, localDateString())}
             forecast={weatherForecast}
             weatherPlace={couple.weather_location_name}
-            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory, travelDreams: [...factsOf(games.answers, session.user.id, "me", "travel").map((fact) => ({ who: myName, text: fact.answer })), ...factsOf(games.answers, session.user.id, "partner", "travel").map((fact) => ({ who: partnerName, text: fact.answer }))] }}
+            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory, arrival, onArrivalSeen: () => setArrivalDone(true), affection: incoming && mySlot ? { emoji: affectionMessage(incoming.kind, partnerName).emoji, fromSlot: mySlot === "partner_one" ? "partner_two" : "partner_one" } : null, travelDreams: [...factsOf(games.answers, session.user.id, "me", "travel").map((fact) => ({ who: myName, text: fact.answer })), ...factsOf(games.answers, session.user.id, "partner", "travel").map((fact) => ({ who: partnerName, text: fact.answer }))] }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             deckNew={deckAvailable.filter((idea) => (idea.tags ?? []).includes("descoberto")).length}
@@ -2364,7 +2381,7 @@ function App() {
         if (!question) return null;
         // The next one in the deck, skipping this one (it may not be saved yet when this runs).
         const next = gameOpen.deck ? nextInDeck(gameOpen.deck, new Set([...games.answered, question.id]), games.waiting) : null;
-        return <GameSheet key={question.id} question={question} answers={games.answers} userId={session.user.id} mySlot={mySlot} myName={myName} partnerName={partnerName} partnerWaiting={games.waiting.has(question.id)} onAnswer={(values) => games.answer(question, values)} onSeen={games.markSeen} onNext={next ? () => setGameOpen({ id: next.id, deck: gameOpen.deck }) : null} onClose={() => setGameOpen(null)} />;
+        return <GameSheet key={question.id} looks={{ me: avatarOf(myMascot), partner: avatarOf(mascots?.find((item) => item.partner_slot !== mySlot) ?? null) }} question={question} answers={games.answers} userId={session.user.id} mySlot={mySlot} myName={myName} partnerName={partnerName} partnerWaiting={games.waiting.has(question.id)} onAnswer={(values) => games.answer(question, values)} onSeen={games.markSeen} onNext={next ? () => setGameOpen({ id: next.id, deck: gameOpen.deck }) : null} onClose={() => setGameOpen(null)} />;
       })()}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><DialogSection onClose={busy ? null : () => setQuickAddOpen(false)} className="modal-card quick-add-modal" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></DialogSection></div>}

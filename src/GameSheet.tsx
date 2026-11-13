@@ -3,11 +3,16 @@ import { Sheet } from "./HouseSheets";
 import { answersFor, decks, outcomeOf, promptFor, reaction } from "./games";
 import type { GameAnswer, GameQuestion, ReactionKind } from "./games";
 import type { HomePartner } from "./types";
+import { Avatar } from "./Avatar";
+import { defaultAvatar } from "./mascots";
+import type { AvatarLook } from "./mascots";
 
 // One game question: answer it, wait for the other, then see both answers with a reaction
 // that is loud when you get it right and louder when you don't.
 
 type Props = {
+  // The two avatars, for the little scene on reveal: "YES!" for a right guess, a pillow for a wrong one.
+  looks?: { me: AvatarLook | null; partner: AvatarLook | null };
   question: GameQuestion;
   answers: GameAnswer[];
   userId: string;
@@ -33,7 +38,7 @@ function Reaction({ kind, seed, big = false, label }: { kind: ReactionKind; seed
   );
 }
 
-export function GameSheet({ question, answers, userId, mySlot, myName, partnerName, partnerWaiting, onAnswer, onSeen, onNext, onClose }: Props) {
+export function GameSheet({ looks, question, answers, userId, mySlot, myName, partnerName, partnerWaiting, onAnswer, onSeen, onNext, onClose }: Props) {
   const { mine, theirs, iAnswered, bothAnswered } = answersFor(answers, question.id, userId);
   const [self, setSelf] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -91,6 +96,14 @@ export function GameSheet({ question, answers, userId, mySlot, myName, partnerNa
     if (outcome.kind === "know" && question.kind === "know") {
       body = <>
         <Reaction big kind={outcome.myGuessHit ? "hit" : "miss"} seed={`${question.id}:me`} />
+        <div className="game-duel" aria-hidden="true">
+          {([["me", outcome.myGuessHit, looks?.me], ["partner", outcome.theirGuessHit, looks?.partner]] as const).map(([who, hit, look]) => <div key={who} className={`game-duelist ${hit ? "is-hit" : "is-miss"}`}>
+            <span className="game-duel-bubble">{hit ? "YES!" : "😵"}</span>
+            {!hit && <span className="game-pillow" />}
+            <Avatar look={look ?? defaultAvatar} size={64} />
+            <small>{who === "me" ? "Tu" : partnerName}</small>
+          </div>)}
+        </div>
         <div className="game-reveal">
           <div><small>{promptFor(question, "guess", partnerName)}</small><p>Disseste <strong>{mine.guess}</strong> · {partnerName} disse <strong>{theirs.self}</strong></p></div>
           <div><small>E {partnerName} sobre ti</small><p>Adivinhou <strong>{theirs.guess}</strong> · tu disseste <strong>{mine.self}</strong></p><Reaction kind={outcome.theirGuessHit ? "hit" : "miss"} seed={`${question.id}:them`} label={outcome.theirGuessHit ? `${partnerName} acertou` : `${partnerName} falhou 😂`} /></div>

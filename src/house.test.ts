@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarMarks, decideHouse, decidePet, monthCells, petPlaceFor, roomOf, seasonOf, tripPins } from "./house";
+import { calendarMarks, decideHouse, decidePet, lastArrival, monthCells, petPlaceFor, roomOf, seasonOf, tripPins } from "./house";
 import type { HouseInput } from "./house";
 import type { DailyWeather } from "./weather";
 
@@ -150,6 +150,35 @@ describe("the animal follows you", () => {
   it("stays at the door or asleep instead", () => {
     expect(petPlaceFor({ poses: { partner_one: "away", partner_two: "away" }, rooms: { partner_one: null, partner_two: null } }, 0.5, "jardim").mode).toBe("door");
     expect(petPlaceFor({ poses: { partner_one: "sleeping", partner_two: "away" }, rooms: { partner_one: "quarto", partner_two: null } }, 0.5, "cozinha")).toEqual({ mode: "bed", room: "quarto" });
+  });
+});
+
+describe("the three of them together", () => {
+  it("make dinner together and spend some evenings on the computer and the bed", () => {
+    const dinner = decideHouse({ ...base, now: new Date(2026, 9, 7, 20, 0) });
+    expect(dinner.poses).toEqual({ partner_one: "cooking", partner_two: "cooking" });
+    expect(dinner.doing.partner_one).toBe("a fazer o jantar juntos");
+    const evenings = [17, 18, 21, 22].flatMap((hour) => [0, 45].map((minute) => decideHouse({ ...base, now: new Date(2026, 9, 7, hour, minute) }).poses));
+    const gaming = evenings.find((poses) => poses.partner_one === "gaming" || poses.partner_two === "gaming");
+    expect(gaming && Object.values(gaming).sort()).toEqual(["bed_rest", "gaming"]);
+  });
+
+  it("the animal cuddles on the bed, waits at the door before someone's home, and takes the big bed on weekends", () => {
+    expect(decidePet({ poses: { partner_one: "gaming", partner_two: "bed_rest" }, rooms: { partner_one: "quarto", partner_two: "quarto" } }, 0.5)).toEqual({ mode: "cuddle", room: "quarto" });
+    const soon = decideHouse({ ...base, now: new Date(2026, 9, 7, 17, 55), blocks: [{ partner_slot: "partner_one", weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" }] });
+    expect(soon.arrivingSoon).toBe("partner_one");
+    expect(petPlaceFor(soon, 0.5, "cozinha")).toEqual({ mode: "door", room: "sala" });
+    const saturdayNight = decideHouse({ ...base, now: new Date(2026, 9, 10, 23, 30) });
+    expect(decidePet(saturdayNight, 0.5)).toEqual({ mode: "footbed", room: "quarto" });
+    expect(decidePet(decideHouse({ ...base, now: new Date(2026, 9, 7, 23, 30) }), 0.5).mode).toBe("bed");
+  });
+
+  it("replays the latest arrival home since the app was last open", () => {
+    const blocks = [{ partner_slot: "partner_two" as const, weekday: 3, ends_at: "17:00:00" }];
+    const arrival = lastArrival(blocks, new Date(2026, 9, 7, 12, 0), new Date(2026, 9, 7, 18, 0));
+    expect(arrival?.slot).toBe("partner_two");
+    expect(arrival?.at.getHours()).toBe(17);
+    expect(lastArrival(blocks, new Date(2026, 9, 7, 17, 30), new Date(2026, 9, 7, 18, 0))).toBeNull();
   });
 });
 
