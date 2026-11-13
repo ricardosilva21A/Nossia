@@ -36,7 +36,7 @@ Viste um sítio no Instagram, TikTok, WhatsApp ou Maps? Copia o link e cola-o em
 
 ## Ideias
 
-Em **Explorar › Ideias**, vejam o catálogo, sorteiem uma ideia ou respondam a algumas perguntas para receber sugestões de acordo com o tempo e a época. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
+O **Explorar** é um só ecrã. Em cima, **Surpreendam-nos** (uma ideia de cada vez), **Escolher pelo feeling** e a procura. Por baixo, filas curtas: **Novidades perto de vocês** (sítios que a casa encontrou à volta de casa, uma vez por semana), **Guardadas por vocês** e **Desta época**, e os restaurantes, cafés e bares. **Ver todas as ideias** mostra o catálogo inteiro. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
 
 ## Prendas
 
@@ -44,7 +44,7 @@ Em **Nós › Prendas** guardas ideias de prendas para o teu par ao longo do ano
 
 ## Restaurantes e sítios
 
-Em **Explorar › Sítios**, escolham entre experimentar um novo ou voltar a um de que gostaram.
+No **Explorar**, em **Restaurantes, cafés e bares**, escolham entre experimentar um novo ou voltar a um de que gostaram.
 
 ## Depois de um date
 

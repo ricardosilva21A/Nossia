@@ -53,6 +53,11 @@ describe("the deck", () => {
     expect(deck.map((item) => item.idea_id)).toEqual(["autumn", "plain"]);
   });
 
+  it("shows places just found around home before anything else", () => {
+    const deck = buildDeck([idea("plain"), idea("autumn", { seasons: ["outono"] }), idea("found", { tags: ["descoberto", "osm:node/1"] })], [], today, now);
+    expect(deck.map((item) => item.idea_id)).toEqual(["found", "autumn", "plain"]);
+  });
+
   it("ends when there is nothing new", () => {
     expect(buildDeck([idea("v0")], votes(1), today, now)).toHaveLength(0);
   });
