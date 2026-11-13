@@ -20,7 +20,14 @@ O **Hoje** é a vossa casa. Quase tudo nela se toca:
 - **O mapa na parede**: as viagens, com um pin por sítio, e **Marcar viagem**.
 - **O calendário**: folheia os meses, toca num dia para ver o que há e marca um date nesse dia.
 
-Quando um de vocês está a trabalhar ou fora, aparece numa linha curta por cima do sofá.
+A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós** é o quarto e o **Explorar** é o jardim. Cada um está onde faria sentido a essa hora:
+
+- Uma hora antes do trabalho, cada um toma o pequeno-almoço na cozinha, à sua hora. Sem trabalho, dormem até às 8.
+- Quem está em casa enquanto o outro trabalha faz o jantar, arruma ou fica no sofá.
+- À noite, dormem no quarto; a sala fica com a luz apagada.
+- O animal fica com quem está em casa, espera à porta quando estão os dois fora e dorme na caminha do quarto. Às vezes vai brincar com a bola para o jardim.
+
+Quem não está na sala aparece numa linha curta por cima do sofá: a trabalhar, a dormir, a tomar o pequeno-almoço…
 
 ## Marcar coisas depressa
 

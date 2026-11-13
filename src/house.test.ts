@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarMarks, decideHouse, decidePetMode, monthCells, tripPins } from "./house";
+import { calendarMarks, decideHouse, decidePet, monthCells, roomOf, tripPins } from "./house";
 import type { HouseInput } from "./house";
 import type { DailyWeather } from "./weather";
 
@@ -46,7 +46,10 @@ describe("mascots", () => {
 
   it("leaves whoever is working out of the house", () => {
     const scene = decideHouse({ ...base, blocks: [{ partner_slot: "partner_one", weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" }] });
-    expect(scene.poses).toEqual({ partner_one: "away", partner_two: "sofa" });
+    expect(scene.poses.partner_one).toBe("away");
+    expect(scene.rooms.partner_one).toBeNull();
+    // Home alone while the other works: a chore around the house.
+    expect(["cooking", "tidying", "sofa"]).toContain(scene.poses.partner_two);
   });
 
   it("ignores work on other days", () => {
@@ -55,7 +58,7 @@ describe("mascots", () => {
 
   it("counts a commitment for one person or for both", () => {
     const mine = decideHouse({ ...base, commitments: [{ event_date: today, starts_at: "14:30:00", ends_at: null, for_partner: "partner_two" }] });
-    expect(mine.poses).toEqual({ partner_one: "sofa", partner_two: "away" });
+    expect(mine.poses.partner_two).toBe("away");
     const both = decideHouse({ ...base, commitments: [{ event_date: today, starts_at: "14:30:00", ends_at: "16:00:00", for_partner: null }] });
     expect(both.poses).toEqual({ partner_one: "away", partner_two: "away" });
   });
@@ -69,14 +72,29 @@ describe("mascots", () => {
 
   it("celebrate a date done today and sleep at night", () => {
     expect(decideHouse({ ...base, dates: [{ status: "completed", planned_for: null, planned_start_time: null, completed_at: today }] }).poses.partner_one).toBe("celebrating");
-    expect(decideHouse({ ...base, now: new Date(2026, 9, 7, 2, 0) }).poses.partner_one).toBe("sleeping");
+    const night = decideHouse({ ...base, now: new Date(2026, 9, 7, 2, 0) });
+    expect(night.poses.partner_one).toBe("sleeping");
+    expect(night.rooms.partner_one).toBe("quarto");
+  });
+
+  it("have breakfast in the kitchen the hour before work, each at their own time", () => {
+    const blocks = [
+      { partner_slot: "partner_one" as const, weekday: 3, starts_at: "06:00:00", ends_at: "14:00:00" },
+      { partner_slot: "partner_two" as const, weekday: 3, starts_at: "08:00:00", ends_at: "17:00:00" },
+    ];
+    const at = (hour: number, minute = 0) => decideHouse({ ...base, blocks, now: new Date(2026, 9, 7, hour, minute) });
+    expect(at(5, 15).poses).toEqual({ partner_one: "breakfast", partner_two: "sleeping" });
+    expect(at(5, 15).rooms).toEqual({ partner_one: "cozinha", partner_two: "quarto" });
+    expect(at(7, 15).poses).toEqual({ partner_one: "away", partner_two: "breakfast" });
+    // No work that day: a lie-in until 8.
+    expect(decideHouse({ ...base, now: new Date(2026, 9, 7, 7, 30) }).poses.partner_one).toBe("sleeping");
   });
 });
 
 describe("what each one is doing", () => {
   it("says who is at work and until when", () => {
     const scene = decideHouse({ ...base, blocks: [{ partner_slot: "partner_one", weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" }] });
-    expect(scene.doing).toEqual({ partner_one: "a trabalhar até às 18:00", partner_two: null });
+    expect(scene.doing.partner_one).toBe("a trabalhar até às 18:00");
   });
 
   it("names the commitment and when it ends", () => {
@@ -100,15 +118,23 @@ describe("what each one is doing", () => {
 });
 
 describe("the animal", () => {
-  it("waits at the door when both are out and sleeps in its bed when both sleep", () => {
-    expect(decidePetMode({ partner_one: "away", partner_two: "out" }, 0.5)).toBe("door");
-    expect(decidePetMode({ partner_one: "sleeping", partner_two: "sleeping" }, 0.5)).toBe("bed");
+  const scene = (poses: Record<"partner_one" | "partner_two", Parameters<typeof decidePet>[0]["poses"]["partner_one"]>) => ({ poses, rooms: { partner_one: roomOf(poses.partner_one), partner_two: roomOf(poses.partner_two) } });
+  it("waits at the door when both are out and sleeps in its bed in the bedroom when they sleep", () => {
+    expect(decidePet(scene({ partner_one: "away", partner_two: "out" }), 0.5)).toEqual({ mode: "door", room: "sala" });
+    expect(decidePet(scene({ partner_one: "sleeping", partner_two: "sleeping" }), 0.5)).toEqual({ mode: "bed", room: "quarto" });
+    expect(decidePet(scene({ partner_one: "away", partner_two: "sleeping" }), 0.5)).toEqual({ mode: "bed", room: "quarto" });
   });
 
-  it("does something different otherwise, and only takes the sofa when both are on it", () => {
-    const modes = new Set([0, 0.2, 0.4, 0.6, 0.8, 0.99].map((roll) => decidePetMode({ partner_one: "sofa", partner_two: "sofa" }, roll)));
-    expect(modes).toEqual(new Set(["sofa", "bed", "ball", "running", "sitting"]));
-    expect([0, 0.3, 0.6, 0.99].map((roll) => decidePetMode({ partner_one: "away", partner_two: "sofa" }, roll))).not.toContain("sofa");
+  it("keeps whoever is home alone company", () => {
+    expect(decidePet(scene({ partner_one: "away", partner_two: "sofa" }), 0.9)).toEqual({ mode: "sofa", room: "sala" });
+    expect(decidePet(scene({ partner_one: "breakfast", partner_two: "sleeping" }), 0.9)).toEqual({ mode: "sitting", room: "cozinha" });
+  });
+
+  it("does something different with both home, the ball outside, the sofa only with both on it", () => {
+    const picks = [0, 0.3, 0.6, 0.99].map((roll) => decidePet(scene({ partner_one: "sofa", partner_two: "sofa" }), roll));
+    expect(new Set(picks.map((pick) => pick.mode))).toEqual(new Set(["sofa", "ball", "running", "sitting"]));
+    expect(picks.find((pick) => pick.mode === "ball")?.room).toBe("jardim");
+    expect([0, 0.3, 0.6, 0.99].map((roll) => decidePet(scene({ partner_one: "celebrating", partner_two: "sofa" }), roll).mode)).not.toContain("sofa");
   });
 });
 

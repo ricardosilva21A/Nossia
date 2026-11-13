@@ -24,6 +24,8 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 
 When one of you is at work or out, it shows as a short line above the sofa.
 
+
+The house has rooms: **Hoje** is the living room, **Agenda** the kitchen, **Nós** the bedroom and **Explorar** the garden. Each of you is where you'd be at that hour: breakfast in the kitchen the hour before work (each at their own time; a lie-in until 8 without work), cooking, tidying or on the sofa while the other is at work, and asleep in the bedroom at night, with the living-room light off. The pet stays with whoever is home, waits at the door when you're both out, sleeps in its bed in the bedroom, and sometimes plays ball in the garden. Whoever isn't in the living room shows up in a short line above the sofa.
 ## Adding things quickly
 
 Under the house there are three buttons: **Date**, **Compromisso** (commitment) and **Ideia para depois** (idea for later). Type it the way you'd say it: "Jantar italiano sexta às 20h". Nossia understands the day and time.

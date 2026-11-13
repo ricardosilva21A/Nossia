@@ -8,7 +8,10 @@ import type { DailyWeather } from "./weather";
 export type WindowView = "sun" | "clouds" | "rain" | "fog" | "night";
 export type Outfit = "coat" | "sweater" | "normal" | "tshirt";
 export type SeasonalObject = "tree" | "chestnuts" | "basil" | "mask";
-export type Pose = "sofa" | "away" | "sleeping" | "getting_ready" | "celebrating" | "out";
+export type Pose = "sofa" | "away" | "sleeping" | "getting_ready" | "celebrating" | "out" | "breakfast" | "cooking" | "tidying";
+// The house has rooms, one per part of the app: Hoje is the living room, Agenda the kitchen
+// (where the calendar hangs), Nós the bedroom, and Explorar the garden outside.
+export type Room = "sala" | "cozinha" | "quarto" | "jardim";
 
 export type HouseScene = {
   window: WindowView;
@@ -16,6 +19,8 @@ export type HouseScene = {
   fan: boolean;
   seasonal: SeasonalObject | null;
   poses: Record<HomePartner, Pose>;
+  // Where each one is in the house, or null when out (work, a commitment, a date).
+  rooms: Record<HomePartner, Room | null>;
   // What each one is doing, in a few words, or null when they're just at home.
   doing: Record<HomePartner, string | null>;
   together: boolean;
@@ -36,6 +41,25 @@ export type HouseInput = {
 const dateOutMinutes = 180;
 const gettingReadyMinutes = 60;
 const defaultCommitmentMinutes = 60;
+const breakfastMinutes = 60;
+const bedtime = 23 * 60;
+// Without work that day they get up at 8; on a work day, an hour before work (7 at the latest).
+const lazyWake = 8 * 60;
+const workWake = 7 * 60;
+const choreMinutes = 45;
+
+export function roomOf(pose: Pose): Room | null {
+  if (pose === "away" || pose === "out") return null;
+  if (pose === "sleeping" || pose === "getting_ready") return "quarto";
+  if (pose === "breakfast" || pose === "cooking") return "cozinha";
+  return "sala";
+}
+
+function hashOf(text: string) {
+  let value = 7;
+  for (let index = 0; index < text.length; index += 1) value = (value * 31 + text.charCodeAt(index)) >>> 0;
+  return value;
+}
 
 function dayKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -80,7 +104,6 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
   const together = Boolean(onDate);
   const gettingReady = Boolean(readyFor);
   const celebrating = dates.some((date) => date.status === "completed" && date.completed_at === today);
-  const asleep = now.getHours() >= 23 || now.getHours() < 7;
 
   const workOf = (slot: HomePartner) => blocks.find((block) => block.partner_slot === slot && block.weekday === weekday && minute >= minutesOf(block.starts_at) && minute < minutesOf(block.ends_at));
   const commitmentOf = (slot: HomePartner) => {
@@ -93,13 +116,36 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     return null;
   };
   const isAway = (slot: HomePartner) => Boolean(workOf(slot) || commitmentOf(slot));
+  // When each one starts work today: breakfast is the hour before, and they get up for it.
+  const workStart = (slot: HomePartner) => {
+    const starts = blocks.filter((block) => block.partner_slot === slot && block.weekday === weekday).map((block) => minutesOf(block.starts_at));
+    return starts.length ? Math.min(...starts) : null;
+  };
+  const wakeOf = (slot: HomePartner) => {
+    const start = workStart(slot);
+    return start === null ? lazyWake : Math.min(workWake, start - breakfastMinutes);
+  };
+  const asleepOf = (slot: HomePartner) => minute >= bedtime || minute < wakeOf(slot);
+  const breakfastOf = (slot: HomePartner) => {
+    const start = workStart(slot);
+    return start !== null && minute >= start - breakfastMinutes && minute < start;
+  };
 
-  const poseOf = (slot: HomePartner): Pose => {
+  const basePose = (slot: HomePartner): Pose => {
     if (together) return "out";
     if (isAway(slot)) return "away";
     if (gettingReady) return "getting_ready";
-    if (asleep) return "sleeping";
+    if (asleepOf(slot)) return "sleeping";
+    if (breakfastOf(slot)) return "breakfast";
     return celebrating ? "celebrating" : "sofa";
+  };
+  // Home while the other is at work: something to do around the house, changing every 45 minutes.
+  const poseOf = (slot: HomePartner): Pose => {
+    const pose = basePose(slot);
+    const other: HomePartner = slot === "partner_one" ? "partner_two" : "partner_one";
+    if (pose !== "sofa" || basePose(other) !== "away") return pose;
+    const chores: Pose[] = ["cooking", "tidying", "sofa"];
+    return chores[(hashOf(`${today}:${slot}`) + Math.floor(minute / choreMinutes)) % chores.length];
   };
 
   const doingOf = (slot: HomePartner): string | null => {
@@ -113,6 +159,9 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     }
     if (pose === "getting_ready" && readyFor) return `a arranjar-se para as ${(readyFor.planned_start_time as string).slice(0, 5)}`;
     if (pose === "sleeping") return "a dormir";
+    if (pose === "breakfast") return "a tomar o pequeno-almoço";
+    if (pose === "cooking") return minute >= 17 * 60 ? "a fazer o jantar" : "a cozinhar";
+    if (pose === "tidying") return "a arrumar a casa";
     if (pose === "celebrating") return "a festejar o date";
     return null;
   };
@@ -127,23 +176,35 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     fan: feelsLike !== null && feelsLike > 30,
     seasonal: seasonalFor(now, today),
     poses: { partner_one: poseOf("partner_one"), partner_two: poseOf("partner_two") },
+    rooms: { partner_one: roomOf(poseOf("partner_one")), partner_two: roomOf(poseOf("partner_two")) },
     together,
   };
 }
 
-// What the animal is doing when the app opens. It waits at the door when nobody's home and sleeps
-// in its bed when both are asleep; otherwise it picks something different each time.
+// What the animal is doing when the app opens, and in which room. It waits at the door when
+// nobody's home, sleeps in its bed in the bedroom when everyone at home is asleep, and keeps
+// whoever is home alone company. With both home it picks something different each time.
 export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting";
 
-const freeModes: PetMode[] = ["sofa", "bed", "ball", "running", "sitting"];
+const freeModes: PetMode[] = ["sofa", "ball", "running", "sitting"];
 
-export function decidePetMode(poses: Record<HomePartner, Pose>, roll: number): PetMode {
-  const out = (pose: Pose) => pose === "away" || pose === "out";
-  if (out(poses.partner_one) && out(poses.partner_two)) return "door";
-  if (poses.partner_one === "sleeping" && poses.partner_two === "sleeping") return "bed";
-  // The sofa needs both of them on it to have a middle.
-  const modes = poses.partner_one === "sofa" && poses.partner_two === "sofa" ? freeModes : freeModes.filter((mode) => mode !== "sofa");
-  return modes[Math.min(modes.length - 1, Math.floor(Math.max(0, roll) * modes.length))];
+export function decidePet(scene: Pick<HouseScene, "poses" | "rooms">, roll: number): { mode: PetMode; room: Room } {
+  const slots: HomePartner[] = ["partner_one", "partner_two"];
+  const home = slots.filter((slot) => scene.rooms[slot] !== null);
+  const awake = home.filter((slot) => scene.poses[slot] !== "sleeping");
+  if (!home.length) return { mode: "door", room: "sala" };
+  if (!awake.length) return { mode: "bed", room: "quarto" };
+  if (awake.length === 1 || scene.rooms[awake[0]] !== "sala" || scene.rooms[awake[1]] !== "sala") {
+    // Follows the one who's up: on the sofa with them, or at their feet in the kitchen.
+    const room = scene.rooms[awake[0]] as Room;
+    if (room === "cozinha") return { mode: "sitting", room };
+    if (room === "quarto") return { mode: "bed", room };
+    return { mode: scene.poses[awake[0]] === "tidying" ? "running" : "sofa", room };
+  }
+  // The sofa needs both of them on it to have a middle; the ball is played outside.
+  const modes = scene.poses.partner_one === "sofa" && scene.poses.partner_two === "sofa" ? freeModes : freeModes.filter((mode) => mode !== "sofa");
+  const mode = modes[Math.min(modes.length - 1, Math.floor(Math.max(0, roll) * modes.length))];
+  return { mode, room: mode === "ball" ? "jardim" : "sala" };
 }
 
 // Trips that already happened, newest first, one magnet per place.

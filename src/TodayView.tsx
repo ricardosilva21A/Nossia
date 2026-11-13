@@ -85,6 +85,7 @@ export function TodayView({
   onOpenPlanned,
   onOpenAgenda,
   game = null,
+  petRoll,
   onOpenGame,
   onGameLater,
 }: {
@@ -145,6 +146,7 @@ export function TodayView({
   // A game question for the bubble: the other is waiting, answers to see, or today's question.
   game?: { kind: "turn" | "reveal" | "daily"; prompt: string; emoji: string } | null;
   onOpenGame?: () => void;
+  petRoll?: number;
   onGameLater?: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
@@ -232,7 +234,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} petRoll={petRoll} bubble={bubble} />
 
       {showMonth && monthSummary && <section className="month-card" aria-label={`O vosso ${monthSummary.label}`}>
         <p className="panel-label">O vosso {monthSummary.label}</p>

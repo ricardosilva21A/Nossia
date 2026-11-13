@@ -45,7 +45,8 @@ import { Mascot as PetArt } from "./Mascot";
 import { Avatar } from "./Avatar";
 import { avatarOf, petLook } from "./mascots";
 import type { Accessory, Mascot, Pet } from "./mascots";
-import { decideHouse, tripPins } from "./house";
+import { decideHouse, decidePet, tripPins } from "./house";
+import { HouseRoom } from "./HouseRooms";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
 import { PassedIdeas, SwipeDeck } from "./SwipeDeck";
@@ -424,6 +425,8 @@ function App() {
   const [shared, setShared] = useSharedIntake();
   const { incoming, send: sendAffection, markSeen: markAffectionSeen } = useAffections(couple?.id, mySlot, syncTick);
   const games = useGames(couple?.id, session?.user.id, syncTick);
+  // One roll per visit for what the animal is up to, shared by every room of the house.
+  const [petRoll] = useState(() => Math.random());
   // The game open on screen: one question, and the deck to continue from (null for one-offs).
   const [gameOpen, setGameOpen] = useState<{ id: string; deck: DeckKey | null } | null>(null);
   // "Depois" on the house's game bubble: quiet until tomorrow.
@@ -2125,6 +2128,10 @@ function App() {
   // The house's game bubble: answers to see, then the other one waiting, then today's question.
   // Only once the other one has joined: there's nobody to play with before.
   const todayKey = localDateString();
+  // Who is in which room right now: the living room is Hoje, the other rooms top the other tabs.
+  const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") });
+  const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", planned: "cozinha", memories: "quarto" };
+  const roomHere = roomFor[view];
   const gameBubble = (() => {
     if (!partnerJoined || !mySlot) return null;
     const reveal = games.reveals.map(questionById).find(Boolean);
@@ -2178,6 +2185,7 @@ function App() {
 
           {view !== "settings" && shownViews(sectionOf(view)).length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{shownViews(sectionOf(view)).map((item) => { const current = view === item || (item === "map" && view === "tripMap"); return <button type="button" key={item} className={current ? "active" : ""} aria-current={current ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>; })}</nav>}
 
+          {roomHere && <HouseRoom room={roomHere} scene={houseScene} mascots={mascots ?? []} pet={pet} petPlace={decidePet(houseScene, petRoll)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} />}
           {dataError && <p className="data-alert" role="alert">{dataError}</p>}
 
           {view === "today" && <TodayView
@@ -2187,7 +2195,8 @@ function App() {
             suggestion={suggestion}
             suggestionDate={suggestionDay.key}
             weatherKnown={couple.weather_latitude !== null}
-            scene={decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") })}
+            scene={houseScene}
+            petRoll={petRoll}
             mascots={mascots ?? []}
             pet={pet}
             pins={tripPins(trips, localDateString())}
