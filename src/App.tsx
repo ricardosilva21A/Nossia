@@ -21,6 +21,8 @@ import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals
 import { QuickClose } from "./QuickClose";
 import { ExploreRows } from "./ExploreRows";
 import { GamesRow } from "./GamesRow";
+import { OccasionPlanner } from "./OccasionPlanner";
+import type { Occasion } from "./OccasionPlanner";
 import { GameSheet } from "./GameSheet";
 import { useGames } from "./useGames";
 import { dailyQuestion, decks as gameDecks, factsOf, gameTastes, knowScore, nextInDeck, promptFor, questionById } from "./games";
@@ -427,6 +429,9 @@ function App() {
   const games = useGames(couple?.id, session?.user.id, syncTick);
   // One roll per visit for what the animal is up to, shared by every room of the house.
   const [petRoll] = useState(() => Math.random());
+  // A birthday or the anniversary being planned (see OccasionPlanner).
+  const [occasionOpen, setOccasionOpen] = useState<Occasion | null>(null);
+  const [occasionLater, setOccasionLater] = useState(() => { try { return window.localStorage.getItem("nossia-occasion-later") ?? ""; } catch { return ""; } });
   // The game open on screen: one question, and the deck to continue from (null for one-offs).
   const [gameOpen, setGameOpen] = useState<{ id: string; deck: DeckKey | null } | null>(null);
   // "Depois" on the house's game bubble: quiet until tomorrow.
@@ -824,6 +829,11 @@ function App() {
     couple.partner_one_birth_date ? { name: couple.partner_one_name, ...nextPersonalBirthday(couple.partner_one_birth_date) } : null,
     couple.partner_two_birth_date ? { name: couple.partner_two_name, ...nextPersonalBirthday(couple.partner_two_birth_date) } : null,
   ].filter((birthday): birthday is { name: string; date: string; days: number } => birthday !== null).sort((first, second) => first.days - second.days) : [];
+  // The special dates someone can plan for: the anniversary and each birthday.
+  const occasions: Occasion[] = [
+    ...(anniversary ? [{ key: `anniversary-${anniversary.date}`, title: `${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"} de namoro`, emoji: "♥", date: anniversary.date }] : []),
+    ...personalBirthdays.map((birthday) => ({ key: `birthday-${birthday.name}-${birthday.date}`, title: `Anos de ${birthday.name}`, emoji: "🎂", date: birthday.date })),
+  ];
   const mostFrequentHome = completedStats.homeByPartner.reduce<(typeof completedStats.homeByPartner)[number] | null>(
     (most, current) => current.count > (most?.count ?? 0) ? current : most,
     null,
@@ -1031,9 +1041,9 @@ function App() {
     setVisibleIdeaLimit(60);
   }, [category, search, view]);
 
-  function startAnniversaryPlanning() {
-    if (!anniversary) return;
-    setAnniversaryPlanDate(anniversary.date);
+  function startAnniversaryPlanning(date = anniversary?.date) {
+    if (!date) return;
+    setAnniversaryPlanDate(date);
     setFeelingAnswers({ activity: "Surprise me", special: true, duration: "4", budget: "4", distance: "4", avoid: "" });
     setFeelingStep(0);
     setCategory("All");
@@ -2125,9 +2135,27 @@ function App() {
   // The other one, by name: who a proposal comes from or waits on.
   const partnerName = mySlot === "partner_one" ? couple.partner_two_name : mySlot === "partner_two" ? couple.partner_one_name : "o teu par";
   const myName = mySlot === "partner_one" ? couple.partner_one_name : mySlot === "partner_two" ? couple.partner_two_name : "Eu";
+  // A nudge for a special date coming up, three weeks ahead: only the other one's birthday (so
+  // the birthday person isn't asked to plan their own), and the anniversary. Quiet once a date or
+  // a trip is planned around it, or after "Depois" for a week.
+  const todayKey = localDateString();
+  const myBirthdayName = mySlot === "partner_one" ? couple.partner_one_name : mySlot === "partner_two" ? couple.partner_two_name : null;
+  const occasionNudge = (() => {
+    if (!partnerJoined) return null;
+    for (const occasion of occasions) {
+      if (occasion.title === `Anos de ${myBirthdayName}`) continue;
+      const days = Math.round((Date.parse(`${occasion.date}T12:00:00Z`) - Date.parse(`${todayKey}T12:00:00Z`)) / 86400000);
+      if (days < 1 || days > 21) continue;
+      const from = new Date(`${occasion.date}T12:00:00`); from.setDate(from.getDate() - 8);
+      const planned = dates.some((date) => date.planned_for !== null && date.planned_for >= localDateString(from) && date.planned_for <= occasion.date)
+        || trips.some((trip) => trip.start_date <= occasion.date && trip.end_date >= occasion.date);
+      if (planned || occasionLater.startsWith(`${occasion.key}:`) && occasionLater.slice(occasion.key.length + 1) > todayKey) continue;
+      return { occasion, days };
+    }
+    return null;
+  })();
   // The house's game bubble: answers to see, then the other one waiting, then today's question.
   // Only once the other one has joined: there's nobody to play with before.
-  const todayKey = localDateString();
   // Who is in which room right now: the living room is Hoje, the other rooms top the other tabs.
   const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea") });
   const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", planned: "cozinha", memories: "quarto" };
@@ -2242,6 +2270,9 @@ function App() {
             onOpenPlanned={() => navigateView("planned")}
             onOpenAgenda={() => navigateView("planned")}
             game={gameBubble}
+            occasion={occasionNudge ? { title: occasionNudge.occasion.title, emoji: occasionNudge.occasion.emoji, days: occasionNudge.days } : null}
+            onPlanOccasion={() => { if (occasionNudge) setOccasionOpen(occasionNudge.occasion); }}
+            onOccasionLater={() => { if (!occasionNudge) return; const until = new Date(); until.setDate(until.getDate() + 7); const value = `${occasionNudge.occasion.key}:${localDateString(until)}`; setOccasionLater(value); try { window.localStorage.setItem("nossia-occasion-later", value); } catch { /* back next visit */ } }}
             onOpenGame={() => { if (gameBubble) setGameOpen({ id: gameBubble.id, deck: questionById(gameBubble.id)?.deck ?? null }); }}
             onGameLater={() => { setGameLater(todayKey); try { window.localStorage.setItem("nossia-game-later", todayKey); } catch { /* back tomorrow anyway */ } }}
           />}
@@ -2272,7 +2303,7 @@ function App() {
             {anniversary && <article className={`anniversary-feature${anniversaryGiftReminder ? " anniversary-gift-due" : ""}`}>
               <div className="anniversary-heart" aria-hidden="true">♥</div>
               <div className="anniversary-copy"><span className="anniversary-label">ANIVERSÁRIO DE NAMORO</span><h3>{anniversary.days === 0 ? ("Feliz aniversário de namoro!") : anniversary.days === 1 ? ("É já amanhã!") : `Faltam ${anniversary.days} dias`}</h3><p>{formatDate(anniversary.date)}{anniversary.days === 0 ? "" : ` · fazem ${anniversary.years} ${anniversary.years === 1 ? "ano" : "anos"}`}</p>
-                {anniversaryGiftReminder && <p className="anniversary-gift-line">Está quase. Que tal uma experiência a dois, como um jantar especial ou uma escapadinha? <button type="button" className="link-button" onClick={startAnniversaryPlanning}>Planear o date de aniversário →</button></p>}
+                <p className="anniversary-gift-line">{anniversaryGiftReminder ? "Está quase. Que tal uma experiência a dois, como um jantar especial ou uma escapadinha? " : ""}<button type="button" className="link-button" onClick={() => { const occasion = occasions.find((item) => item.key.startsWith("anniversary-")); if (occasion) setOccasionOpen(occasion); }}>Planear →</button></p>
               </div>
             </article>}
             {(couple.first_met_date || couple.first_message_date || couple.first_date_date) && <section className="milestone-group">
@@ -2285,7 +2316,7 @@ function App() {
             </section>}
             {personalBirthdays.length > 0 && <section className="milestone-group personal-milestones">
               <div className="milestone-group-heading"><span className="section-kicker">DATAS PESSOAIS</span><span>Aniversários de cada pessoa</span></div>
-              <div className="milestones-list">{personalBirthdays.map((birthday) => <article className="milestone-card personal-milestone-card" key={birthday.name}><i>✿</i><span>{`Aniversário de ${birthday.name}`}</span><strong>{formatDate(birthday.date, { day: "numeric", month: "long" })}{birthday.days === 0 ? " · Hoje" : birthday.days <= 30 ? ` · daqui a ${birthday.days} dias` : ""}</strong></article>)}</div>
+              <div className="milestones-list">{personalBirthdays.map((birthday) => <button type="button" className="milestone-card personal-milestone-card is-plannable" key={birthday.name} onClick={() => { const occasion = occasions.find((item) => item.title === `Anos de ${birthday.name}`); if (occasion) setOccasionOpen(occasion); }}><i>✿</i><span>{`Aniversário de ${birthday.name}`}</span><strong>{formatDate(birthday.date, { day: "numeric", month: "long" })}{birthday.days === 0 ? " · Hoje" : birthday.days <= 30 ? ` · daqui a ${birthday.days} dias` : ""}</strong><small className="milestone-plan">Planear →</small></button>)}</div>
             </section>}
           </section>
           </>}
@@ -2327,6 +2358,7 @@ function App() {
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
       {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
+      {occasionOpen && <OccasionPlanner occasion={occasionOpen} today={localDateString()} busy={busy} onPickIdea={(date) => startAnniversaryPlanning(date)} onJustMark={(date, title) => quickAdd({ kind: "date", title, date, startTime: null, endTime: null, forPartner: null })} onWholeWeek={(start, end, title) => createTripFor(title, start, end)} onClose={() => setOccasionOpen(null)} />}
       {gameOpen && mySlot && (() => {
         const question = questionById(gameOpen.id);
         if (!question) return null;
@@ -2382,7 +2414,7 @@ function App() {
             : `Este date de “${activeIdea?.title ?? ""}” será removido permanentemente, incluindo as fotografias associadas. A ideia continua disponível.`}</p><button type="button" className="modal-submit delete-confirm-button" disabled={busy} onClick={() => void deleteActiveIdea()}>{busy ? "A apagar…" : "Apagar permanentemente"}</button></div>
           : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{activityLabel(activityOf(activeIdea))}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>{durationLabel(activeIdea.duration_minutes, activeIdea.duration)}</span><i /><span>{budgetLabel(activeIdea.budget_eur)}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>O tempo é uma indicação, não uma regra — a escolha continua a ser vossa.</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
           {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>SUGESTÕES ANTERIORES</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`${"Escolher sugestão"} ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
-          {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{`Sortear outra vez (${3 - randomDrawCount} restantes)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{"Alterar respostas"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{"Planear para o aniversário"} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{"Este date é para hoje"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>Planear para outro dia</button></div>}
+          {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{`Sortear outra vez (${3 - randomDrawCount} restantes)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{"Alterar respostas"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{`Marcar para ${formatDate(anniversaryPlanDate, { day: "numeric", month: "long" })}`} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{"Este date é para hoje"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>Planear para outro dia</button></div>}
             {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button><button className="modal-submit" onClick={openNewIdea}>{"Adicionar ideia"} <span>→</span></button></div>}</>
           : modal === "feeling" ? <div className="feeling-layout">
             <div className="feeling-question-panel">

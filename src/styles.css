@@ -1647,3 +1647,15 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 .fall-rain i{animation-name:fall-rain}
 @keyframes fall-rain{0%{transform:translate(0,0) rotate(12deg)}100%{transform:translate(-30px,40cqw) rotate(12deg)}}
 @media (prefers-reduced-motion:reduce){.room-pet.pet-arrive,.room-jardim .room-pet.pet-arrive,.house-pet.pet-arrive svg,.room-pet.pet-eating svg,.room-jardim .pet-ball svg,.room-jardim .pet-ball .pet-toy{animation:none}.garden-fall{display:none}}
+
+/* Special dates that can be planned */
+button.milestone-card{font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:2px}
+.milestone-plan{grid-column:2;color:var(--accent);font-weight:700;font-size:12px}
+.occasion-title{margin:2px 0 12px;font-size:21px;line-height:1.25}
+.occasion-options{display:grid;gap:8px;margin-bottom:12px}
+.occasion-option{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line-2);border-radius:14px;background:var(--paper);cursor:pointer}
+.occasion-option.selected{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.occasion-option input{accent-color:var(--accent);width:18px;height:18px;flex-shrink:0}
+.occasion-option span{display:grid;gap:2px}
+.occasion-option small{color:var(--ink-3);font-size:12px}
