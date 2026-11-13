@@ -19,6 +19,7 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { ExploreRows } from "./ExploreRows";
 import { useDiscoveries } from "./useDiscoveries";
 import { monthSummary, previousMonth } from "./monthSummary";
 import { IdeaCard } from "./IdeaCard";
@@ -134,7 +135,7 @@ const subviewLabels: Record<View, string> = {
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
 // Screens that were folded into others: their old addresses still work and land on the new place.
-const foldedViews: Partial<Record<View, View>> = { favorites: "discover", calendar: "planned", schedule: "settings" };
+const foldedViews: Partial<Record<View, View>> = { favorites: "discover", calendar: "planned", schedule: "settings", places: "discover" };
 
 
 function viewFromPath(pathname: string): View {
@@ -409,6 +410,7 @@ function App() {
   const [petRoams, setPetRoams] = useState(readPetRoams);
   const [quickCloseId, setQuickCloseId] = useState<string | null>(null);
   const [mapFilter, setMapFilter] = useState<MapFilter>("all");
+  const [showAllIdeas, setShowAllIdeas] = useState(false);
   const [guideSeen, setGuideSeen] = useState(true);
   const [shareUsage, setShareUsage] = useState(usageAllowed);
   const [syncTick, setSyncTick] = useState(0);
@@ -780,6 +782,19 @@ function App() {
     signals,
     onAdded: (added) => setCatalog((current) => [...current, ...added]),
   });
+  const catalogCreated = useMemo(() => new Map(catalog.map((idea) => [idea.id, idea.created_at])), [catalog]);
+  // Explorar's short rows: just found around home, saved by them, and in season. Five each at most.
+  const exploreRows = useMemo(() => {
+    const today = localDateString();
+    const open = ideas.filter((idea) => idea.status === "idea" && !isHiddenByCouple(idea.idea_id, signals));
+    const isFound = (idea: DateIdea) => (idea.tags ?? []).includes("descoberto");
+    const newest = (first: DateIdea, second: DateIdea) => (catalogCreated.get(second.idea_id) ?? "").localeCompare(catalogCreated.get(first.idea_id) ?? "");
+    return [
+      { key: "found", title: "Novidades perto de vocês", hint: `Sítios que ${pet?.name ?? "a casa"} encontrou`, ideas: open.filter(isFound).sort(newest).slice(0, 5) },
+      { key: "saved", title: "Guardadas por vocês", hint: "As vossas ideias e links partilhados", ideas: open.filter((idea) => idea.is_own_idea && !isFound(idea)).sort(newest).slice(0, 5) },
+      { key: "season", title: "Desta época", ideas: open.filter((idea) => !isFound(idea) && Boolean(activeSeasonFor(idea.seasons, today))).slice(0, 5) },
+    ];
+  }, [catalogCreated, ideas, pet?.name, signals]);
   const lastMonth = useMemo(() => {
     const photosByDate = new Map<string, number>();
     photos.forEach((photo) => photosByDate.set(photo.date_id, (photosByDate.get(photo.date_id) ?? 0) + 1));
@@ -2187,6 +2202,12 @@ function App() {
                 <span className="discovery-option-icon"><SlidersHorizontal size={20} aria-hidden="true" /></span><span className="discovery-option-copy"><strong>Escolher pelo feeling</strong><small>Respondam a algumas perguntas</small></span><ArrowRight className="discovery-option-arrow" size={18} aria-hidden="true" />
               </button>
             </section>
+            <label className="search-box explore-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label="Procurar ideias" placeholder="Procurar ideias: praia, museu, jantar…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+            {!search.trim() && !showAllIdeas && <>
+              <ExploreRows onPick={openPlan} rows={exploreRows} />
+              <section className="explore-places" aria-label="Restaurantes, cafés e bares"><div className="explore-row-head"><h2>Restaurantes, cafés e bares</h2></div><PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} /></section>
+              <button type="button" className="button button-ghost explore-all" onClick={() => setShowAllIdeas(true)}>Ver todas as ideias ({ideas.filter((idea) => idea.status === "idea").length})</button>
+            </>}
           </>}
           {view === "insights" && <>
           <section className="milestones-card" aria-label={"Datas importantes"}>
@@ -2219,7 +2240,6 @@ function App() {
 
 
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
-          {view === "places" && <PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} visited={trips.filter((trip) => trip.end_date < localDateString()).map((trip) => trip.title)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "gifts" && <GiftsPanel coupleId={couple.id} partnerName={partnerName} partnerBirthDate={mySlot === "partner_one" ? couple.partner_two_birth_date : mySlot === "partner_two" ? couple.partner_one_birth_date : null} relationshipDate={couple.relationship_date} today={localDateString()} />}
           {(view === "map" || view === "tripMap") && <TripWorld coupleId={couple.id} trips={trips} dates={ideas} filter={view === "tripMap" ? "trips" : mapFilter} onFilter={(next) => { setMapFilter(next); if (view === "tripMap") navigateView("map", true); }} onPinDate={(id) => {
@@ -2240,8 +2260,8 @@ function App() {
 
           {view === "insights" && <InsightsPanel monthSummary={lastMonth} completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
-          {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
-            <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div><label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label></div>
+          {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && (view !== "discover" || Boolean(search.trim()) || showAllIdeas) && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
+            <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div>{view === "discover" && showAllIdeas && !search.trim() && <button type="button" className="button button-ghost" onClick={() => setShowAllIdeas(false)}>Mostrar menos</button>}{view !== "discover" && <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label>}</div>
             <div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div>
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">

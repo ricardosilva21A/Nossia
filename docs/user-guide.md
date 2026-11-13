@@ -38,7 +38,7 @@ Saw a place on Instagram, TikTok, WhatsApp or Maps? Copy the link and paste it i
 
 ## Ideas
 
-In **Explorar › Ideias** (Explore › Ideas), browse the catalogue, draw a random idea or answer a few questions to get suggestions that fit the weather and the season. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
+**Explorar** (Explore) is one screen. At the top, **Surpreendam-nos** (one idea at a time), **Escolher pelo feeling** and search. Below, short rows: **Novidades perto de vocês** (places the house found around home, once a week), **Guardadas por vocês** and **Desta época**, plus restaurants, cafés and bars. **Ver todas as ideias** shows the whole catalogue. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
 
 ## Gifts
 
@@ -46,7 +46,7 @@ In **Nós › Prendas** (Us › Gifts) you keep gift ideas for your partner thro
 
 ## Restaurants and places
 
-In **Explorar › Sítios** (Places), choose between trying somewhere new and going back to one you liked.
+In **Explorar**, under **Restaurantes, cafés e bares**, choose between trying somewhere new and going back to one you liked.
 
 ## After a date
 
