@@ -40,6 +40,8 @@ Saw a place on Instagram, TikTok, WhatsApp or Maps? Copy the link and paste it i
 
 **Explorar** (Explore) is one screen. At the top, **Surpreendam-nos** (one idea at a time), **Escolher pelo feeling** and search. Below, short rows: **Novidades perto de vocês** (places the house found around home, once a week), **Guardadas por vocês** and **Desta época**, plus restaurants, cafés and bars. **Ver todas as ideias** shows the whole catalogue. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
 
+**Couple games** live in Explorar too: **Quanto me conheces?** (answer about yourself, then guess your partner), **Isto ou aquilo** (this or that), **Quem é mais…?** (who is more likely to…), **Sonhos** (dreams) and **Memórias** (memories). Your partner's answers only show once you've answered too, with a reaction for a right guess and another for a wrong one. In the house, the bubble shows the question of the day and tells you when your partner answered. What each of you says about yourself is kept: it shows up as hints in **Prendas** (gifts), and the places you want to go show up on the wall map.
+
 ## Gifts
 
 In **Nós › Prendas** (Us › Gifts) you keep gift ideas for your partner throughout the year: a name, a link and a note. Only you see your list; your partner never does. It shows how long until their birthday, your anniversary and Christmas, and the reminder a week before says how many ideas you have saved. A shared link can also be saved as a **Prenda**.

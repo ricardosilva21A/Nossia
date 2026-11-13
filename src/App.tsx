@@ -20,6 +20,11 @@ import { affectionMessage } from "./affections";
 import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
 import { ExploreRows } from "./ExploreRows";
+import { GamesRow } from "./GamesRow";
+import { GameSheet } from "./GameSheet";
+import { useGames } from "./useGames";
+import { dailyQuestion, decks as gameDecks, factsOf, gameTastes, knowScore, nextInDeck, promptFor, questionById } from "./games";
+import type { DeckKey } from "./games";
 import { useDiscoveries } from "./useDiscoveries";
 import { monthSummary, previousMonth } from "./monthSummary";
 import { IdeaCard } from "./IdeaCard";
@@ -418,6 +423,11 @@ function App() {
   const { myPush, partnerHasPush } = usePushStatus(couple?.id, `${syncTick}:${view}`);
   const [shared, setShared] = useSharedIntake();
   const { incoming, send: sendAffection, markSeen: markAffectionSeen } = useAffections(couple?.id, mySlot, syncTick);
+  const games = useGames(couple?.id, session?.user.id, syncTick);
+  // The game open on screen: one question, and the deck to continue from (null for one-offs).
+  const [gameOpen, setGameOpen] = useState<{ id: string; deck: DeckKey | null } | null>(null);
+  // "Depois" on the house's game bubble: quiet until tomorrow.
+  const [gameLater, setGameLater] = useState(() => { try { return window.localStorage.getItem("nossia-game-later") ?? ""; } catch { return ""; } });
   const [votes, setVotes] = useState<Vote[]>([]);
   const [signals, setSignals] = useState<CoupleSignals>(noSignals);
   const [openDeck, setOpenDeck] = useState<DateIdea[] | null>(null);
@@ -780,6 +790,7 @@ function App() {
     ideas,
     votes,
     signals,
+    extraLikes: gameTastes(games.answers),
     onAdded: (added) => setCatalog((current) => [...current, ...added]),
   });
   const catalogCreated = useMemo(() => new Map(catalog.map((idea) => [idea.id, idea.created_at])), [catalog]);
@@ -1795,6 +1806,17 @@ function App() {
     if (date?.status === "planned") setQuickCloseId(id);
   }, [dates, routeTick]);
 
+  // A game notification opens /hoje?jogo=<question id> straight into that question.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("jogo");
+    if (!id) return;
+    params.delete("jogo");
+    window.history.replaceState(window.history.state, "", `${window.location.pathname}${params.size ? `?${params}` : ""}`);
+    const question = questionById(id);
+    if (question) setGameOpen({ id: question.id, deck: question.deck });
+  }, [routeTick]);
+
   useNotificationTaps((url) => {
     window.history.pushState({}, "", url);
     setView(viewFromPath(window.location.pathname));
@@ -2099,6 +2121,23 @@ function App() {
   const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
   // The other one, by name: who a proposal comes from or waits on.
   const partnerName = mySlot === "partner_one" ? couple.partner_two_name : mySlot === "partner_two" ? couple.partner_one_name : "o teu par";
+  const myName = mySlot === "partner_one" ? couple.partner_one_name : mySlot === "partner_two" ? couple.partner_two_name : "Eu";
+  // The house's game bubble: answers to see, then the other one waiting, then today's question.
+  // Only once the other one has joined: there's nobody to play with before.
+  const todayKey = localDateString();
+  const gameBubble = (() => {
+    if (!partnerJoined || !mySlot) return null;
+    const reveal = games.reveals.map(questionById).find(Boolean);
+    const turn = [...games.waiting].map(questionById).find(Boolean);
+    // Today's question stays put once answered (no endless stream): it skips only what was answered before today.
+    const answeredBefore = new Set(games.answers.filter((answer) => answer.user_id === session.user.id && localDateString(new Date(answer.created_at)) < todayKey).map((answer) => answer.question_id));
+    const todays = dailyQuestion(couple.id, todayKey, answeredBefore);
+    const daily = gameLater === todayKey || !todays || games.answered.has(todays.id) ? null : todays;
+    const [kind, question] = reveal ? ["reveal", reveal] as const : turn && gameLater !== todayKey ? ["turn", turn] as const : daily ? ["daily", daily] as const : [null, null];
+    if (!kind || !question) return null;
+    const emoji = gameDecks.find((deck) => deck.key === question.deck)?.emoji ?? "🎲";
+    return { kind, id: question.id, emoji, prompt: question.kind === "know" ? (kind === "daily" ? question.self : promptFor(question, "guess", partnerName)) : promptFor(question) };
+  })();
   // What each tab shows: folded screens never, the map's trips half lives inside "Mapa", and
   // Eventos only once there are events to show.
   const shownViews = (section: (typeof sections)[number]) => section.views.filter((item) => !foldedViews[item] && item !== "tripMap" && (item !== "events" || events.length > 0));
@@ -2154,7 +2193,7 @@ function App() {
             pins={tripPins(trips, localDateString())}
             forecast={weatherForecast}
             weatherPlace={couple.weather_location_name}
-            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
+            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory, travelDreams: [...factsOf(games.answers, session.user.id, "me", "travel").map((fact) => ({ who: myName, text: fact.answer })), ...factsOf(games.answers, session.user.id, "partner", "travel").map((fact) => ({ who: partnerName, text: fact.answer }))] }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             deckNew={deckAvailable.filter((idea) => (idea.tags ?? []).includes("descoberto")).length}
@@ -2192,6 +2231,9 @@ function App() {
             onOpenPlaces={() => navigateView("places")}
             onOpenPlanned={() => navigateView("planned")}
             onOpenAgenda={() => navigateView("planned")}
+            game={gameBubble}
+            onOpenGame={() => { if (gameBubble) setGameOpen({ id: gameBubble.id, deck: questionById(gameBubble.id)?.deck ?? null }); }}
+            onGameLater={() => { setGameLater(todayKey); try { window.localStorage.setItem("nossia-game-later", todayKey); } catch { /* back tomorrow anyway */ } }}
           />}
           {view === "discover" && <>
             <section className="discovery-options" aria-label={"Escolher como encontrar um date"}>
@@ -2205,6 +2247,7 @@ function App() {
             <label className="search-box explore-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label="Procurar ideias" placeholder="Procurar ideias: praia, museu, jantar…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             {!search.trim() && !showAllIdeas && <>
               <ExploreRows onPick={openPlan} rows={exploreRows} />
+              {partnerJoined && mySlot && <GamesRow answered={games.answered} waiting={games.waiting} score={knowScore(games.answers, session.user.id)} partnerName={partnerName} onPlay={(deck) => { const next = nextInDeck(deck, games.answered, games.waiting); if (next) setGameOpen({ id: next.id, deck }); }} />}
               <section className="explore-places" aria-label="Restaurantes, cafés e bares"><div className="explore-row-head"><h2>Restaurantes, cafés e bares</h2></div><PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} /></section>
               <button type="button" className="button button-ghost explore-all" onClick={() => setShowAllIdeas(true)}>Ver todas as ideias ({ideas.filter((idea) => idea.status === "idea").length})</button>
             </>}
@@ -2241,7 +2284,7 @@ function App() {
 
           {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} visited={trips.filter((trip) => trip.end_date < localDateString()).map((trip) => trip.title)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
-          {view === "gifts" && <GiftsPanel coupleId={couple.id} partnerName={partnerName} partnerBirthDate={mySlot === "partner_one" ? couple.partner_two_birth_date : mySlot === "partner_two" ? couple.partner_one_birth_date : null} relationshipDate={couple.relationship_date} today={localDateString()} />}
+          {view === "gifts" && <GiftsPanel coupleId={couple.id} partnerName={partnerName} partnerBirthDate={mySlot === "partner_one" ? couple.partner_two_birth_date : mySlot === "partner_two" ? couple.partner_one_birth_date : null} relationshipDate={couple.relationship_date} today={localDateString()} hints={factsOf(games.answers, session.user.id, "partner", "gift")} />}
           {(view === "map" || view === "tripMap") && <TripWorld coupleId={couple.id} trips={trips} dates={ideas} filter={view === "tripMap" ? "trips" : mapFilter} onFilter={(next) => { setMapFilter(next); if (view === "tripMap") navigateView("map", true); }} onPinDate={(id) => {
             const idea = ideas.find((item) => item.id === id);
             if (!idea) return;
@@ -2274,6 +2317,13 @@ function App() {
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
       {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
+      {gameOpen && mySlot && (() => {
+        const question = questionById(gameOpen.id);
+        if (!question) return null;
+        // The next one in the deck, skipping this one (it may not be saved yet when this runs).
+        const next = gameOpen.deck ? nextInDeck(gameOpen.deck, new Set([...games.answered, question.id]), games.waiting) : null;
+        return <GameSheet key={question.id} question={question} answers={games.answers} userId={session.user.id} mySlot={mySlot} myName={myName} partnerName={partnerName} partnerWaiting={games.waiting.has(question.id)} onAnswer={(values) => games.answer(question, values)} onSeen={games.markSeen} onNext={next ? () => setGameOpen({ id: next.id, deck: gameOpen.deck }) : null} onClose={() => setGameOpen(null)} />;
+      })()}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><DialogSection onClose={busy ? null : () => setQuickAddOpen(false)} className="modal-card quick-add-modal" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></DialogSection></div>}
       {shared && couple && <ShareSheet shared={shared} partnerName={partnerJoined && mySlot ? (mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name) : null} today={localDateString()} readTitle={readLinkTitle} onSave={saveShared} onSaveGift={async (gift) => { if (!supabase) return false; const { error } = await supabase.from("gift_ideas").insert({ couple_id: couple.id, title: gift.title, url: gift.url }); if (!error) track("share:saved_gift"); return !error; }} onClose={() => setShared(null)} />}

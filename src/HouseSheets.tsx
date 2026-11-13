@@ -9,7 +9,7 @@ import type { AffectionKind } from "./affections";
 
 // Small sheets that open from the house: what you can do with the other person, and the animal's clothes.
 
-function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
+export function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: React.ReactNode }) {
   const dialogRef = useDialog<HTMLElement>(onClose);
   return (
     <div className="welcome-backdrop house-sheet-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>

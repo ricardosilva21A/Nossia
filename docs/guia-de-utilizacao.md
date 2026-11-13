@@ -38,6 +38,8 @@ Viste um sítio no Instagram, TikTok, WhatsApp ou Maps? Copia o link e cola-o em
 
 O **Explorar** é um só ecrã. Em cima, **Surpreendam-nos** (uma ideia de cada vez), **Escolher pelo feeling** e a procura. Por baixo, filas curtas: **Novidades perto de vocês** (sítios que a casa encontrou à volta de casa, uma vez por semana), **Guardadas por vocês** e **Desta época**, e os restaurantes, cafés e bares. **Ver todas as ideias** mostra o catálogo inteiro. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
 
+**Jogos de casal** também estão no Explorar: **Quanto me conheces?** (respondes sobre ti e adivinhas o teu par), **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** e **Memórias**. As respostas do teu par só aparecem depois de responderes também, com uma reação para quem acerta e outra para quem falha. Na casa, a bolha mostra a pergunta do dia e avisa quando o teu par respondeu. O que cada um diz sobre si fica guardado: aparece como pistas em **Prendas** e os sítios onde querem ir aparecem no mapa da parede.
+
 ## Prendas
 
 Em **Nós › Prendas** guardas ideias de prendas para o teu par ao longo do ano: o nome, um link e uma nota. Só tu vês a tua lista; o teu par nunca a vê. Mostra quanto falta para os anos, o aniversário de namoro e o Natal, e o lembrete de uma semana antes diz quantas ideias tens guardadas. Também podes guardar um link partilhado como **Prenda**.
