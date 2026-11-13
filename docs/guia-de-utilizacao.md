@@ -26,6 +26,9 @@ A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós*
 - Quem está em casa enquanto o outro trabalha faz o jantar, arruma ou fica no sofá.
 - À noite, dormem no quarto; a sala fica com a luz apagada.
 - O animal vai contigo pela casa: come da tigela (com o nome dele) na cozinha, deita-se na caminha no quarto e sai pela portinha de cão para brincar no jardim, que é vedado. Espera à porta quando estão os dois fora e, quando todos dormem, dorme na caminha.
+- Quando os dois estão em casa: jantam juntos (por volta das 20h) e há noites em que um joga no computador do quarto e o outro fica na cama com o animal.
+- Quem chega a casa enquanto a app está fechada tem a chegada guardada: quando a abrires, vês essa pessoa entrar e o animal a correr para a porta. Uns minutos antes de alguém sair do trabalho, o animal já está à porta à espera.
+- Um beijo ou abraço que recebes aparece também na sala. Depois de um date feito, festa na sala, com confetes. Às sextas e sábados à noite, o animal dorme aos pés da vossa cama.
 - O jardim muda com o tempo e a estação: flores na primavera, piscina ao sol, folhas castanhas no outono, árvore despida no inverno, chuva quando chove, e no Natal neve, boneco de neve e árvore enfeitada.
 
 Quem não está na sala aparece numa linha curta por cima do sofá: a trabalhar, a dormir, a tomar o pequeno-almoço…
@@ -48,7 +51,7 @@ Viste um sítio no Instagram, TikTok, WhatsApp ou Maps? Copia o link e cola-o em
 
 O **Explorar** é um só ecrã. Em cima, **Surpreendam-nos** (uma ideia de cada vez), **Escolher pelo feeling** e a procura. Por baixo, filas curtas: **Novidades perto de vocês** (sítios que a casa encontrou à volta de casa, uma vez por semana), **Guardadas por vocês** e **Desta época**, e os restaurantes, cafés e bares. **Ver todas as ideias** mostra o catálogo inteiro. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
 
-**Jogos de casal** também estão no Explorar: **Quanto me conheces?** (respondes sobre ti e adivinhas o teu par), **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** e **Memórias**. As respostas do teu par só aparecem depois de responderes também, com uma reação para quem acerta e outra para quem falha. Na casa, a bolha mostra a pergunta do dia e avisa quando o teu par respondeu. O que cada um diz sobre si fica guardado: aparece como pistas em **Prendas** e os sítios onde querem ir aparecem no mapa da parede.
+**Jogos de casal** também estão no Explorar: **Quanto me conheces?** (respondes sobre ti e adivinhas o teu par), **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** e **Memórias**. As respostas do teu par só aparecem depois de responderes também, com uma reação para quem acerta ("YES!") e outra para quem falha (leva com uma almofada). Na casa, a bolha mostra a pergunta do dia e avisa quando o teu par respondeu. O que cada um diz sobre si fica guardado: aparece como pistas em **Prendas** e os sítios onde querem ir aparecem no mapa da parede.
 
 ## Prendas
 
