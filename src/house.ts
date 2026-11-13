@@ -273,18 +273,15 @@ export function decidePet(scene: Pick<HouseScene, "poses" | "rooms"> & Partial<P
   return { mode, room: mode === "ball" ? "jardim" : "sala" };
 }
 
-// The animal goes wherever you go in the house: it eats from its bowl in the kitchen, lies on its
-// bed in the bedroom and goes out through the dog flap to play in the garden. It stays put when
-// nobody's home (waiting at the door) or when everyone at home is asleep (in its bed).
+// The animal goes wherever you go in the house, always: it eats from its bowl in the kitchen,
+// lies on its bed in the bedroom (or on the big bed, or at the gamer's feet) and goes out through
+// the dog flap to play in the garden. In the living room it does what the house decided: waiting
+// at the door when nobody's home, on the sofa, partying.
 export function petPlaceFor(scene: Pick<HouseScene, "poses" | "rooms"> & Partial<Pick<HouseScene, "arrivingSoon" | "weekendNight">>, roll: number, viewer: Room): { mode: PetMode; room: Room } {
   const base = decidePet(scene, roll);
-  const slots: HomePartner[] = ["partner_one", "partner_two"];
-  const awake = slots.some((slot) => scene.rooms[slot] !== null && scene.poses[slot] !== "sleeping");
-  // Waiting at the door, cuddled up on the bed or partying: it stays where it is.
-  if (base.mode === "door" || base.mode === "cuddle" || base.mode === "party" || base.mode === "feet" || !awake) return base;
   if (viewer === "cozinha") return { mode: "eating", room: "cozinha" };
-  if (viewer === "quarto") return { mode: "resting", room: "quarto" };
   if (viewer === "jardim") return { mode: "ball", room: "jardim" };
+  if (viewer === "quarto") return base.room === "quarto" ? base : { mode: "resting", room: "quarto" };
   return base.room === "sala" ? base : { mode: "sitting", room: "sala" };
 }
 
