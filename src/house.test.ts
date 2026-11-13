@@ -154,13 +154,23 @@ describe("the animal follows you", () => {
 });
 
 describe("the three of them together", () => {
-  it("make dinner together and spend some evenings on the computer and the bed", () => {
+  it("make dinner together, and only whoever plays sits at the computer", () => {
     const dinner = decideHouse({ ...base, now: new Date(2026, 9, 7, 20, 0) });
     expect(dinner.poses).toEqual({ partner_one: "cooking", partner_two: "cooking" });
     expect(dinner.doing.partner_one).toBe("a fazer o jantar juntos");
-    const evenings = [17, 18, 21, 22].flatMap((hour) => [0, 45].map((minute) => decideHouse({ ...base, now: new Date(2026, 9, 7, hour, minute) }).poses));
-    const gaming = evenings.find((poses) => poses.partner_one === "gaming" || poses.partner_two === "gaming");
-    expect(gaming && Object.values(gaming).sort()).toEqual(["bed_rest", "gaming"]);
+    const evenings = (gamers: Array<"partner_one" | "partner_two">) => Array.from({ length: 60 }, (_, day) => [17, 18, 21, 22].flatMap((hour) => [0, 45].map((minute) => decideHouse({ ...base, gamers, now: new Date(2026, 9, 1 + day, hour, minute) }).poses))).flat();
+    expect(evenings([]).some((poses) => poses.partner_one === "gaming" || poses.partner_two === "gaming")).toBe(false);
+    const ricardo = evenings(["partner_one"]);
+    expect(ricardo.some((poses) => poses.partner_one === "gaming" && poses.partner_two === "bed_rest")).toBe(true);
+    // The other one joins in now and then, but never plays alone.
+    expect(ricardo.some((poses) => poses.partner_two === "gaming" && poses.partner_one === "gaming")).toBe(true);
+    expect(ricardo.some((poses) => poses.partner_two === "gaming" && poses.partner_one !== "gaming")).toBe(false);
+    const together = ricardo.filter((poses) => poses.partner_two === "gaming").length;
+    expect(together).toBeLessThan(ricardo.filter((poses) => poses.partner_one === "gaming").length / 4);
+  });
+
+  it("lies at the gamer's feet", () => {
+    expect(decidePet({ poses: { partner_one: "gaming", partner_two: "away" }, rooms: { partner_one: "quarto", partner_two: null } }, 0.5)).toEqual({ mode: "feet", room: "quarto" });
   });
 
   it("the animal cuddles on the bed, waits at the door before someone's home, and takes the big bed on weekends", () => {

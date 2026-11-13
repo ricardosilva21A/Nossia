@@ -44,3 +44,20 @@ export function Avatar({ look, outfit = "normal", size = 80, asleep = false, lab
     </svg>
   );
 }
+
+// The same person seen from behind: sitting at the desk facing the computer.
+export function AvatarBack({ look, outfit = "normal", size = 80, label }: { look: AvatarLook; outfit?: Outfit; size?: number; label?: string }) {
+  const clothes = outfitColors[outfit];
+  const hair = look.hair === "bald" ? look.skin : look.hair_color;
+  return (
+    <svg className="avatar avatar-back" viewBox="0 0 120 132" width={size} height={size * 1.1} role="img" aria-label={label ?? "Avatar de costas"}>
+      <path d="M22 132c0-26 16-40 38-40s38 14 38 40z" fill={clothes.body} />
+      <circle cx="31" cy="58" r="6" fill={look.skin} />
+      <circle cx="89" cy="58" r="6" fill={look.skin} />
+      <circle cx="60" cy="56" r="30" fill={hair} />
+      {look.hair === "long" && <path d="M30 56c0 20 6 36 30 36s30-16 30-36z" fill={look.hair_color} />}
+      {look.hair === "bun" && <circle cx="60" cy="24" r="12" fill={look.hair_color} />}
+      {look.hair === "bald" && <path d="M40 40q20-12 40 0" fill="none" stroke="#000" strokeOpacity=".08" strokeWidth="6" />}
+    </svg>
+  );
+}

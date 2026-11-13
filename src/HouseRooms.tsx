@@ -1,4 +1,4 @@
-import { Avatar } from "./Avatar";
+import { Avatar, AvatarBack } from "./Avatar";
 import { Mascot as PetArt } from "./Mascot";
 import { avatarOf, defaultAvatar, petLook } from "./mascots";
 import type { Mascot, Pet } from "./mascots";
@@ -118,6 +118,11 @@ function Art({ room, night, scene, petName }: { room: Props["room"]; night: bool
       <rect x="117" y="125" width="96" height="48" rx="3" fill={scene.poses.partner_one === "gaming" || scene.poses.partner_two === "gaming" ? "#5ad1a6" : "#3b3f4f"} />
       <path d="M160 182h12v-6h-12z" fill="#2b2b33" />
       <rect x="120" y="176" width="70" height="6" rx="2" fill="#555" />
+      {/* Gaming chair at the desk, and a stool next to it for whoever joins in */}
+      <rect x="125" y="196" width="80" height="16" rx="6" fill="#4d0e12" />
+      <path d="M165 212v26M140 246h50" stroke="#3b3b3b" strokeWidth="6" strokeLinecap="round" />
+      <circle cx="140" cy="250" r="5" fill="#3b3b3b" /><circle cx="190" cy="250" r="5" fill="#3b3b3b" />
+      {scene.poses.partner_one === "gaming" && scene.poses.partner_two === "gaming" && <g><rect x="225" y="204" width="56" height="12" rx="5" fill="#8C5A3C" /><path d="M235 216v34M271 216v34" stroke="#8C5A3C" strokeWidth="6" /></g>}
       {/* Double bed */}
       <rect x="340" y="90" width="400" height="90" rx="18" fill="#8C5A3C" />
       <rect x="320" y="170" width="440" height="80" rx="16" fill="#f4f1ea" />
@@ -140,7 +145,8 @@ function Art({ room, night, scene, petName }: { room: Props["room"]; night: bool
 // Where each one stands in a room, by what they're doing (percent of the room's width and height).
 function spotFor(room: Props["room"], pose: string, index: number): { left: string; bottom: string } {
   if (room === "quarto") {
-    if (pose === "gaming") return { left: "15%", bottom: "8%" };
+    // At the desk: the one who plays on the chair, and whoever joins in on the stool beside.
+    if (pose === "gaming") return { left: index === 0 ? "15.3%" : "23.5%", bottom: index === 0 ? "26%" : "24%" };
     if (pose === "bed_rest") return { left: "40%", bottom: "26%" };
     if (pose === "sleeping") return { left: `${43 + index * 13}%`, bottom: "22%" };
     return { left: `${72 - index * 8}%`, bottom: "6%" };
@@ -162,23 +168,25 @@ export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props)
   const petHere = pet && petPlace.room === room;
   const said = [
     ...here.map((slot) => `${names[slot]} ${scene.doing[slot] ?? "por aqui"}`),
-    ...(petHere && pet ? [`${pet.name} ${petPlace.mode === "bed" ? "a dormir na caminha" : petPlace.mode === "footbed" ? "a dormir aos pés da cama" : petPlace.mode === "cuddle" ? "na cama, aos miminhos" : petPlace.mode === "resting" ? "na caminha" : petPlace.mode === "eating" ? "a comer da tigela" : petPlace.mode === "ball" ? "a brincar com a bola" : "por perto"}`] : []),
+    ...(petHere && pet ? [`${pet.name} ${petPlace.mode === "bed" ? "a dormir na caminha" : petPlace.mode === "footbed" ? "a dormir aos pés da cama" : petPlace.mode === "cuddle" ? "na cama, aos miminhos" : petPlace.mode === "feet" ? "aos pés de quem está a jogar" : petPlace.mode === "resting" ? "na caminha" : petPlace.mode === "eating" ? "a comer da tigela" : petPlace.mode === "ball" ? "a brincar com a bola" : "por perto"}`] : []),
   ];
   return (
     <section className={`house-room-strip room-${room}`} aria-label={`${roomNames[room]}${said.length ? `: ${said.join(", ")}` : ""}`}>
       <Art room={room} night={night} scene={scene} petName={pet?.name ?? null} />
       {room === "jardim" && <Weather scene={scene} />}
       <div className="room-people-layer">
-        {here.map((slot, index) => {
+        {here.map((slot) => {
           const mascot = mascots.find((item) => item.partner_slot === slot);
           const pose = scene.poses[slot];
-          return <span key={slot} className={`room-person pose-${pose}`} style={spotFor(room, pose, index)}>
-            <Avatar look={avatarOf(mascot ?? null) ?? defaultAvatar} outfit={scene.outfit} size={64} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />
-            {scene.doing[slot] && <small>{scene.doing[slot]}</small>}
+          return <span key={slot} className={`room-person pose-${pose}`} style={spotFor(room, pose, here.filter((other) => scene.poses[other] === pose).indexOf(slot))}>
+            {pose === "gaming"
+              ? <AvatarBack look={avatarOf(mascot ?? null) ?? defaultAvatar} outfit={scene.outfit} size={56} label={`${names[slot]} de costas, a jogar`} />
+              : <Avatar look={avatarOf(mascot ?? null) ?? defaultAvatar} outfit={scene.outfit} size={64} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />}
+            {scene.doing[slot] && !(pose === "gaming" && here.filter((other) => scene.poses[other] === "gaming").indexOf(slot) > 0) && <small>{scene.doing[slot]}</small>}
           </span>;
         })}
       </div>
-      {petHere && pet && <span className={`room-pet pet-${petPlace.mode} pet-arrive`}><PetArt look={petLook(pet)} size={48} asleep={petPlace.mode === "bed" || petPlace.mode === "footbed"} />{petPlace.mode === "ball" && <span className="pet-toy" aria-hidden="true" />}</span>}
+      {petHere && pet && <span className={`room-pet pet-${petPlace.mode} pet-arrive`}><PetArt look={petLook(pet)} size={48} asleep={petPlace.mode === "bed" || petPlace.mode === "footbed" || petPlace.mode === "feet"} />{petPlace.mode === "ball" && <span className="pet-toy" aria-hidden="true" />}</span>}
     </section>
   );
 }

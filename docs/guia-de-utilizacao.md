@@ -26,7 +26,7 @@ A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós*
 - Quem está em casa enquanto o outro trabalha faz o jantar, arruma ou fica no sofá.
 - À noite, dormem no quarto; a sala fica com a luz apagada.
 - O animal vai contigo pela casa: come da tigela (com o nome dele) na cozinha, deita-se na caminha no quarto e sai pela portinha de cão para brincar no jardim, que é vedado. Espera à porta quando estão os dois fora e, quando todos dormem, dorme na caminha.
-- Quando os dois estão em casa: jantam juntos (por volta das 20h) e há noites em que um joga no computador do quarto e o outro fica na cama com o animal.
+- Quando os dois estão em casa: jantam juntos (por volta das 20h) e, para quem joga, há noites em que está no computador do quarto e o outro fica na cama com o animal (de vez em quando joga também). Em **Definições › O meu avatar**, liga **Jogo no computador** se quiseres aparecer na secretária. Se estiveres sozinho a jogar, o animal deita-se aos teus pés.
 - Quem chega a casa enquanto a app está fechada tem a chegada guardada: quando a abrires, vês essa pessoa entrar e o animal a correr para a porta. Uns minutos antes de alguém sair do trabalho, o animal já está à porta à espera.
 - Um beijo ou abraço que recebes aparece também na sala. Depois de um date feito, festa na sala, com confetes. Às sextas e sábados à noite, o animal dorme aos pés da vossa cama.
 - O jardim muda com o tempo e a estação: flores na primavera, piscina ao sol, folhas castanhas no outono, árvore despida no inverno, chuva quando chove, e no Natal neve, boneco de neve e árvore enfeitada.
