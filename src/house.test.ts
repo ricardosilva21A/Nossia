@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarMarks, decideHouse, decidePet, monthCells, roomOf, tripPins } from "./house";
+import { calendarMarks, decideHouse, decidePet, monthCells, petPlaceFor, roomOf, seasonOf, tripPins } from "./house";
 import type { HouseInput } from "./house";
 import type { DailyWeather } from "./weather";
 
@@ -135,6 +135,29 @@ describe("the animal", () => {
     expect(new Set(picks.map((pick) => pick.mode))).toEqual(new Set(["sofa", "ball", "running", "sitting"]));
     expect(picks.find((pick) => pick.mode === "ball")?.room).toBe("jardim");
     expect([0, 0.3, 0.6, 0.99].map((roll) => decidePet(scene({ partner_one: "celebrating", partner_two: "sofa" }), roll).mode)).not.toContain("sofa");
+  });
+});
+
+describe("the animal follows you", () => {
+  const home = { poses: { partner_one: "sofa", partner_two: "away" }, rooms: { partner_one: "sala", partner_two: null } } as const;
+  it("eats in the kitchen, rests in the bedroom and plays in the garden", () => {
+    expect(petPlaceFor(home, 0.5, "cozinha")).toEqual({ mode: "eating", room: "cozinha" });
+    expect(petPlaceFor(home, 0.5, "quarto")).toEqual({ mode: "resting", room: "quarto" });
+    expect(petPlaceFor(home, 0.5, "jardim")).toEqual({ mode: "ball", room: "jardim" });
+    expect(petPlaceFor(home, 0.5, "sala").room).toBe("sala");
+  });
+
+  it("stays at the door or asleep instead", () => {
+    expect(petPlaceFor({ poses: { partner_one: "away", partner_two: "away" }, rooms: { partner_one: null, partner_two: null } }, 0.5, "jardim").mode).toBe("door");
+    expect(petPlaceFor({ poses: { partner_one: "sleeping", partner_two: "away" }, rooms: { partner_one: "quarto", partner_two: null } }, 0.5, "cozinha")).toEqual({ mode: "bed", room: "quarto" });
+  });
+});
+
+describe("garden", () => {
+  it("knows the season and Christmas", () => {
+    expect([seasonOf(3), seasonOf(7), seasonOf(10), seasonOf(0)]).toEqual(["spring", "summer", "autumn", "winter"]);
+    expect(decideHouse({ ...base, now: new Date(2026, 11, 20, 15, 0) }).christmas).toBe(true);
+    expect(decideHouse({ ...base, weather: weather(73, 1) }).sky).toBe("snow");
   });
 });
 

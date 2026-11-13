@@ -10,7 +10,7 @@ import type { DailyWeather } from "./weather";
 import type { PushStatus } from "./push";
 import { summaryLine } from "./monthSummary";
 import type { MonthSummary } from "./monthSummary";
-import type { CalendarData, HouseScene, TripPin } from "./house";
+import type { CalendarData, HouseScene, PetMode, Room, TripPin } from "./house";
 import type { Mascot, Pet } from "./mascots";
 import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
@@ -86,6 +86,7 @@ export function TodayView({
   onOpenAgenda,
   game = null,
   petRoll,
+  petPlace,
   onOpenGame,
   onGameLater,
 }: {
@@ -147,6 +148,7 @@ export function TodayView({
   game?: { kind: "turn" | "reveal" | "daily"; prompt: string; emoji: string } | null;
   onOpenGame?: () => void;
   petRoll?: number;
+  petPlace?: { mode: PetMode; room: Room };
   onGameLater?: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
@@ -234,7 +236,7 @@ export function TodayView({
 
   return (
     <div className="today-grid">
-      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} petRoll={petRoll} bubble={bubble} />
+      <HouseHero {...houseActions} scene={scene} mascots={mascots} pet={pet} pins={pins} calendar={calendar} names={{ partner_one: partnerOneName, partner_two: partnerTwoName }} onOpenAgenda={onOpenCalendar} onPlanDay={(day) => { setPlanDay(day); setAdding("date"); }} onPlanTrip={onPlanTrip} onOpenWorldMap={onOpenWorldMap} onOpenWindow={onOpenWindow} forecast={forecast} weatherPlace={weatherPlace} petRoll={petRoll} petPlace={petPlace} bubble={bubble} />
 
       {showMonth && monthSummary && <section className="month-card" aria-label={`O vosso ${monthSummary.label}`}>
         <p className="panel-label">O vosso {monthSummary.label}</p>

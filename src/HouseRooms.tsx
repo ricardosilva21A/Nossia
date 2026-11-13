@@ -21,7 +21,62 @@ type Props = {
 const slots: HomePartner[] = ["partner_one", "partner_two"];
 const roomNames: Record<Props["room"], string> = { cozinha: "A cozinha", quarto: "O quarto", jardim: "O jardim" };
 
-function Art({ room, night }: { room: Props["room"]; night: boolean }) {
+// The garden changes with the season and the weather: blossoms in spring, the pool in the sun,
+// brown leaves in autumn, bare branches in winter, and at Christmas snow, a snowman and the tree.
+function Garden({ scene, night }: { scene: HouseScene; night: boolean }) {
+  const { season, sky, christmas } = scene;
+  const snowy = christmas || sky === "snow";
+  const skyColor = night ? "#26304f" : sky === "rain" ? "#9fb0bd" : sky === "fog" ? "#e3e3df" : sky === "clouds" || sky === "snow" ? "#d5dde3" : "#bfe3f5";
+  const grass = snowy ? "#f4f7fb" : season === "spring" ? "#9cc58f" : season === "summer" ? "#a9cf7f" : season === "autumn" ? "#b9a86a" : "#b9c7b0";
+  const grassFront = snowy ? "#e6edf5" : season === "autumn" ? "#a8955a" : season === "winter" ? "#a6b59e" : "#86b37a";
+  return (
+    <svg className="room-art" viewBox="0 0 1080 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <rect width="1080" height="300" fill={skyColor} />
+      {night ? <circle cx="930" cy="56" r="24" fill="#f5efc6" /> : sky === "sun" && <circle cx="930" cy="56" r="32" fill="#ffe08a" />}
+      {!night && (sky === "clouds" || sky === "rain" || sky === "snow") && <g fill="#fff" opacity=".85"><ellipse cx="620" cy="50" rx="70" ry="22" /><ellipse cx="670" cy="38" rx="44" ry="22" /><ellipse cx="860" cy="70" rx="56" ry="18" /></g>}
+      <path d="M0 200c180-40 360-40 540-10s360 30 540-10v120H0z" fill={grass} />
+      <rect y="252" width="1080" height="48" fill={grassFront} />
+      {/* The front of the house, its door and the dog flap the animal goes out through */}
+      <rect x="40" y="70" width="300" height="190" fill="#f4e8d4" />
+      <path d="M20 80L190 6l170 74z" fill={snowy ? "#fff" : "#b5523b"} />
+      {snowy && <path d="M20 80L190 6l170 74" fill="none" stroke="#b5523b" strokeWidth="6" />}
+      {christmas && Array.from({ length: 9 }, (_, index) => <circle key={index} cx={40 + index * 38} cy={86 - Math.abs(4 - index) * 2} r="6" fill={["#e04848", "#f5c542", "#4aa3df", "#6ac46a"][index % 4]} />)}
+      <rect x="150" y="140" width="80" height="120" rx="4" fill="#8C5A3C" />
+      <rect x="172" y="222" width="36" height="38" rx="6" fill="#6b4430" stroke="#4a2e27" strokeWidth="3" />
+      {christmas && <circle cx="190" cy="168" r="16" fill="none" stroke="#3f7d4a" strokeWidth="8" />}
+      <rect x="262" y="112" width="56" height="48" rx="4" fill={night ? "#ffd77a" : "#cfe3ef"} stroke="#fff" strokeWidth="6" />
+      {/* The tree, dressed for the season */}
+      {christmas ? <g>
+        <rect x="783" y="210" width="16" height="44" fill="#8C5A3C" />
+        <path d="M791 80l-60 140h120z" fill="#3f7d4a" />
+        <path d="M791 60l-6 14h12z" fill="#f5c542" />
+        {[[770, 150], [810, 175], [760, 195], [820, 205], [790, 120]].map(([x, y]) => <circle key={`${x}${y}`} cx={x} cy={y} r="7" fill="#e04848" />)}
+      </g> : <g>
+        <rect x="780" y="150" width="22" height="104" fill="#8C5A3C" />
+        {season === "winter"
+          ? <path d="M791 160l-40-60M791 150l44-56M791 130l-14-50M770 128l-30-6M815 118l28-10" stroke="#8C5A3C" strokeWidth="8" strokeLinecap="round" />
+          : <circle cx="791" cy="128" r="66" fill={season === "autumn" ? "#d9823b" : "#6B8F71"} />}
+        {season === "autumn" && <circle cx="760" cy="110" r="30" fill="#b5523b" />}
+        {season === "spring" && [[760, 100], [810, 90], [830, 140], [770, 150], [795, 120]].map(([x, y]) => <circle key={`${x}${y}`} cx={x} cy={y} r="9" fill="#f6b6c8" />)}
+      </g>}
+      {/* Snowman, autumn leaves on the ground, spring flowers */}
+      {christmas && <g><circle cx="900" cy="236" r="26" fill="#fff" stroke="#dfe6ee" strokeWidth="3" /><circle cx="900" cy="196" r="18" fill="#fff" stroke="#dfe6ee" strokeWidth="3" /><path d="M900 198l14 4-14 3z" fill="#e8893a" /><circle cx="894" cy="192" r="2.5" fill="#231815" /><circle cx="906" cy="192" r="2.5" fill="#231815" /><path d="M884 210h32" stroke="#e04848" strokeWidth="6" /></g>}
+      {season === "autumn" && !snowy && [[680, 268], [720, 280], [860, 264], [910, 284], [360, 280], [980, 270], [640, 286]].map(([x, y], index) => <ellipse key={index} cx={x} cy={y} rx="9" ry="5" fill={index % 2 ? "#b5523b" : "#d9823b"} transform={`rotate(${index * 40} ${x} ${y})`} />)}
+      {season === "spring" && !snowy && [[370, 262], [660, 270], [700, 286], [880, 262], [940, 282], [1000, 266], [395, 284]].map(([x, y], index) => <g key={index}><path d={`M${x} ${y + 12}v-12`} stroke="#4f7a52" strokeWidth="3" /><circle cx={x} cy={y} r="7" fill={["#f6b6c8", "#ffe08a", "#ffffff", "#c9a7e8"][index % 4]} /></g>)}
+      {/* The fence around the garden: the animal can run, but it stays in */}
+      {Array.from({ length: 12 }, (_, index) => <rect key={index} x={400 + index * 56} y="196" width="12" height="40" rx="4" fill="#fff" />)}
+      <path d="M392 208h672M392 226h672" stroke="#fff" strokeWidth="5" />
+      <path d="M1060 196v104M392 236v64" stroke="#fff" strokeWidth="10" />
+      {/* The pool: always there */}
+      <rect x="420" y="246" width="200" height="44" rx="22" fill={snowy ? "#d9ecf5" : "#7cc8e8"} stroke="#fff" strokeWidth="6" />
+      {!snowy && <path d="M450 266c14-6 28 6 42 0s28 6 42 0 28 6 42 0" fill="none" stroke="#e8f7fd" strokeWidth="4" strokeLinecap="round" />}
+      {night && <rect width="1080" height="300" fill="#141a33" opacity=".25" />}
+    </svg>
+  );
+}
+
+function Art({ room, night, scene, petName }: { room: Props["room"]; night: boolean; scene: HouseScene; petName: string | null }) {
+  if (room === "jardim") return <Garden scene={scene} night={night} />;
   if (room === "cozinha") return (
     <svg className="room-art" viewBox="0 0 1080 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <rect width="1080" height="300" fill="#eef1e4" />
@@ -29,8 +84,8 @@ function Art({ room, night }: { room: Props["room"]; night: boolean }) {
       {Array.from({ length: 18 }, (_, index) => <path key={index} d={`M${index * 60} 70v80`} stroke="#d3dcc2" strokeWidth="2" />)}
       <path d="M0 110h1080" stroke="#d3dcc2" strokeWidth="2" />
       {/* Counter with the stove, a pan and a plant */}
-      <rect x="60" y="170" width="520" height="130" fill="#b88a64" />
-      <rect x="50" y="158" width="540" height="18" rx="4" fill="#e9dcc3" />
+      <rect x="60" y="170" width="420" height="130" fill="#b88a64" />
+      <rect x="50" y="158" width="440" height="18" rx="4" fill="#e9dcc3" />
       <rect x="230" y="146" width="120" height="12" rx="3" fill="#3b3b3b" />
       <ellipse cx="290" cy="142" rx="44" ry="8" fill="#4a4a4a" />
       <path d="M110 158c-10-24 0-44 16-50-2 20-6 36-16 50zM122 158c6-24 22-36 38-36-6 18-20 30-38 36z" fill="#6B8F71" />
@@ -40,14 +95,18 @@ function Art({ room, night }: { room: Props["room"]; night: boolean }) {
       <rect x="905" y="150" width="70" height="70" rx="4" fill="#fff" stroke="#d9d3c4" strokeWidth="3" />
       <rect x="905" y="150" width="70" height="18" rx="4" fill="#4d0e12" />
       {/* Small table */}
-      <rect x="640" y="210" width="190" height="14" rx="6" fill="#8C5A3C" />
-      <path d="M660 224v76M810 224v76" stroke="#8C5A3C" strokeWidth="10" />
+      <rect x="690" y="210" width="160" height="14" rx="6" fill="#8C5A3C" />
+      <path d="M710 224v76M830 224v76" stroke="#8C5A3C" strokeWidth="10" />
+      {/* The animal's bowl, with its name */}
+      <path d="M560 270h110l-12 26h-86z" fill="#4d0e12" />
+      <ellipse cx="615" cy="270" rx="55" ry="9" fill="#c98a5a" />
+      {petName && <text x="615" y="290" textAnchor="middle" fontSize="14" fontWeight="700" fontFamily="DM Sans, sans-serif" fill="#F5EFC6" letterSpacing="2">{petName.toUpperCase().slice(0, 10)}</text>}
       {night && <rect width="1080" height="300" fill="#141a33" opacity=".35" />}
       {night && <circle cx="540" cy="30" r="60" fill="#ffe7a3" opacity=".35" />}
       <path d="M540 0v22" stroke="#6b5549" strokeWidth="3" /><path d="M515 22h50l-10 16h-30z" fill="#4d0e12" />
     </svg>
   );
-  if (room === "quarto") return (
+  return (
     <svg className="room-art" viewBox="0 0 1080 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
       <rect width="1080" height="300" fill="#efe3ec" />
       <rect y="230" width="1080" height="70" fill="#cfae8d" />
@@ -71,25 +130,13 @@ function Art({ room, night }: { room: Props["room"]; night: boolean }) {
       {night && <rect width="1080" height="300" fill="#141a33" opacity=".3" />}
     </svg>
   );
-  return (
-    <svg className="room-art" viewBox="0 0 1080 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <rect width="1080" height="300" fill={night ? "#26304f" : "#cfe8f5"} />
-      {night ? <circle cx="900" cy="60" r="26" fill="#f5efc6" /> : <circle cx="900" cy="60" r="34" fill="#ffe08a" />}
-      <path d="M0 210c180-40 360-40 540-10s360 30 540-10v110H0z" fill="#9cc58f" />
-      <rect y="250" width="1080" height="50" fill="#86b37a" />
-      {/* The front of the house, with its door */}
-      <rect x="40" y="60" width="300" height="200" fill="#f4e8d4" />
-      <path d="M20 70L190 0l170 70z" fill="#b5523b" />
-      <rect x="150" y="140" width="80" height="120" rx="4" fill="#8C5A3C" />
-      <rect x="260" y="110" width="60" height="50" rx="4" fill={night ? "#ffd77a" : "#cfe3ef"} stroke="#fff" strokeWidth="6" />
-      {/* Tree and fence */}
-      <rect x="760" y="150" width="22" height="100" fill="#8C5A3C" />
-      <circle cx="771" cy="130" r="62" fill="#6B8F71" />
-      {Array.from({ length: 12 }, (_, index) => <rect key={index} x={420 + index * 54} y="222" width="14" height="44" rx="4" fill="#fff" />)}
-      <path d="M410 236h660M410 254h660" stroke="#fff" strokeWidth="6" />
-      {night && <rect width="1080" height="300" fill="#141a33" opacity=".25" />}
-    </svg>
-  );
+}
+
+// Rain or snow falling over the garden.
+function Weather({ scene }: { scene: HouseScene }) {
+  const kind = scene.sky === "rain" ? "rain" : scene.christmas || scene.sky === "snow" ? "snow" : scene.season === "autumn" ? "leaves" : null;
+  if (!kind) return null;
+  return <div className={`garden-fall fall-${kind}`} aria-hidden="true">{Array.from({ length: kind === "leaves" ? 6 : 16 }, (_, index) => <i key={index} style={{ left: `${(index * 61) % 100}%`, animationDelay: `${(index * 0.37) % 3}s`, animationDuration: `${kind === "rain" ? 0.8 + (index % 4) * 0.15 : 3 + (index % 5) * 0.6}s` }} />)}</div>;
 }
 
 export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props) {
@@ -98,11 +145,12 @@ export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props)
   const petHere = pet && petPlace.room === room;
   const said = [
     ...here.map((slot) => `${names[slot]} ${scene.doing[slot] ?? "por aqui"}`),
-    ...(petHere && pet ? [`${pet.name} ${petPlace.mode === "bed" ? "a dormir na caminha" : petPlace.mode === "ball" ? "a brincar com a bola" : "por perto"}`] : []),
+    ...(petHere && pet ? [`${pet.name} ${petPlace.mode === "bed" ? "a dormir na caminha" : petPlace.mode === "resting" ? "na caminha" : petPlace.mode === "eating" ? "a comer da tigela" : petPlace.mode === "ball" ? "a brincar com a bola" : "por perto"}`] : []),
   ];
   return (
     <section className={`house-room-strip room-${room}`} aria-label={`${roomNames[room]}${said.length ? `: ${said.join(", ")}` : ""}`}>
-      <Art room={room} night={night} />
+      <Art room={room} night={night} scene={scene} petName={pet?.name ?? null} />
+      {room === "jardim" && <Weather scene={scene} />}
       <div className="room-people">
         {here.map((slot) => {
           const mascot = mascots.find((item) => item.partner_slot === slot);
@@ -113,7 +161,7 @@ export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props)
           </span>;
         })}
       </div>
-      {petHere && pet && <span className={`room-pet pet-${petPlace.mode}`}><PetArt look={petLook(pet)} size={48} asleep={petPlace.mode === "bed"} />{petPlace.mode === "ball" && <span className="pet-toy" aria-hidden="true" />}</span>}
+      {petHere && pet && <span className={`room-pet pet-${petPlace.mode} pet-arrive`}><PetArt look={petLook(pet)} size={48} asleep={petPlace.mode === "bed"} />{petPlace.mode === "ball" && <span className="pet-toy" aria-hidden="true" />}</span>}
     </section>
   );
 }

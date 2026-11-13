@@ -32,6 +32,8 @@ const petLines: Record<PetMode, string> = {
   ball: "a brincar com a bola no jardim",
   running: "a correr pela sala",
   sitting: "por perto",
+  eating: "a comer da tigela",
+  resting: "na caminha",
 };
 
 // Where the animal is when it isn't in the living room.
@@ -56,6 +58,8 @@ type Props = {
   weatherPlace?: string | null;
   // Shared with the other rooms, so the animal is in the same place in all of them.
   petRoll?: number;
+  // Where the animal is, decided with the rest of the house (it follows you from room to room).
+  petPlace?: { mode: PetMode; room: Room };
 } & HouseActions;
 
 // What the people and the animal in the house do when tapped.
@@ -73,7 +77,7 @@ export type HouseActions = {
   travelDreams?: Array<{ who: string; text: string }>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, petRoll, mySlot, showGuide = false, onGuideDone, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory, travelDreams = [] }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, petRoll, petPlace, mySlot, showGuide = false, onGuideDone, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory, travelDreams = [] }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar" | "weather"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar" | "weather") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -81,7 +85,8 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   // A new roll each time the house opens, so the animal is doing something different.
   const [ownRoll] = useState(() => Math.random());
   const roll = petRoll ?? ownRoll;
-  const { mode, room: petRoom } = useMemo(() => decidePet(scene, roll), [roll, scene]);
+  const decided = useMemo(() => decidePet(scene, roll), [roll, scene]);
+  const { mode, room: petRoom } = petPlace ?? decided;
   const petInSala = petRoom === "sala";
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
@@ -151,7 +156,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   const petButton = pet && (
     // One tap, one thing: the wardrobe. The "Au!" comes back with Marta's animations.
-    <button type="button" data-guide="pet" className={`house-pet pet-${mode}${hint("pet")}${barking ? " pet-happy" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
+    <button type="button" data-guide="pet" className={`house-pet pet-${mode}${hint("pet")}${barking ? " pet-happy" : ""}${mode === "sitting" || mode === "sofa" ? " pet-arrive" : ""}`} aria-label={`${pet.name}, ${petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}>
       {barking && <span className="pet-says" aria-hidden="true">{pet.species === "cat" ? "Miau!" : pet.species === "rabbit" ? "♥" : "Au!"}</span>}
       <PetArt look={petLook(pet)} size={mode === "sofa" ? 48 : 56} asleep={mode === "bed"} />
       {mode === "ball" && <span className="pet-toy" aria-hidden="true" />}
@@ -166,6 +171,12 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
           <rect y="400" width="1080" height="120" fill="#d8bd97" />
           {/* Window, in the left corner */}
           <rect x="80" y="60" width="200" height="160" rx="10" fill={sky[scene.window]} stroke="#fff" strokeWidth="12" />
+          {(scene.sky === "rain" || scene.sky === "snow" || scene.christmas) && <g className={scene.sky === "rain" ? "window-rain" : "window-snow"} clipPath="url(#sala-window)">
+            {Array.from({ length: 10 }, (_, index) => scene.sky === "rain"
+              ? <path key={index} d={`M${92 + index * 19} ${66 + (index % 3) * 40}l-6 18`} stroke="#e8f1f8" strokeWidth="3" strokeLinecap="round" />
+              : <circle key={index} cx={92 + index * 19} cy={70 + ((index * 37) % 140)} r="4" fill="#fff" />)}
+          </g>}
+          <clipPath id="sala-window"><rect x="80" y="60" width="200" height="160" /></clipPath>
           <path d="M180 60v160M80 140h200" stroke="#fff" strokeWidth="8" />
           <rect x="66" y="222" width="228" height="12" rx="4" fill="#e9dcc3" />
           {/* A plant under the window */}
