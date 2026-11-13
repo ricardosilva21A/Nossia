@@ -45,7 +45,7 @@ import { Mascot as PetArt } from "./Mascot";
 import { Avatar } from "./Avatar";
 import { avatarOf, petLook } from "./mascots";
 import type { Accessory, Mascot, Pet } from "./mascots";
-import { decideHouse, decidePet, tripPins } from "./house";
+import { decideHouse, petPlaceFor, tripPins } from "./house";
 import { HouseRoom } from "./HouseRooms";
 import { buildDeck, isHiddenByCouple, noSignals } from "./preferences";
 import type { CoupleSignals, Vote } from "./preferences";
@@ -2185,7 +2185,7 @@ function App() {
 
           {view !== "settings" && shownViews(sectionOf(view)).length > 1 && <nav className="subnav" aria-label={`Secções de ${sectionOf(view).label}`}>{shownViews(sectionOf(view)).map((item) => { const current = view === item || (item === "map" && view === "tripMap"); return <button type="button" key={item} className={current ? "active" : ""} aria-current={current ? "page" : undefined} onClick={() => navigateView(item)}>{subviewLabels[item]}</button>; })}</nav>}
 
-          {roomHere && <HouseRoom room={roomHere} scene={houseScene} mascots={mascots ?? []} pet={pet} petPlace={decidePet(houseScene, petRoll)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} />}
+          {roomHere && <HouseRoom room={roomHere} scene={houseScene} mascots={mascots ?? []} pet={pet} petPlace={petPlaceFor(houseScene, petRoll, roomHere)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} />}
           {dataError && <p className="data-alert" role="alert">{dataError}</p>}
 
           {view === "today" && <TodayView
@@ -2197,6 +2197,7 @@ function App() {
             weatherKnown={couple.weather_latitude !== null}
             scene={houseScene}
             petRoll={petRoll}
+            petPlace={petPlaceFor(houseScene, petRoll, "sala")}
             mascots={mascots ?? []}
             pet={pet}
             pins={tripPins(trips, localDateString())}
@@ -2344,7 +2345,7 @@ function App() {
         const message = affectionMessage(incoming.kind, mySlot === "partner_one" ? couple.partner_two_name : couple.partner_one_name);
         return <div className="affection-toast" role="status"><span className="affection-toast-emoji" aria-hidden="true">{message.emoji}</span><p>{message.text}</p><div className="affection-toast-actions"><button type="button" className="button button-ghost" onClick={() => void markAffectionSeen()}>Fechar</button><button type="button" className="button button-primary" onClick={() => { void sendAffection(incoming.kind); void markAffectionSeen(); }}>Devolver {message.emoji}</button></div></div>;
       })()}
-      {pet && petRoams && view !== "today" && !onboardingVisible && <RoamingPet pet={pet} section={sectionOf(view).id} />}
+      {pet && petRoams && view !== "today" && !roomHere && !onboardingVisible && <RoamingPet pet={pet} section={sectionOf(view).id} />}
       {couple && mySlot && mascots && onboardingVisible && <Onboarding key={editingPet ? "pet" : "avatar"} coupleId={couple.id} userId={session.user.id} slot={mySlot} defaultName={mySlot === "partner_one" ? couple.partner_one_name : couple.partner_two_name} existing={myMascot} pet={pet} startStep={editingPet ? "pet" : "avatar"} editing={editingMascot || editingPet} askInvite={!editingMascot && !editingPet && !partnerJoined} birthDate={mySlot === "partner_one" ? couple.partner_one_birth_date : couple.partner_two_birth_date} onSaveBirthday={saveMyBirthday} onSaved={(saved) => { setMascots((current) => [...(current ?? []).filter((item) => item.user_id !== saved.user_id), saved]); if (!editingMascot) setOnboardingOpen(true); }} onPetSaved={(saved) => { setPet(saved); if (!editingPet) setOnboardingOpen(true); }} onDone={() => { setOnboardingOpen(false); setEditingMascot(false); setEditingPet(false); }} />}
       {modal && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setModal(null); setAnniversaryPlanDate(null); } }}><DialogSection onClose={busy ? null : () => { setModal(null); setAnniversaryPlanDate(null); }} className={`modal-card ${modal === "new" || modal === "edit" ? "idea-editor-modal" : ""} ${modal === "profile" ? "profile-modal" : ""} ${modal === "draw" ? "draw-modal" : ""} ${modal === "album" ? "album-modal" : ""} ${modal === "feeling" ? "feeling-modal" : ""}`} aria-labelledby="modal-title"><button className="modal-close" aria-label={"Fechar"} disabled={busy} onClick={() => { setModal(null); setAnniversaryPlanDate(null); }}>×</button><span className="modal-icon">{modal === "plan" ? "♡" : modal === "memory" ? "✧" : modal === "draw" ? "✳" : modal === "album" ? "▧" : modal === "location" ? "⌖" : modal === "feeling" ? "♡" : "✳"}</span>
         <p className="section-kicker">{modal === "profile" ? "O VOSSO CASAL" : modal === "global-import" ? "CATÁLOGO GLOBAL DE IDEIAS" : modal === "import" ? "IMPORTAR IDEIAS" : modal === "plan" ? "UM PLANO SÓ PARA VOCÊS" : modal === "memory" ? "GUARDAR ESTE MOMENTO" : modal === "home-location" ? "ATUALIZAR LOCALIZAÇÃO" : modal === "draw" ? discoveryMode === "feeling" ? "A VOSSA SUGESTÃO PERSONALIZADA" : "O DATE DE HOJE ESTÁ DECIDIDO" : modal === "feeling" ? "ESCOLHER PELO FEELING" : modal === "album" ? "O VOSSO ÁLBUM PRIVADO" : modal === "location" ? "ADICIONAR ESTE LOCAL AO MAPA" : "MAIS UMA IDEIA ESPECIAL"}</p>

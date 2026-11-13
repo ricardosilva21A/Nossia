@@ -1623,7 +1623,27 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 .room-pet{position:absolute;bottom:5%;display:grid;justify-items:center;transform:translateX(-50%)}
 .room-pet svg{width:clamp(28px,8cqw,56px);height:auto}
 .room-quarto .room-pet{left:89%;bottom:6%}
-.room-cozinha .room-pet{left:48%}
-.room-jardim .room-pet{left:60%}
-.room-jardim .pet-ball svg{animation:pet-hop .32s ease-in-out infinite alternate}
-@media (prefers-reduced-motion:reduce){.room-jardim .pet-ball svg{animation:none}}
+.room-cozinha .room-pet{left:51%;bottom:3%}
+.room-jardim .room-pet{left:66%;bottom:3%}
+/* Following you in: it trots in from the side, or out of the dog flap into the garden. */
+.room-pet.pet-arrive{animation:pet-walk-in .9s ease-out both}
+.room-jardim .room-pet.pet-arrive{animation:pet-flap-out 1.3s ease-out both}
+.house-pet.pet-arrive svg{animation:pet-walk-in-svg .9s ease-out both}
+@keyframes pet-walk-in{0%{transform:translateX(calc(-50% - 40cqw))}100%{transform:translateX(-50%)}}
+@keyframes pet-walk-in-svg{0%{transform:translateX(-30cqw)}100%{transform:none}}
+@keyframes pet-flap-out{0%{transform:translateX(calc(-50% - 48cqw)) scale(.5);opacity:0}15%{opacity:1}100%{transform:translateX(-50%) scale(1)}}
+.room-pet.pet-eating svg{animation:pet-eat .6s .9s ease-in-out infinite alternate;transform-origin:30% 90%}
+@keyframes pet-eat{0%{transform:rotate(0)}100%{transform:rotate(14deg)}}
+.room-jardim .pet-ball .pet-toy{animation:pet-ball-bounce .55s ease-in-out infinite alternate}
+.room-jardim .pet-ball svg{animation:pet-hop .32s 1.3s ease-in-out infinite alternate}
+/* Rain, snow or autumn leaves falling over the garden */
+.garden-fall{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.garden-fall i{position:absolute;top:-10%;display:block;animation:fall linear infinite}
+.fall-rain i{width:2px;height:14px;border-radius:2px;background:rgba(232,241,248,.9);transform:rotate(12deg)}
+.fall-snow i{width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 2px rgba(0,0,0,.08)}
+.fall-leaves i{width:10px;height:6px;border-radius:60% 0;background:#d9823b}
+.fall-leaves i:nth-child(2n){background:#b5523b}
+@keyframes fall{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(-18px,40cqw) rotate(220deg)}}
+.fall-rain i{animation-name:fall-rain}
+@keyframes fall-rain{0%{transform:translate(0,0) rotate(12deg)}100%{transform:translate(-30px,40cqw) rotate(12deg)}}
+@media (prefers-reduced-motion:reduce){.room-pet.pet-arrive,.room-jardim .room-pet.pet-arrive,.house-pet.pet-arrive svg,.room-pet.pet-eating svg,.room-jardim .pet-ball svg,.room-jardim .pet-ball .pet-toy{animation:none}.garden-fall{display:none}}

@@ -6,6 +6,8 @@ import type { CoupleCommitment, CoupleDate, HomePartner, WorkScheduleBlock } fro
 import type { DailyWeather } from "./weather";
 
 export type WindowView = "sun" | "clouds" | "rain" | "fog" | "night";
+export type Sky = "sun" | "clouds" | "rain" | "fog" | "snow";
+export type Season = "spring" | "summer" | "autumn" | "winter";
 export type Outfit = "coat" | "sweater" | "normal" | "tshirt";
 export type SeasonalObject = "tree" | "chestnuts" | "basil" | "mask";
 export type Pose = "sofa" | "away" | "sleeping" | "getting_ready" | "celebrating" | "out" | "breakfast" | "cooking" | "tidying";
@@ -18,6 +20,10 @@ export type HouseScene = {
   outfit: Outfit;
   fan: boolean;
   seasonal: SeasonalObject | null;
+  // For the garden: today's weather (day or night), the season, and Christmas (snow, snowman, tree).
+  sky: Sky;
+  season: Season;
+  christmas: boolean;
   poses: Record<HomePartner, Pose>;
   // Where each one is in the house, or null when out (work, a commitment, a date).
   rooms: Record<HomePartner, Room | null>;
@@ -75,6 +81,22 @@ function windowFor(hour: number, weather: DailyWeather | null): WindowView {
   if (code === 45 || code === 48) return "fog";
   if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
   return code <= 1 ? "sun" : "clouds";
+}
+
+function skyFor(weather: DailyWeather | null): Sky {
+  if (!weather) return "clouds";
+  const code = weather.weatherCode;
+  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+  if (code === 45 || code === 48) return "fog";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95) return "rain";
+  return code <= 1 ? "sun" : "clouds";
+}
+
+export function seasonOf(month: number): Season {
+  if (month >= 2 && month <= 4) return "spring";
+  if (month >= 5 && month <= 7) return "summer";
+  if (month >= 8 && month <= 10) return "autumn";
+  return "winter";
 }
 
 function outfitFor(feelsLike: number | null): Outfit {
@@ -175,6 +197,9 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
     outfit: outfitFor(feelsLike),
     fan: feelsLike !== null && feelsLike > 30,
     seasonal: seasonalFor(now, today),
+    sky: skyFor(weather),
+    season: seasonOf(now.getMonth()),
+    christmas: now.getMonth() === 11,
     poses: { partner_one: poseOf("partner_one"), partner_two: poseOf("partner_two") },
     rooms: { partner_one: roomOf(poseOf("partner_one")), partner_two: roomOf(poseOf("partner_two")) },
     together,
@@ -184,7 +209,7 @@ export function decideHouse({ now, weather, blocks, commitments, dates }: HouseI
 // What the animal is doing when the app opens, and in which room. It waits at the door when
 // nobody's home, sleeps in its bed in the bedroom when everyone at home is asleep, and keeps
 // whoever is home alone company. With both home it picks something different each time.
-export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting";
+export type PetMode = "door" | "bed" | "sofa" | "ball" | "running" | "sitting" | "eating" | "resting";
 
 const freeModes: PetMode[] = ["sofa", "ball", "running", "sitting"];
 
@@ -205,6 +230,20 @@ export function decidePet(scene: Pick<HouseScene, "poses" | "rooms">, roll: numb
   const modes = scene.poses.partner_one === "sofa" && scene.poses.partner_two === "sofa" ? freeModes : freeModes.filter((mode) => mode !== "sofa");
   const mode = modes[Math.min(modes.length - 1, Math.floor(Math.max(0, roll) * modes.length))];
   return { mode, room: mode === "ball" ? "jardim" : "sala" };
+}
+
+// The animal goes wherever you go in the house: it eats from its bowl in the kitchen, lies on its
+// bed in the bedroom and goes out through the dog flap to play in the garden. It stays put when
+// nobody's home (waiting at the door) or when everyone at home is asleep (in its bed).
+export function petPlaceFor(scene: Pick<HouseScene, "poses" | "rooms">, roll: number, viewer: Room): { mode: PetMode; room: Room } {
+  const base = decidePet(scene, roll);
+  const slots: HomePartner[] = ["partner_one", "partner_two"];
+  const awake = slots.some((slot) => scene.rooms[slot] !== null && scene.poses[slot] !== "sleeping");
+  if (base.mode === "door" || !awake) return base;
+  if (viewer === "cozinha") return { mode: "eating", room: "cozinha" };
+  if (viewer === "quarto") return { mode: "resting", room: "quarto" };
+  if (viewer === "jardim") return { mode: "ball", room: "jardim" };
+  return base.room === "sala" ? base : { mode: "sitting", room: "sala" };
 }
 
 // Trips that already happened, newest first, one magnet per place.
