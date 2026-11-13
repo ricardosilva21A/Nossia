@@ -63,13 +63,11 @@ function Garden({ scene, night }: { scene: HouseScene; night: boolean }) {
       {christmas && <g><circle cx="900" cy="236" r="26" fill="#fff" stroke="#dfe6ee" strokeWidth="3" /><circle cx="900" cy="196" r="18" fill="#fff" stroke="#dfe6ee" strokeWidth="3" /><path d="M900 198l14 4-14 3z" fill="#e8893a" /><circle cx="894" cy="192" r="2.5" fill="#231815" /><circle cx="906" cy="192" r="2.5" fill="#231815" /><path d="M884 210h32" stroke="#e04848" strokeWidth="6" /></g>}
       {season === "autumn" && !snowy && [[680, 268], [720, 280], [860, 264], [910, 284], [360, 280], [980, 270], [640, 286]].map(([x, y], index) => <ellipse key={index} cx={x} cy={y} rx="9" ry="5" fill={index % 2 ? "#b5523b" : "#d9823b"} transform={`rotate(${index * 40} ${x} ${y})`} />)}
       {season === "spring" && !snowy && [[370, 262], [660, 270], [700, 286], [880, 262], [940, 282], [1000, 266], [395, 284]].map(([x, y], index) => <g key={index}><path d={`M${x} ${y + 12}v-12`} stroke="#4f7a52" strokeWidth="3" /><circle cx={x} cy={y} r="7" fill={["#f6b6c8", "#ffe08a", "#ffffff", "#c9a7e8"][index % 4]} /></g>)}
-      {/* The fence around the garden: the animal can run, but it stays in */}
-      {Array.from({ length: 12 }, (_, index) => <rect key={index} x={400 + index * 56} y="196" width="12" height="40" rx="4" fill="#fff" />)}
-      <path d="M392 208h672M392 226h672" stroke="#fff" strokeWidth="5" />
-      <path d="M1060 196v104M392 236v64" stroke="#fff" strokeWidth="10" />
-      {/* The pool: always there */}
-      <rect x="420" y="246" width="200" height="44" rx="22" fill={snowy ? "#d9ecf5" : "#7cc8e8"} stroke="#fff" strokeWidth="6" />
-      {!snowy && <path d="M450 266c14-6 28 6 42 0s28 6 42 0 28 6 42 0" fill="none" stroke="#e8f7fd" strokeWidth="4" strokeLinecap="round" />}
+      {/* A low hedge far at the back, with a little gate: the animal can't run off, but it isn't fenced in */}
+      <g fill={snowy ? "#e9eef3" : season === "autumn" ? "#8f8a4a" : "#5f8a5c"}>
+        {Array.from({ length: 13 }, (_, index) => <ellipse key={index} cx={380 + index * 54} cy="204" rx="34" ry="16" />)}
+      </g>
+      <g stroke="#fff" strokeWidth="5" fill="none"><path d="M1000 186v30M1040 186v30M1000 194h40M1000 208h40" /></g>
       {night && <rect width="1080" height="300" fill="#141a33" opacity=".25" />}
     </svg>
   );

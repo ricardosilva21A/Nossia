@@ -26,6 +26,8 @@ When one of you is at work or out, it shows as a short line above the sofa.
 
 
 The house has rooms: **Hoje** is the living room, **Agenda** the kitchen, **Nós** the bedroom and **Explorar** the garden. Each of you is where you'd be at that hour: breakfast in the kitchen the hour before work (each at their own time; a lie-in until 8 without work), cooking, tidying or on the sofa while the other is at work, and asleep in the bedroom at night, with the living-room light off. The pet follows you around the house: it eats from its named bowl in the kitchen, lies on its bed in the bedroom and goes out through the dog flap to play in the fenced garden. It waits at the door when you're both out and sleeps in its bed when everyone is asleep. The garden changes with the weather and the season: flowers in spring, the pool in the sun, brown leaves in autumn, bare branches in winter, rain when it rains, and at Christmas snow, a snowman and a decorated tree. Whoever isn't in the living room shows up in a short line above the sofa.
+
+**Birthdays and the anniversary:** in **Nós**, tap the anniversary or either birthday and choose when to celebrate: on the day, the day before, the weekend, the whole week (marked on the calendar) or another day. Then pick something to do or just mark the day. Three weeks ahead, if nothing is planned, the house reminds whoever should plan it (each birthday only shows to the other one).
 ## Adding things quickly
 
 Under the house there are three buttons: **Date**, **Compromisso** (commitment) and **Ideia para depois** (idea for later). Type it the way you'd say it: "Jantar italiano sexta às 20h". Nossia understands the day and time.

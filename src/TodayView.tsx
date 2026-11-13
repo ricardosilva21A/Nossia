@@ -87,6 +87,9 @@ export function TodayView({
   game = null,
   petRoll,
   petPlace,
+  occasion = null,
+  onPlanOccasion,
+  onOccasionLater,
   onOpenGame,
   onGameLater,
 }: {
@@ -149,6 +152,10 @@ export function TodayView({
   onOpenGame?: () => void;
   petRoll?: number;
   petPlace?: { mode: PetMode; room: Room };
+  // A birthday or the anniversary coming up with nothing planned yet.
+  occasion?: { title: string; emoji: string; days: number } | null;
+  onPlanOccasion?: () => void;
+  onOccasionLater?: () => void;
   onGameLater?: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
@@ -214,6 +221,10 @@ export function TodayView({
   </> : scene.dateNow ? <>
     <p className="house-bubble-title"><strong>{scene.together ? "Bom date!" : `Às ${scene.dateNow.time} é o vosso date.`}</strong></p>
     <p className="panel-copy">{scene.dateNow.title}{scene.together ? ". Aproveitem, depois contam-me como foi." : ". Já se estão a arranjar?"}</p>
+  </> : occasion ? <>
+    <p className="house-bubble-title"><strong>{occasion.emoji} {occasion.title}: {occasion.days === 1 ? "é amanhã!" : occasion.days <= 7 ? `daqui a ${occasion.days} dias` : `faltam ${Math.round(occasion.days / 7)} semanas`}</strong></p>
+    <p className="panel-copy">Ainda não há nada marcado. No dia, na véspera, no fim de semana ou a semana toda?</p>
+    <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onPlanOccasion}>Planear</button><button type="button" className="button button-ghost" onClick={onOccasionLater}>Depois</button></div>
   </> : game && game.kind !== "daily" ? <>
     <p className="house-bubble-title"><strong>{game.kind === "reveal" ? `Já há respostas! ${game.emoji === "🧠" ? "Vê se acertaste" : "Vê o que disseram"} 👀` : `${otherName} respondeu a um jogo: é a tua vez 🎲`}</strong></p>
     <p className="panel-copy">{game.emoji} {game.prompt}</p>

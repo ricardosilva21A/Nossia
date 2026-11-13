@@ -30,6 +30,8 @@ A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós*
 
 Quem não está na sala aparece numa linha curta por cima do sofá: a trabalhar, a dormir, a tomar o pequeno-almoço…
 
+**Aniversários:** em **Nós**, toca no aniversário de namoro ou nos anos de cada um e escolhe quando celebrar: no próprio dia, na véspera, no fim de semana, a semana toda (fica marcada no calendário) ou outro dia. Depois escolhes o que fazer ou só marcas o dia. Três semanas antes, se ainda não houver nada marcado, a casa lembra quem tem de planear (os anos de cada um só aparecem ao outro).
+
 ## Marcar coisas depressa
 
 Debaixo da casa há três botões: **Date**, **Compromisso** e **Ideia para depois**. Escreve como dirias: "Jantar italiano sexta às 20h". A Nossia percebe o dia e a hora.
