@@ -147,9 +147,13 @@ describe("the animal follows you", () => {
     expect(petPlaceFor(home, 0.5, "sala").room).toBe("sala");
   });
 
-  it("stays at the door or asleep instead", () => {
-    expect(petPlaceFor({ poses: { partner_one: "away", partner_two: "away" }, rooms: { partner_one: null, partner_two: null } }, 0.5, "jardim").mode).toBe("door");
-    expect(petPlaceFor({ poses: { partner_one: "sleeping", partner_two: "away" }, rooms: { partner_one: "quarto", partner_two: null } }, 0.5, "cozinha")).toEqual({ mode: "bed", room: "quarto" });
+  it("follows you even when nobody's home or everyone's asleep", () => {
+    const out = { poses: { partner_one: "away", partner_two: "away" }, rooms: { partner_one: null, partner_two: null } } as const;
+    expect(petPlaceFor(out, 0.5, "sala").mode).toBe("door");
+    expect(petPlaceFor(out, 0.5, "jardim")).toEqual({ mode: "ball", room: "jardim" });
+    const night = { poses: { partner_one: "sleeping", partner_two: "away" }, rooms: { partner_one: "quarto", partner_two: null } } as const;
+    expect(petPlaceFor(night, 0.5, "cozinha")).toEqual({ mode: "eating", room: "cozinha" });
+    expect(petPlaceFor(night, 0.5, "quarto")).toEqual({ mode: "bed", room: "quarto" });
   });
 });
 
@@ -177,7 +181,7 @@ describe("the three of them together", () => {
     expect(decidePet({ poses: { partner_one: "gaming", partner_two: "bed_rest" }, rooms: { partner_one: "quarto", partner_two: "quarto" } }, 0.5)).toEqual({ mode: "cuddle", room: "quarto" });
     const soon = decideHouse({ ...base, now: new Date(2026, 9, 7, 17, 55), blocks: [{ partner_slot: "partner_one", weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" }] });
     expect(soon.arrivingSoon).toBe("partner_one");
-    expect(petPlaceFor(soon, 0.5, "cozinha")).toEqual({ mode: "door", room: "sala" });
+    expect(petPlaceFor(soon, 0.5, "sala")).toEqual({ mode: "door", room: "sala" });
     const saturdayNight = decideHouse({ ...base, now: new Date(2026, 9, 10, 23, 30) });
     expect(decidePet(saturdayNight, 0.5)).toEqual({ mode: "footbed", room: "quarto" });
     expect(decidePet(decideHouse({ ...base, now: new Date(2026, 9, 7, 23, 30) }), 0.5).mode).toBe("bed");
