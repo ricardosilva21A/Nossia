@@ -1629,16 +1629,16 @@ button.wall-day:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset
 .room-cozinha .room-pet{left:51%;bottom:3%}
 .room-jardim .room-pet{left:66%;bottom:3%}
 /* Following you in: it trots in from the side, or out of the dog flap into the garden. */
-.room-pet.pet-arrive{animation:pet-walk-in .9s ease-out both}
-.room-jardim .room-pet.pet-arrive{animation:pet-flap-out 1.3s ease-out both}
-.house-pet.pet-arrive svg{animation:pet-walk-in-svg .9s ease-out both}
-@keyframes pet-walk-in{0%{transform:translateX(calc(-50% - 40cqw))}100%{transform:translateX(-50%)}}
-@keyframes pet-walk-in-svg{0%{transform:translateX(-30cqw)}100%{transform:none}}
-@keyframes pet-flap-out{0%{transform:translateX(calc(-50% - 48cqw)) scale(.5);opacity:0}15%{opacity:1}100%{transform:translateX(-50%) scale(1)}}
-.room-pet.pet-eating svg{animation:pet-eat .6s .9s ease-in-out infinite alternate;transform-origin:30% 90%}
+.room-pet.pet-arrive{animation:pet-walk-in 2.4s 1s ease-in-out both}
+.room-jardim .room-pet.pet-arrive{animation:pet-flap-out 3.2s 1s ease-in-out both}
+.house-pet.pet-arrive svg{animation:pet-walk-in-svg 2.4s 1s ease-in-out both}
+@keyframes pet-walk-in{0%{transform:translateX(calc(-50% - 40cqw));opacity:0}12%{opacity:1}100%{transform:translateX(-50%)}}
+@keyframes pet-walk-in-svg{0%{transform:translateX(-30cqw);opacity:0}12%{opacity:1}100%{transform:none}}
+@keyframes pet-flap-out{0%{transform:translateX(calc(-50% - 48cqw)) scale(.5);opacity:0}20%{transform:translateX(calc(-50% - 48cqw)) scale(.7);opacity:1}100%{transform:translateX(-50%) scale(1)}}
+.room-pet.pet-eating svg{animation:pet-eat .6s 3.4s ease-in-out infinite alternate;transform-origin:30% 90%}
 @keyframes pet-eat{0%{transform:rotate(0)}100%{transform:rotate(14deg)}}
 .room-jardim .pet-ball .pet-toy{animation:pet-ball-bounce .55s ease-in-out infinite alternate}
-.room-jardim .pet-ball svg{animation:pet-hop .32s 1.3s ease-in-out infinite alternate}
+.room-jardim .pet-ball svg{animation:pet-hop .32s 4.2s ease-in-out infinite alternate}
 /* Rain, snow or autumn leaves falling over the garden */
 .garden-fall{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .garden-fall i{position:absolute;top:-10%;display:block;animation:fall linear infinite}
@@ -1697,6 +1697,6 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .room-quarto .room-person.pose-gaming small{order:-1;margin-bottom:2px}
 .room-quarto .room-pet.pet-feet{left:21%;bottom:3%}
 .room-quarto .room-pet.pet-feet svg{width:clamp(24px,6.5cqw,46px)}
-.house-pet.pet-arrive-door svg{animation:pet-in-door 1s ease-out both}
+.house-pet.pet-arrive-door svg{animation:pet-in-door 2.6s 1s ease-in-out both}
 @keyframes pet-in-door{0%{transform:translateX(26cqw) scale(.85);opacity:0}25%{opacity:1}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){.house-pet.pet-arrive-door svg{animation:none}}
