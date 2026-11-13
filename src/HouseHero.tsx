@@ -64,9 +64,11 @@ export type HouseActions = {
   onOpenProfile: () => void;
   onSendAffection: (kind: AffectionKind) => Promise<boolean>;
   onSavePetAccessory: (accessory: Accessory) => Promise<boolean>;
+  // Places they said they'd love to go, from the games: shown with the map up close.
+  travelDreams?: Array<{ who: string; text: string }>;
 };
 
-export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, showGuide = false, onGuideDone, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory }: Props) {
+export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, today = new Date(), bubble, onOpenAgenda, onPlanDay, onPlanTrip, onOpenWorldMap, onOpenWindow, forecast = [], weatherPlace = null, mySlot, showGuide = false, onGuideDone, partnerHasPush = null, onOpenProfile, onSendAffection, onSavePetAccessory, travelDreams = [] }: Props) {
   // What is open up close, and where on the wall it was, so the zoom starts from there.
   const [closeUp, setCloseUp] = useState<{ what: "map" | "calendar" | "weather"; origin: DOMRect } | null>(null);
   const open = (what: "map" | "calendar" | "weather") => (event: MouseEvent<HTMLButtonElement>) => setCloseUp({ what, origin: event.currentTarget.getBoundingClientRect() });
@@ -203,7 +205,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         {(close) => <WallWeather forecast={forecast} place={weatherPlace} onChangePlace={() => { close(); window.setTimeout(onOpenWindow, 470); }} />}
       </ZoomOverlay>}
       {closeUp?.what === "map" && <ZoomOverlay origin={closeUp.origin} label="Mapa das viagens" className="zoom-map" onClose={() => setCloseUp(null)}>
-        {(close) => <WallMap pins={pins} onPlanTrip={() => { close(); window.setTimeout(onPlanTrip, 470); }} onOpenWorldMap={() => { close(); window.setTimeout(onOpenWorldMap, 470); }} />}
+        {(close) => <WallMap pins={pins} dreams={travelDreams} onPlanTrip={() => { close(); window.setTimeout(onPlanTrip, 470); }} onOpenWorldMap={() => { close(); window.setTimeout(onOpenWorldMap, 470); }} />}
       </ZoomOverlay>}
       {closeUp?.what === "calendar" && <ZoomOverlay origin={closeUp.origin} label="Calendário" className="zoom-calendar" onClose={() => setCloseUp(null)}>
         {(close) => <WallCalendar today={today} {...calendar} onOpenAgenda={() => { close(); window.setTimeout(onOpenAgenda, 470); }} onPlanDay={onPlanDay ? (day) => { close(); window.setTimeout(() => onPlanDay(day), 470); } : undefined} />}

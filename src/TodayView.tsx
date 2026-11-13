@@ -84,6 +84,9 @@ export function TodayView({
   onOpenPlaces,
   onOpenPlanned,
   onOpenAgenda,
+  game = null,
+  onOpenGame,
+  onGameLater,
 }: {
   
   upcomingDates: DateIdea[];
@@ -139,6 +142,10 @@ export function TodayView({
   onOpenPlaces: () => void;
   onOpenPlanned: () => void;
   onOpenAgenda: () => void;
+  // A game question for the bubble: the other is waiting, answers to see, or today's question.
+  game?: { kind: "turn" | "reveal" | "daily"; prompt: string; emoji: string } | null;
+  onOpenGame?: () => void;
+  onGameLater?: () => void;
 }) {
   const [adding, setAdding] = useState<"date" | "commitment" | "idea" | null>(null);
   const [planDay, setPlanDay] = useState<string | null>(null);
@@ -203,10 +210,18 @@ export function TodayView({
   </> : scene.dateNow ? <>
     <p className="house-bubble-title"><strong>{scene.together ? "Bom date!" : `Às ${scene.dateNow.time} é o vosso date.`}</strong></p>
     <p className="panel-copy">{scene.dateNow.title}{scene.together ? ". Aproveitem, depois contam-me como foi." : ". Já se estão a arranjar?"}</p>
+  </> : game && game.kind !== "daily" ? <>
+    <p className="house-bubble-title"><strong>{game.kind === "reveal" ? `Já há respostas! ${game.emoji === "🧠" ? "Vê se acertaste" : "Vê o que disseram"} 👀` : `${otherName} respondeu a um jogo: é a tua vez 🎲`}</strong></p>
+    <p className="panel-copy">{game.emoji} {game.prompt}</p>
+    <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenGame}>{game.kind === "reveal" ? "Ver" : "Responder"}</button>{game.kind === "turn" && <button type="button" className="button button-ghost" onClick={onGameLater}>Depois</button>}</div>
   </> : deckSize > 0 ? <>
     <p className="house-bubble-title"><strong>{pet ? `${pet.name}: ` : ""}{deckNew > 0 ? `encontrei ${deckNew === 1 ? "um sítio novo" : `${deckNew} sítios novos`} perto de vocês` : "Diz-me do que gostas"}</strong></p>
     <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia rápida" : "ideias rápidas"}: desliza para a direita se te apetece. Assim as sugestões ficam à vossa medida.</p>
     <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Vamos lá</button></div>
+  </> : game ? <>
+    <p className="house-bubble-title"><strong>{pet ? `${pet.name}: ` : ""}pergunta do dia</strong></p>
+    <p className="panel-copy">{game.emoji} {game.prompt}</p>
+    <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenGame}>Responder</button><button type="button" className="button button-ghost" onClick={onGameLater}>Depois</button></div>
   </> : suggestion ? <>
     <p className="house-bubble-title">{suggestionDate === today ? "Hoje" : shortDay(suggestionDate)}, que tal <strong>{suggestion.idea.emoji} {suggestion.idea.title}</strong>?</p>
     <p className="today-meta"><Clock size={16} aria-hidden="true" />{durationLabel(suggestion.idea.duration_minutes, suggestion.idea.duration)}<span aria-hidden="true">·</span>{budgetLabel(suggestion.idea.budget_eur)}</p>

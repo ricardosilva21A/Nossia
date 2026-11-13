@@ -20,6 +20,8 @@ export function useDiscoveries(input: {
   ideas: DateIdea[];
   votes: Vote[];
   signals: CoupleSignals;
+  // Activities picked in "this or that": a light extra say in what gets found.
+  extraLikes?: Activity[];
   onAdded: (ideas: Idea[]) => void;
 }) {
   const running = useRef(false);
@@ -46,6 +48,7 @@ export function useDiscoveries(input: {
         const liked = [
           ...input.votes.filter((vote) => vote.vote === "like").map((vote) => byIdea.get(vote.idea_id)),
           ...Object.entries(input.signals.ideas).filter(([, signal]) => signal === "both_like").map(([id]) => byIdea.get(id)),
+          ...(input.extraLikes ?? []),
         ].filter((activity): activity is Activity => Boolean(activity));
         const done = input.ideas.filter((idea) => idea.status === "completed").map((idea) => activityOf(idea));
         const features = await fetchFeatures(location.latitude, location.longitude);

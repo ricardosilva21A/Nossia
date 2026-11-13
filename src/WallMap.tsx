@@ -7,7 +7,7 @@ const shortDate = new Intl.DateTimeFormat("pt-PT", { month: "long", year: "numer
 const when = (pin: TripPin) => shortDate.format(new Date(`${pin.start_date}T12:00:00`));
 
 // The map on the wall, up close: a pin for every trip, and the way to plan the next one.
-export function WallMap({ pins, onPlanTrip, onOpenWorldMap }: { pins: TripPin[]; onPlanTrip: () => void; onOpenWorldMap: () => void }) {
+export function WallMap({ pins, dreams = [], onPlanTrip, onOpenWorldMap }: { pins: TripPin[]; dreams?: Array<{ who: string; text: string }>; onPlanTrip: () => void; onOpenWorldMap: () => void }) {
   const [selected, setSelected] = useState<string | null>(null);
   const past = pins.filter((pin) => pin.past);
   const coming = pins.filter((pin) => !pin.past);
@@ -25,6 +25,7 @@ export function WallMap({ pins, onPlanTrip, onOpenWorldMap }: { pins: TripPin[];
       <p className="wall-map-count">{past.length === 0 ? "Ainda sem pins: a primeira viagem fica aqui marcada." : past.length === 1 ? "1 sítio onde já estiveram juntos." : `${past.length} sítios onde já estiveram juntos.`}</p>
       {past.length > 0 && <><p className="form-label">Onde já foram</p><ul className="wall-trips">{[...past].reverse().map(row)}</ul></>}
       {coming.length > 0 && <><p className="form-label">Próximas</p><ul className="wall-trips">{coming.map(row)}</ul></>}
+      {dreams.length > 0 && <><p className="form-label">Querem ir (dos jogos)</p><ul className="wall-dreams">{dreams.slice(0, 8).map((dream, index) => <li key={index}><span aria-hidden="true">✨</span>{dream.text}<small>{dream.who}</small></li>)}</ul></>}
       <div className="panel-actions wall-actions">
         <button type="button" className="button button-ghost" onClick={onOpenWorldMap}>Ver mapa das viagens</button>
         <button type="button" className="button button-primary" onClick={onPlanTrip}>Marcar viagem</button>

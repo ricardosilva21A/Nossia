@@ -16,11 +16,13 @@ type Props = {
   partnerBirthDate: string | null;
   relationshipDate: string | null;
   today: string;
+  // What the other one said about themselves in the games (only answers already revealed).
+  hints?: Array<{ id: string; question: string; answer: string }>;
 };
 
 const when = (days: number) => (days === 0 ? "Hoje" : days === 1 ? "Amanhã" : `Daqui a ${days} dias`);
 
-export function GiftsPanel({ coupleId, partnerName, partnerBirthDate, relationshipDate, today }: Props) {
+export function GiftsPanel({ coupleId, partnerName, partnerBirthDate, relationshipDate, today, hints = [] }: Props) {
   const [gifts, setGifts] = useState<GiftIdea[] | null>(null);
   const [title, setTitle] = useState("");
   const [link, setLink] = useState("");
@@ -84,6 +86,12 @@ export function GiftsPanel({ coupleId, partnerName, partnerBirthDate, relationsh
       <ul className="gift-occasions" aria-label="Próximas ocasiões">
         {occasions.map((occasion) => <li key={occasion.key} className={occasion.days <= 30 ? "is-soon" : ""}><strong>{occasion.label}</strong><span>{when(occasion.days)}</span></li>)}
       </ul>
+
+      <section className="gift-hints" aria-label={`Pistas de ${partnerName}`}>
+        <p className="form-label">Pistas dos jogos</p>
+        {hints.length ? <ul>{hints.map((hint) => <li key={hint.id}><small>{hint.question}</small><strong>{hint.answer}</strong></li>)}</ul>
+          : <p className="schedule-hint">Joguem "Quanto me conheces?" e "Sonhos" em Explorar: o que {partnerName} responder sobre si aparece aqui.</p>}
+      </section>
 
       <form className="panel gift-form" onSubmit={(event) => void add(event)}>
         <label className="form-label">Ideia de prenda<input className="form-input" required maxLength={200} value={title} placeholder="ex.: Aquele livro de fotografia" onChange={(event) => setTitle(event.target.value)} /></label>
