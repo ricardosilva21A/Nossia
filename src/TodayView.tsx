@@ -53,6 +53,7 @@ export function TodayView({
   forecast,
   weatherPlace,
   deckSize,
+  deckNew = 0,
   onOpenDeck,
   onOpenCalendar,
   onPlanTrip,
@@ -104,6 +105,8 @@ export function TodayView({
   weatherPlace: string | null;
   calendar: CalendarData;
   deckSize: number;
+  // How many cards in the deck are places just found around home.
+  deckNew?: number;
   onOpenDeck: () => void;
   onOpenCalendar: () => void;
   onPlanTrip: () => void;
@@ -201,7 +204,7 @@ export function TodayView({
     <p className="house-bubble-title"><strong>{scene.together ? "Bom date!" : `Às ${scene.dateNow.time} é o vosso date.`}</strong></p>
     <p className="panel-copy">{scene.dateNow.title}{scene.together ? ". Aproveitem, depois contam-me como foi." : ". Já se estão a arranjar?"}</p>
   </> : deckSize > 0 ? <>
-    <p className="house-bubble-title"><strong>{pet ? `${pet.name}: ` : ""}Diz-me do que gostas</strong></p>
+    <p className="house-bubble-title"><strong>{pet ? `${pet.name}: ` : ""}{deckNew > 0 ? `encontrei ${deckNew === 1 ? "um sítio novo" : `${deckNew} sítios novos`} perto de vocês` : "Diz-me do que gostas"}</strong></p>
     <p className="panel-copy">{deckSize} {deckSize === 1 ? "ideia rápida" : "ideias rápidas"}: desliza para a direita se te apetece. Assim as sugestões ficam à vossa medida.</p>
     <div className="panel-actions"><button type="button" className="button button-secondary" onClick={onOpenDeck}>Vamos lá</button></div>
   </> : suggestion ? <>

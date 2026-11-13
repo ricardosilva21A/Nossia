@@ -45,7 +45,13 @@ export function buildDeck(ideas: DateIdea[], votes: Vote[], today: string, now: 
   });
   const inSeason = (idea: DateIdea) => idea.seasons.some((season: SeasonKey) => isSeasonActive(season, today));
   const outOfSeason = (idea: DateIdea) => idea.seasons.length > 0 && !inSeason(idea);
-  const ordered = [...shuffle(unseen.filter(inSeason), random), ...shuffle(unseen.filter((idea) => !inSeason(idea) && !outOfSeason(idea)), random)];
+  // New places found around home come first, then what's in season, then the rest.
+  const isNew = (idea: DateIdea) => (idea.tags ?? []).includes("descoberto");
+  const ordered = [
+    ...shuffle(unseen.filter(isNew), random),
+    ...shuffle(unseen.filter((idea) => !isNew(idea) && inSeason(idea)), random),
+    ...shuffle(unseen.filter((idea) => !isNew(idea) && !inSeason(idea) && !outOfSeason(idea)), random),
+  ];
 
   let size: number;
   if (votes.length < firstDeckSize) size = firstDeckSize - votes.length;

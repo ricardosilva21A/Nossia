@@ -19,6 +19,7 @@ import { Onboarding } from "./Onboarding";
 import { affectionMessage } from "./affections";
 import { needsNewAgreement, proposalsForMe, startsAsProposal } from "./proposals";
 import { QuickClose } from "./QuickClose";
+import { useDiscoveries } from "./useDiscoveries";
 import { monthSummary, previousMonth } from "./monthSummary";
 import { IdeaCard } from "./IdeaCard";
 import { InsightsPanel } from "./InsightsPanel";
@@ -768,6 +769,17 @@ function App() {
     const days = sharedFreeDays(workBlocks, plannedDates, commitments, trips, 60);
     return { free: new Set(days.filter((day) => day.dates.length === 0 && longestWindow(day.windows) >= 360).map((day) => day.key)), end: days[days.length - 1].key };
   }, [commitments, plannedDates, trips, workBlocks]);
+  // New ideas from places around home, once a week (see discoveries.ts).
+  useDiscoveries({
+    coupleId: couple?.id,
+    location: couple?.weather_latitude != null && couple.weather_longitude != null ? { latitude: couple.weather_latitude, longitude: couple.weather_longitude }
+      : couple?.municipality_latitude != null && couple.municipality_longitude != null ? { latitude: couple.municipality_latitude, longitude: couple.municipality_longitude } : null,
+    catalog,
+    ideas,
+    votes,
+    signals,
+    onAdded: (added) => setCatalog((current) => [...current, ...added]),
+  });
   const lastMonth = useMemo(() => {
     const photosByDate = new Map<string, number>();
     photos.forEach((photo) => photosByDate.set(photo.date_id, (photosByDate.get(photo.date_id) ?? 0) + 1));
@@ -2130,6 +2142,7 @@ function App() {
             houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
+            deckNew={deckAvailable.filter((idea) => (idea.tags ?? []).includes("descoberto")).length}
             onOpenDeck={() => setOpenDeck(deckAvailable)}
             onPlanTrip={() => navigateView("trips")}
             onOpenWorldMap={() => navigateView("tripMap")}
