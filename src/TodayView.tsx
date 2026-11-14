@@ -207,7 +207,9 @@ export function TodayView({
   ].sort((first, second) => first.days - second.days).slice(0, 3);
 
   const back = scene.backFromDate && dismissedBack !== scene.backFromDate.id ? scene.backFromDate : null;
-  const bubble = proposal ? <>
+  // Which message the bubble shows: a new one materialises instead of just swapping text.
+  const bubbleKind = proposal ? `proposal-${proposal.id}` : back ? `back-${back.id}` : scene.dateNow ? "date" : occasion ? `occasion-${occasion.title}` : game && game.kind !== "daily" ? `game-${game.kind}-${game.prompt}` : deckSize > 0 ? "deck" : game ? `daily-${game.prompt}` : suggestion ? `suggestion-${suggestion.idea.id}` : "empty";
+  const bubbleContent = proposal ? <>
     <p className="house-bubble-title"><strong>{otherName} propôs {proposal.emoji} {proposal.title}</strong></p>
     <p className="today-meta"><CalendarDays size={16} aria-hidden="true" />{proposal.planned_for ? shortDay(proposal.planned_for) : ""}{proposal.planned_start_time && <><Clock size={16} aria-hidden="true" />{proposal.planned_start_time.slice(0, 5)}</>}</p>
     {moving ? <form className="proposal-move" onSubmit={(event) => { event.preventDefault(); void onMoveProposal(proposal.id, moving.date, moving.time || null).then((ok) => { if (ok) setMoving(null); }); }}>
@@ -246,6 +248,7 @@ export function TodayView({
     {!weatherKnown && <p className="suggestion-hint">Partilhem a localização nas definições para a sugestão contar com o tempo.</p>}
     <div className="panel-actions"><button type="button" className="button button-secondary" disabled={busy} onClick={() => onPlanSuggestion(suggestion.idea, suggestionDate)}>Marcar</button><button type="button" className="button button-ghost" onClick={onAnotherSuggestion}><Shuffle size={16} aria-hidden="true" />Outra</button></div>
   </> : <p className="panel-copy">Já fizeram todas as ideias desta época. Acrescentem novas em Explorar.</p>;
+  const bubble = <div key={bubbleKind} className="bubble-in">{bubbleContent}</div>;
 
   return (
     <div className="today-grid">
