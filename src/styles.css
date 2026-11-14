@@ -1700,3 +1700,41 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .house-pet.pet-arrive-door svg{animation:pet-in-door 2.6s 1s ease-in-out both}
 @keyframes pet-in-door{0%{transform:translateX(26cqw) scale(.85);opacity:0}25%{opacity:1}100%{transform:none}}
 @media (prefers-reduced-motion:reduce){.house-pet.pet-arrive-door svg{animation:none}}
+
+/* ===== Life: depth, touch feedback and gentle entrances =====
+   From the UI UX Pro Max checklist (press feedback, soft depth, 150-300ms transitions) and
+   Design Motion Principles: Jakub's polish for most things, Jhey for the house, Emil's
+   restraint for what is tapped all the time (tabs, buttons: feedback only, no show). */
+:root{
+  --ease-out-soft:cubic-bezier(.22,1,.36,1);
+  --ease-press:cubic-bezier(.2,.8,.2,1);
+  --shadow-rest:0 0 0 1px rgba(35,24,21,.04),0 1px 2px -1px rgba(35,24,21,.08),0 3px 8px -2px rgba(35,24,21,.06);
+  --shadow-lift:0 0 0 1px rgba(35,24,21,.05),0 2px 4px -1px rgba(35,24,21,.1),0 10px 22px -8px rgba(35,24,21,.16);
+}
+
+/* Depth: cards sit on the page with soft layered shadows instead of a flat outline */
+.panel,.house-bubble,.explore-card,.today-add-button,.discovery-option,.milestone-card,.game-option,.occasion-option,.affection-option,.gift-hints li,.game-reveal>div,.month-card,.push-hint{box-shadow:var(--shadow-rest)}
+.house-room,.house-room-strip{box-shadow:var(--shadow-rest)}
+
+/* Touch: everything tappable gives way a little under the finger, and comes back softly */
+.button,.chip,.icon-button,.explore-card,.today-add-button,.discovery-option,.game-option,.occasion-option,.affection-option,.subnav button,.nav-link,button.milestone-card,.link-button{transition:background-color .15s,border-color .15s,color .15s,box-shadow .2s var(--ease-out-soft),transform .18s var(--ease-press);-webkit-tap-highlight-color:transparent}
+.button:active:not(:disabled),.chip:active,.icon-button:active:not(:disabled),.explore-card:active:not(:disabled),.today-add-button:active,.discovery-option:active,.game-option:active:not(:disabled),.occasion-option:active,.affection-option:active:not(:disabled),.subnav button:active,.nav-link:active,button.milestone-card:active{transform:scale(.97);transition-duration:.08s}
+@media (hover:hover){
+  .explore-card:hover:not(:disabled),.today-add-button:hover,.discovery-option:hover,button.milestone-card:hover,.game-option:hover:not(:disabled),.occasion-option:hover,.affection-option:hover:not(:disabled){box-shadow:var(--shadow-lift);transform:translateY(-2px)}
+}
+
+/* Entrances: each screen settles in (short, no blur on big areas), small things materialise */
+@keyframes settle-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes materialise{from{opacity:0;transform:translateY(8px);filter:blur(4px)}to{opacity:1;transform:none;filter:blur(0)}}
+.content>section,.content>div,.content>article,.content>form{animation:settle-in .26s var(--ease-out-soft) both}
+.bubble-in{animation:materialise .34s var(--ease-out-soft) both}
+.explore-row li{animation:materialise .4s var(--ease-out-soft) both}
+.explore-row li:nth-child(2){animation-delay:.04s}.explore-row li:nth-child(3){animation-delay:.08s}.explore-row li:nth-child(4){animation-delay:.12s}.explore-row li:nth-child(n+5){animation-delay:.16s}
+.welcome-sheet,.modal-card{animation:materialise .32s var(--ease-out-soft) both}
+@media(max-width:760px){.modal-card{animation:sheet .34s var(--ease-out-soft) both}}
+.affection-toast{animation-timing-function:var(--ease-out-soft)}
+
+/* Reduced motion: final states straight away, everywhere */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
