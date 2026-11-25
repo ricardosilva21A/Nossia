@@ -14,7 +14,8 @@ export type DeckKey = "conhecer" | "isto" | "quem" | "sonhos" | "memorias";
 type Base = { id: string; deck: DeckKey };
 // About you: first you guess the other's answer, then you give your own. With options it's a
 // tap; without, both write, and the one it's about says whether the guess was right.
-export type KnowQuestion = Base & { kind: "know"; topic: string; guess: string; self: string; options?: string[]; gift?: boolean; travel?: boolean };
+// `lookup`: while typing, suggest real titles (films and series from IMDb, songs from iTunes).
+export type KnowQuestion = Base & { kind: "know"; topic: string; guess: string; self: string; options?: string[]; lookup?: "film" | "series" | "song"; gift?: boolean; travel?: boolean };
 // This or that: each picks one, and it shows whether you picked the same.
 export type PairQuestion = Base & { kind: "pair"; text: string; options: [string, string]; tastes?: [Activity, Activity] };
 // Who is more likely to…: each points at one of the two.
@@ -37,7 +38,7 @@ export const decks: Array<{ key: DeckKey; emoji: string; title: string; hint: st
 ];
 
 const choice = (id: string, topic: string, guess: string, self: string, options: string[], extra: { gift?: boolean; travel?: boolean } = {}): KnowQuestion => ({ id, deck: "conhecer", kind: "know", topic, guess, self, options, ...extra });
-const written = (id: string, topic: string, guess: string, self: string, extra: { gift?: boolean; travel?: boolean } = {}): KnowQuestion => ({ id, deck: "conhecer", kind: "know", topic, guess, self, ...extra });
+const written = (id: string, topic: string, guess: string, self: string, extra: { gift?: boolean; travel?: boolean; lookup?: "film" | "series" | "song" } = {}): KnowQuestion => ({ id, deck: "conhecer", kind: "know", topic, guess, self, ...extra });
 const pair = (id: string, text: string, a: string, b: string, tastes?: [Activity, Activity]): PairQuestion => ({ id, deck: "isto", kind: "pair", text, options: [a, b], ...(tastes ? { tastes } : {}) });
 const who = (id: string, text: string): WhoQuestion => ({ id, deck: "quem", kind: "who", text });
 const open = (id: string, deck: "sonhos" | "memorias", text: string, extra: { gift?: boolean; travel?: boolean } = {}): OpenQuestion => ({ id, deck, kind: "open", text, ...extra });
@@ -74,9 +75,9 @@ export const questions: GameQuestion[] = [
   choice("c28", "o pequeno-almoço ideal", "O pequeno-almoço ideal de {n}?", "E o teu?", ["Torradas", "Panquecas", "Iogurte e fruta", "Pastel de nata", "Só café"]),
 
   // Quanto me conheces? Written: both write, and the one it's about says if the guess was right.
-  written("t01", "o filme favorito", "Qual é o filme favorito de {n}?", "E o teu?", { gift: true }),
-  written("t02", "a série para ver outra vez", "Que série via {n} outra vez desde o início?", "E tu?", { gift: true }),
-  written("t03", "a música do duche", "Que música canta {n} no duche?", "E tu?", { gift: true }),
+  written("t01", "o filme favorito", "Qual é o filme favorito de {n}?", "E o teu?", { gift: true, lookup: "film" }),
+  written("t02", "a série para ver outra vez", "Que série via {n} outra vez desde o início?", "E tu?", { gift: true, lookup: "series" }),
+  written("t03", "a música do duche", "Que música canta {n} no duche?", "E tu?", { gift: true, lookup: "song" }),
   written("t04", "a comida de conforto", "Num dia mau, o que quer {n} comer?", "E tu?", { gift: true }),
   written("t05", "o sítio para ir amanhã", "Se pudesse ir amanhã para qualquer sítio, {n} ia para…", "E tu?", { travel: true }),
   written("t06", "o pedido de sempre no restaurante", "O que pede {n} sem olhar para o menu?", "E tu?"),

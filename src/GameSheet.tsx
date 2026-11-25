@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Sheet } from "./HouseSheets";
+import { TitleSearch } from "./TitleSearch";
 import { answersFor, decks, isWritten, outcomeOf, promptFor, reaction } from "./games";
 import type { GameAnswer, GameQuestion, ReactionKind, Verdict } from "./games";
 import type { HomePartner } from "./types";
@@ -86,7 +87,9 @@ export function GameSheet({ pet, looks, question, answers, userId, mySlot, myNam
   const textForm = (label: string, onSubmit: (value: string) => void, cta: string) => (
     <form onSubmit={(event) => { event.preventDefault(); if (text.trim()) onSubmit(text.trim()); }}>
       <label className="sr-only" htmlFor="game-text">{label}</label>
-      <input id="game-text" className="form-input game-text-input" maxLength={120} value={text} autoFocus autoComplete="off" placeholder="Escreve aqui…" onChange={(event) => setText(event.target.value)} />
+      {question.kind === "know" && question.lookup
+        ? <TitleSearch key={label} id="game-text" kind={question.lookup} value={text} autoFocus onChange={setText} />
+        : <input id="game-text" className="form-input game-text-input" maxLength={120} value={text} autoFocus autoComplete="off" placeholder="Escreve aqui…" onChange={(event) => setText(event.target.value)} />}
       <div className="panel-actions"><button type="submit" className="button button-primary" disabled={busy || !text.trim()}>{cta}</button></div>
     </form>
   );
