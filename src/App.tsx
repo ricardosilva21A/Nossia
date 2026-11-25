@@ -2197,16 +2197,18 @@ function App() {
   const arrival = arrived && houseScene.rooms[arrived.slot] !== null ? { slot: arrived.slot, time: `${String(arrived.at.getHours()).padStart(2, "0")}:${String(arrived.at.getMinutes()).padStart(2, "0")}` } : null;
   const gameBubble = (() => {
     if (!partnerJoined || !mySlot) return null;
-    const reveal = games.reveals.map(questionById).find(Boolean);
+    const judge = games.judging.map(questionById).find(Boolean);
+    const reveal = games.reveals.map((key) => questionById(key.split(":")[0])).find(Boolean);
     const turn = [...games.waiting].map(questionById).find(Boolean);
     // Today's question stays put once answered (no endless stream): it skips only what was answered before today.
     const answeredBefore = new Set(games.answers.filter((answer) => answer.user_id === session.user.id && localDateString(new Date(answer.created_at)) < todayKey).map((answer) => answer.question_id));
     const todays = dailyQuestion(couple.id, todayKey, answeredBefore);
     const daily = gameLater === todayKey || !todays || games.answered.has(todays.id) ? null : todays;
-    const [kind, question] = reveal ? ["reveal", reveal] as const : turn && gameLater !== todayKey ? ["turn", turn] as const : daily ? ["daily", daily] as const : [null, null];
+    const [kind, question] = judge ? ["judge", judge] as const : reveal ? ["reveal", reveal] as const : turn && gameLater !== todayKey ? ["turn", turn] as const : daily ? ["daily", daily] as const : [null, null];
     if (!kind || !question) return null;
     const emoji = gameDecks.find((deck) => deck.key === question.deck)?.emoji ?? "🎲";
-    return { kind, id: question.id, emoji, prompt: question.kind === "know" ? (kind === "daily" ? question.self : promptFor(question, "guess", partnerName)) : promptFor(question) };
+    const prompt = kind === "judge" && question.kind === "know" ? `${partnerName} tentou adivinhar ${question.topic}. Acertou?` : promptFor(question, "guess", partnerName);
+    return { kind, id: question.id, emoji, prompt };
   })();
   // What each tab shows: folded screens never, the map's trips half lives inside "Mapa", and
   // Eventos only once there are events to show.
@@ -2400,7 +2402,7 @@ function App() {
         if (!question) return null;
         // The next one in the deck, skipping this one (it may not be saved yet when this runs).
         const next = gameOpen.deck ? nextInDeck(gameOpen.deck, new Set([...games.answered, question.id]), games.waiting) : null;
-        return <GameSheet key={question.id} looks={{ me: avatarOf(myMascot), partner: avatarOf(mascots?.find((item) => item.partner_slot !== mySlot) ?? null) }} question={question} answers={games.answers} userId={session.user.id} mySlot={mySlot} myName={myName} partnerName={partnerName} partnerWaiting={games.waiting.has(question.id)} onAnswer={(values) => games.answer(question, values)} onSeen={games.markSeen} onNext={next ? () => setGameOpen({ id: next.id, deck: gameOpen.deck }) : null} onClose={() => setGameOpen(null)} />;
+        return <GameSheet key={question.id} pet={pet} onJudge={(verdict) => games.judge(question, verdict)} looks={{ me: avatarOf(myMascot), partner: avatarOf(mascots?.find((item) => item.partner_slot !== mySlot) ?? null) }} question={question} answers={games.answers} userId={session.user.id} mySlot={mySlot} myName={myName} partnerName={partnerName} partnerWaiting={games.waiting.has(question.id)} onAnswer={(values) => games.answer(question, values)} onSeen={games.markSeen} onNext={next ? () => setGameOpen({ id: next.id, deck: gameOpen.deck }) : null} onClose={() => setGameOpen(null)} />;
       })()}
       {openDeck && <SwipeDeck deck={openDeck} onVote={saveVote} onClose={() => { setOpenDeck(null); void loadSignals(); }} />}
       {quickAddOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setQuickAddOpen(false); }}><DialogSection onClose={busy ? null : () => setQuickAddOpen(false)} className="modal-card quick-add-modal" aria-labelledby="quick-add-title"><button className="modal-close" aria-label="Fechar" disabled={busy} onClick={() => setQuickAddOpen(false)}>×</button><h2 id="quick-add-title">Nova ideia</h2><p className="modal-copy">Basta uma frase. Se escreverem o dia, passa logo a date marcado.</p><QuickAddBox partnerOneName={couple.partner_one_name} partnerTwoName={couple.partner_two_name} busy={busy} defaultKind="idea" autoFocus onSubmit={quickAdd} onMoreDetails={openIdeaDetails} /></DialogSection></div>}

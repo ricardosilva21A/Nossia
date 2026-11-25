@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   if (!question) return json({ error: "bad_request" }, 400);
 
   const db = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: mine } = await db.from("game_answers").select("id, couple_id, created_at, pushed_at").eq("user_id", userId).eq("question_id", question.id);
+  const { data: mine } = await db.from("game_answers").select("id, couple_id, role, created_at, pushed_at").eq("user_id", userId).eq("question_id", question.id);
   const fresh = (mine ?? []).filter((row) => !row.pushed_at && Date.now() - Date.parse(row.created_at) < 5 * 60000);
   if (!fresh.length) return json({ sent: 0 });
   const coupleId = fresh[0].couple_id as string;
@@ -49,10 +49,11 @@ export async function POST(request: Request) {
   const { data: claimed } = await db.from("game_answers").update({ pushed_at: new Date().toISOString() }).in("id", fresh.map((row) => row.id)).is("pushed_at", null).select("id");
   if (!claimed?.length) return json({ sent: 0 });
 
-  const [{ data: couple }, { data: members }, { data: theirs }] = await Promise.all([
+  const [{ data: couple }, { data: members }, { data: theirs }, { data: pet }] = await Promise.all([
     db.from("couples").select("partner_one_name, partner_two_name").eq("id", coupleId).single(),
     db.from("couple_members").select("user_id, partner_slot").eq("couple_id", coupleId),
-    db.from("game_answers").select("id").eq("couple_id", coupleId).eq("question_id", question.id).neq("user_id", userId).limit(1),
+    db.from("game_answers").select("id").eq("couple_id", coupleId).eq("question_id", question.id).neq("user_id", userId).neq("role", "verdict").limit(1),
+    db.from("couple_pets").select("name").eq("couple_id", coupleId).maybeSingle(),
   ]);
   const sender = members?.find((member) => member.user_id === userId);
   const recipient = members?.find((member) => member.user_id !== userId);
@@ -62,11 +63,16 @@ export async function POST(request: Request) {
   if (settings && settings.games === false) return json({ sent: 0 });
 
   const name = sender.partner_slot === "partner_one" ? couple.partner_one_name : couple.partner_two_name;
+  // The animal tells it: the house's pet is the one who passes news between the two.
+  const host = (pet as { name?: string } | null)?.name ?? "A casa";
+  const judged = fresh.some((row) => row.role === "verdict");
   const answered = Boolean(theirs?.length);
-  const title = answered
-    ? (question.kind === "know" ? `👀 ${name} respondeu: vê se acertaste` : `👀 ${name} respondeu: vê as respostas`)
-    : `🎲 ${name} respondeu a um jogo: é a tua vez`;
-  const prompt = question.kind === "know" ? promptFor(question, "guess", name) : promptFor(question);
+  const title = judged
+    ? `🐾 ${host}: ${name} já disse se acertaste`
+    : answered
+      ? `🐾 ${host}: tenho novidades! ${name} respondeu${question.kind === "know" ? ", vê se acertaste" : ""}`
+      : `🐾 ${host}: ${name} já me contou um segredo. É a tua vez!`;
+  const prompt = promptFor(question, "guess", name);
 
   const { data: devices } = await db.from("push_subscriptions").select("endpoint, p256dh, auth").eq("user_id", recipient.user_id);
   webpush.setVapidDetails("https://nossia.vercel.app", publicKey, privateKey);
