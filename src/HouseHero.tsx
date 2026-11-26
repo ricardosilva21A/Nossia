@@ -9,6 +9,7 @@ import type { AffectionKind } from "./affections";
 import { AffectionSheet, WardrobeSheet } from "./HouseSheets";
 import { decidePet, petPlaceFor } from "./house";
 import { HouseRoom } from "./HouseRooms";
+import { OfficeSplit } from "./OfficeSplit";
 import type { CalendarData, HouseScene, PetMode, Room, SeasonalObject, TripPin, WindowView } from "./house";
 import { WallCalendar } from "./WallCalendar";
 import { ZoomOverlay } from "./ZoomOverlay";
@@ -110,17 +111,12 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
     const mine = mySlot ? scene.rooms[mySlot] : null;
     return mine ?? one ?? two ?? "sala";
   }, [affection, arrival, mySlot, scene.rooms, showGuide]);
-  // Tapping a room in the strip shows it for a while, then the house goes back to where they are.
-  const [peek, setPeek] = useState<Room | null>(null);
-  useEffect(() => {
-    if (!peek) return;
-    const timer = window.setTimeout(() => setPeek(null), 12000);
-    return () => window.clearTimeout(timer);
-  }, [peek]);
-  const shown: Room = peek ?? focus;
+  const shown: Room = focus;
+  // Both at work: the two desks side by side instead of an empty house.
+  const working = !showGuide && !arrival && !affection && scene.atWork.partner_one && scene.atWork.partner_two;
   const otherPlace = useMemo(() => (shown === "sala" ? null : petPlaceFor(scene, roll, shown)), [roll, scene, shown]);
   const { mode, room: petRoom } = shown === "sala" ? petPlace ?? decided : otherPlace ?? decided;
-  const petInSala = petRoom === shown;
+  const petInSala = !working && petRoom === shown;
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
   // A small sparkle on each thing that can be tapped, until it has been tapped once (per phone).
@@ -195,7 +191,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
       </button>
     );
   };
-  const elsewhere = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] !== shown);
+  const elsewhere = working ? [] : (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] !== shown);
   const salaEmpty = elsewhere.length === 2;
   const night = scene.window === "night";
 
@@ -210,7 +206,8 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   return (
     <section className="house" aria-label="A vossa casa">
-      {shown !== "sala" ? <div className="house-focus"><HouseRoom room={shown} scene={scene} mascots={mascots} pet={pet} petPlace={otherPlace ?? decided} names={names} /><span className="house-room-name" aria-hidden="true">{roomLabels[shown]}</span></div>
+      {working ? <OfficeSplit scene={scene} mascots={mascots} names={names} />
+      : shown !== "sala" ? <div className="house-focus"><HouseRoom room={shown} scene={scene} mascots={mascots} pet={pet} petPlace={otherPlace ?? decided} names={names} /><span className="house-room-name" aria-hidden="true">{roomLabels[shown]}</span></div>
       : <div className={`house-room${guideReady ? " guide-on" : ""}`} onClickCapture={noteTap}>
         <svg className="house-art" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1080" height="400" fill="#f4e8d4" />
@@ -266,19 +263,10 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         {forecast[0] && <span className="house-weather" aria-hidden="true">{weatherEmoji(forecast[0].weatherCode)} {Math.round(forecast[0].temperatureMax)}°</span>}
         <button type="button" data-guide="window" className={`house-spot spot-window${hint("window")}`} aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
       </div>}
-      <nav className="house-rooms" aria-label="Divisões da casa">{(["sala", "cozinha", "quarto", "jardim"] as Room[]).map((room) => {
-        const people = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] === room);
-        const petThere = Boolean(pet) && room === petRoom;
-        const who = [...people.map((slot) => names[slot]), ...(petThere && pet ? [pet.name] : [])];
-        return <button type="button" key={room} className={room === shown ? "is-shown" : ""} aria-pressed={room === shown} aria-label={`${roomLabels[room]}${who.length ? `: ${who.join(", ")}` : ", vazia"}`} onClick={() => setPeek(room === focus ? null : room)}>
-          <span>{roomLabels[room]}</span>
-          <span className="house-room-dots" aria-hidden="true">{people.map((slot) => <i key={slot} className={slot === mySlot ? "is-me" : ""}>{names[slot].slice(0, 1)}</i>)}{petThere && pet && <i className="is-pet">{pet.name.slice(0, 1)}</i>}</span>
-        </button>;
-      })}</nav>
       {/* Who isn't in the living room, in a row under the room so the wall stays visible. */}
       {scene.together && scene.dateNow
         ? <div className="house-away"><span className="away-pill">♥ Os dois em date · {scene.dateNow.title}</span></div>
-        : (elsewhere.length > 0 || (pet && !petInSala)) && <div className="house-away" onClickCapture={noteTap}>{elsewhere.map((slot) => <button type="button" key={slot} data-guide={slot === mySlot ? "me" : "partner"} className={`away-pill${hint(slot === mySlot ? "me" : "partner")}`} aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}{pet && !petInSala && <button type="button" data-guide="pet" className={`away-pill${hint("pet")}`} aria-label={`${pet.name}, ${petRoom === "cozinha" ? petElsewhere.cozinha : petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}><strong>{pet.name}</strong> {petRoom === "cozinha" ? petElsewhere.cozinha : petLines[mode]}</button>}</div>}
+        : (elsewhere.length > 0 || (pet && !petInSala)) && <div className="house-away" onClickCapture={noteTap}>{elsewhere.map((slot) => <button type="button" key={slot} data-guide={slot === mySlot ? "me" : "partner"} className={`away-pill${hint(slot === mySlot ? "me" : "partner")}`} aria-label={personLabel(slot, scene.doing[slot] || "fora")} onClick={() => tapPerson(slot)}><strong>{names[slot]}</strong> {scene.doing[slot] ? short(scene.doing[slot]) : "fora"}</button>)}{pet && !petInSala && <button type="button" data-guide="pet" className={`away-pill${hint("pet")}`} aria-label={`${pet.name}, ${petRoom === "cozinha" ? petElsewhere.cozinha : petLines[mode]}. Escolher o que veste`} onClick={() => setSheet("wardrobe")}><strong>{pet.name}</strong> {working ? "em casa, à vossa espera" : petRoom === "cozinha" ? petElsewhere.cozinha : petLines[mode]}</button>}</div>}
       <div className="house-bubble" data-guide="bubble">{bubble}</div>
       {guideReady && <HouseGuide pet={pet} names={{ me: mySlot ? names[mySlot] : "", partner: partnerSlot ? names[partnerSlot] : "" }} onDone={finishGuide} />}
       {sheet === "affection" && partnerSlot && <AffectionSheet name={names[partnerSlot]} look={partnerLook} notified={partnerHasPush} onSend={onSendAffection} onClose={() => setSheet(null)} />}

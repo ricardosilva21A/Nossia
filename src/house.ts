@@ -27,6 +27,8 @@ export type HouseScene = {
   poses: Record<HomePartner, Pose>;
   // Where each one is in the house, or null when out (work, a commitment, a date).
   rooms: Record<HomePartner, Room | null>;
+  // At work right now (not at a commitment): on days both are, Hoje shows the two desks side by side.
+  atWork: Record<HomePartner, boolean>;
   // Someone due home from work in the next few minutes: the animal goes to wait at the door.
   arrivingSoon: HomePartner | null;
   // Friday and Saturday nights: the animal sneaks onto the big bed.
@@ -237,6 +239,7 @@ export function decideHouse({ now, weather, blocks, commitments, dates, gamers =
     christmas: now.getMonth() === 11,
     poses: { partner_one: poseOf("partner_one"), partner_two: poseOf("partner_two") },
     rooms: { partner_one: roomOf(poseOf("partner_one")), partner_two: roomOf(poseOf("partner_two")) },
+    atWork: { partner_one: poseOf("partner_one") === "away" && !commitmentOf("partner_one") && Boolean(workOf("partner_one")), partner_two: poseOf("partner_two") === "away" && !commitmentOf("partner_two") && Boolean(workOf("partner_two")) },
     arrivingSoon,
     weekendNight,
     together,

@@ -238,3 +238,15 @@ describe("wall calendar", () => {
     expect(marks.get("2026-11-03")).toEqual([{ kind: "date", title: "Feito" }]);
   });
 });
+
+describe("work days", () => {
+  const work = (slot: "partner_one" | "partner_two") => ({ partner_slot: slot, weekday: 3, starts_at: "09:00:00", ends_at: "18:00:00" });
+  it("knows when both are at work, so Hoje shows the two desks", () => {
+    const scene = decideHouse({ ...base, blocks: [work("partner_one"), work("partner_two")] });
+    expect(scene.atWork).toEqual({ partner_one: true, partner_two: true });
+  });
+  it("does not count a commitment or a day at home as work", () => {
+    const scene = decideHouse({ ...base, blocks: [work("partner_one")], commitments: [{ id: "c", title: "Dentista", event_date: "2026-10-07", start_time: "14:00:00", end_time: "16:00:00", partner_slot: "partner_two" }] as never });
+    expect(scene.atWork).toEqual({ partner_one: true, partner_two: false });
+  });
+});

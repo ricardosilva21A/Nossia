@@ -20,7 +20,7 @@ O **Hoje** é a vossa casa. Quase tudo nela se toca:
 - **O mapa na parede**: as viagens, com um pin por sítio, e **Marcar viagem**.
 - **O calendário**: folheia os meses, toca num dia para ver o que há e marca um date nesse dia.
 
-O **Hoje** mostra a divisão onde vocês estão: onde estão os dois, ou a tua quando estão separados (a sala quando não está ninguém). Por baixo há as quatro divisões, com uma bolinha para cada um e para o animal; toca numa para a espreitar uns segundos.
+O **Hoje** mostra a divisão onde vocês estão: onde estão os dois, ou a tua quando estão separados (a sala quando não está ninguém). A casa decide sozinha. Nos dias em que estão os dois a trabalhar, o ecrã divide-se e mostra cada um na sua secretária, com o nome do sítio onde trabalha na parede e o que faz no ecrã (código, design ou folhas de cálculo). Isso escolhe-se em **Definições › Conta › O teu trabalho**.
 
 A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós** é o quarto e o **Explorar** é o jardim. Cada um está onde faria sentido a essa hora:
 
@@ -81,7 +81,7 @@ Planeiem destinos e o que fazer em cada dia em **Agenda › Viagens**. Depois de
 
 Em **Agenda › Viagens**, a Nossia mostra os próximos fins de semana prolongados e as pontes que valem a pena, por exemplo: "8 de dezembro é terça-feira: tirando segunda-feira, têm 4 dias seguidos". Conta com o horário de cada um, incluindo quem trabalha ao fim de semana, e com o feriado do vosso concelho. Avisa também por notificação três semanas antes.
 
-As **Definições** estão em quatro grupos: **Conta** (o teu avatar, férias, horários e terminar sessão), **Casa** (perfil do casal, convite, animal, onde vivem e voos), **Notificações** (avisos e calendário do iPhone) e **Privacidade** (localização do tempo, dados de uso, ajuda e apagar conta).
+As **Definições** estão em quatro grupos: **Conta** (o teu trabalho, o teu avatar, férias, horários e terminar sessão), **Casa** (perfil do casal, convite, animal, onde vivem e voos), **Notificações** (avisos e calendário do iPhone) e **Privacidade** (localização do tempo, dados de uso, ajuda e apagar conta).
 
 Em **Definições › Conta**, em **As minhas férias**, cada um diz como tira férias: **Quando quero**, com os dias por ano e os meses difíceis, ou **Marcadas pela empresa**, com os períodos.
 

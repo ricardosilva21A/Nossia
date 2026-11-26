@@ -7,7 +7,14 @@ export type MascotLook = { name: string; ears: Ears; color: string; pattern: Pat
 export type Hair = "short" | "long" | "bun" | "curly" | "bald";
 // The human avatar: a mini version of each person. null until they've made it.
 export type AvatarLook = { skin: string; hair: Hair; hair_color: string; glasses: boolean; beard: boolean };
-export type Mascot = MascotLook & Partial<{ skin: string | null; hair: Hair | null; hair_color: string | null; glasses: boolean; beard: boolean }> & { user_id: string; couple_id: string; partner_slot: HomePartner; plays_games?: boolean };
+export type Mascot = MascotLook & Partial<{ skin: string | null; hair: Hair | null; hair_color: string | null; glasses: boolean; beard: boolean }> & { user_id: string; couple_id: string; partner_slot: HomePartner; plays_games?: boolean; workplace?: string | null; work_kind?: WorkKind };
+// What each one does at work, for the drawing on the screen of their desk.
+export type WorkKind = "tech" | "design" | "office";
+export const workKinds: Array<{ value: WorkKind; label: string }> = [
+  { value: "tech", label: "Informática" },
+  { value: "design", label: "Design" },
+  { value: "office", label: "Escritório" },
+];
 
 export const skinOptions = ["#F6D7C3", "#EBC2A2", "#D9A47F", "#B97E5A", "#8C5A3C", "#5C3A26"];
 export const hairColorOptions = ["#231815", "#4A2E27", "#7A4E2D", "#B5793F", "#E3C07A", "#9C9C9C"];
