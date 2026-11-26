@@ -4,9 +4,9 @@
 
 ## Começar
 
-1. Cria a conta com os vossos nomes e a data da relação.
+1. Cria a tua conta com email ou com **Continuar com Google**. Cada um tem a sua. Logo a seguir, a app pede o teu nome, o da tua cara-metade e desde quando estão juntos.
 2. Cria o teu avatar e diz quando fazes anos. O primeiro a entrar escolhe também o animal da casa (por exemplo, a Summer).
-3. Em **Definições** (avatar no canto), abre o **Perfil do casal** e cria a ligação de convite para o teu par.
+3. Em **Definições** (avatar no canto), abre o **Perfil do casal** e cria a ligação de convite para o teu par (manda-a pelo WhatsApp ou por outra app). Quem abre o convite cria a sua conta, também com email ou Google, e a app pede-lhe o nome e o aniversário. Se o convite não abrir sozinho, há **Colar o link** no ecrã dos dados.
 4. No iPhone, abre o site no Safari, toca em **Partilhar** e em **Adicionar ao ecrã principal**. Abre sempre a Nossia a partir do ícone: só assim recebes notificações.
 
 ## A casa

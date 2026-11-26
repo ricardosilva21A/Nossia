@@ -10,6 +10,7 @@ import { QuickAddBox } from "./QuickAddBox";
 import type { QuickAddValue } from "./QuickAddBox";
 import { guessIdea, isWatchingAtHome, memoryKind, placeFromTitle, placeKindFromTitle, plain, watchedName } from "./quickParse";
 import { AuthScreen } from "./AuthScreen";
+import { CoupleSetup } from "./CoupleSetup";
 import { authFlowFromPath, authPaths } from "./authFlow";
 import type { AuthFlow } from "./authFlow";
 import { formatDate, localDateString, nextAnniversary, nextPersonalBirthday, relationshipDuration } from "./dateUtils";
@@ -343,6 +344,7 @@ function App() {
     return savedMetric === "months" || savedMetric === "years" ? savedMetric : "days";
   });
   const [session, setSession] = useState<Session | null>(null);
+  const [needsCouple, setNeedsCouple] = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [couple, setCouple] = useState<Couple | null>(null);
@@ -518,6 +520,12 @@ function App() {
     loadedUser.current = { id: currentSession.user.id, at: Date.now() };
     setDataError("");
     const { data: profile, error: profileError } = await supabase.from("couples").select("*").single();
+    // Signed in (email or Google) but no couple yet: the next screen asks for its details.
+    if (profileError?.code === "PGRST116") {
+      setNeedsCouple(true);
+      return;
+    }
+    setNeedsCouple(false);
     if (profileError) {
       loadedUser.current = null;
       setDataError(`Não foi possível carregar o perfil do casal: ${profileError.message}`);
@@ -2161,6 +2169,11 @@ function App() {
 
   if (!authReady) return <div className="loading-screen"><span className="brand-mark">n</span><p>A abrir…</p></div>;
   if (passwordRecovery && session) return <AuthScreen initialMode="password-update" onModeChange={navigateAuth} recovery onRecoveryComplete={() => setPasswordRecovery(false)} />;
+  if (session && needsCouple) {
+    const meta = session.user.user_metadata as { given_name?: string; full_name?: string; name?: string } | undefined;
+    const suggested = meta?.given_name ?? (meta?.full_name ?? meta?.name ?? "").split(" ")[0] ?? "";
+    return <CoupleSetup suggestedName={suggested} onDone={() => { setNeedsCouple(false); void loadCoupleData(session); }} onSignOut={() => void signOut()} />;
+  }
   if (!session || !couple) return <><AuthScreen initialMode={authFlow} onModeChange={navigateAuth} />{dataError && <p className="auth-global-error" role="alert">{dataError}</p>}</>;
 
   // After the mascot exists: one pop-up at a time, swipes first, then what's missing in the profile.

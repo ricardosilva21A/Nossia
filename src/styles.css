@@ -1761,3 +1761,12 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .title-search-list span{display:grid;gap:1px;min-width:0}
 .title-search-list strong{font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .title-search-list small{color:var(--ink-3);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Sign in with Google */
+.google-button{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;min-height:48px;margin-top:16px;border:1px solid var(--line-2);border-radius:999px;background:#fff;color:#1f1f1f;font:600 15px "DM Sans",system-ui,sans-serif;cursor:pointer;box-shadow:var(--shadow-rest);transition:box-shadow .2s var(--ease-out-soft),transform .18s var(--ease-press)}
+.google-button:active:not(:disabled){transform:scale(.97);transition-duration:.08s}
+.google-button:disabled{opacity:.55;cursor:default}
+.google-button:focus-visible{outline:3px solid var(--cobalt-ink);outline-offset:2px}
+.auth-or{display:flex;align-items:center;gap:10px;margin:16px 0 4px;color:var(--ink-3);font-size:13px}
+.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.setup-invite{display:grid;gap:10px;margin-top:14px}

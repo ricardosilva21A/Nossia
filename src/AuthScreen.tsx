@@ -3,13 +3,13 @@ import type { FormEvent } from "react";
 import { authFlowFromPath, authPaths, initialInviteCode } from "./authFlow";
 import type { AuthFlow, CoupleInvitePreview } from "./authFlow";
 import { authErrorMessage } from "./authErrors";
-import { localDateString } from "./dateUtils";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
+import { savePendingInvite } from "./CoupleSetup";
 
 const kickers: Record<AuthFlow, string> = { join: "TENS UM CONVITE", "sign-up": "CRIAR CONTA", "reset-request": "RECUPERAR ACESSO", "password-update": "NOVA PALAVRA-PASSE", "sign-in": "INICIAR SESSÃO" };
 const intros: Record<AuthFlow, string> = {
   join: "Cria a tua própria conta. Os dates, ideias e memórias do casal ficam partilhados entre os dois.",
-  "sign-up": "Só o essencial. O resto pode ser preenchido depois, na app.",
+  "sign-up": "Cada um tem a sua conta. Depois de entrares, pedimos os dados do casal e convidas a tua cara-metade.",
   "reset-request": "Indiquem o email da conta e enviamos uma ligação para redefinir a palavra-passe.",
   "password-update": "Escolham uma palavra-passe com pelo menos 8 caracteres.",
   "sign-in": "Iniciem sessão e continuem de onde ficaram.",
@@ -23,9 +23,6 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
   const [message, setMessage] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [partnerOneName, setPartnerOneName] = useState("");
-  const [partnerTwoName, setPartnerTwoName] = useState("");
-  const [relationshipDate, setRelationshipDate] = useState("");
   const [invite, setInvite] = useState<CoupleInvitePreview | null>(null);
   const [inviteChecked, setInviteChecked] = useState(false);
 
@@ -49,6 +46,19 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
     });
     return () => { active = false; };
   }, [mode]);
+
+  // The invite travels with the person, whichever way they sign in (email or Google).
+  useEffect(() => {
+    if (mode === "join" && initialInviteCode) savePendingInvite(initialInviteCode);
+  }, [mode]);
+
+  async function continueWithGoogle() {
+    if (!supabase) return;
+    setError("");
+    if (mode === "join" && initialInviteCode) savePendingInvite(initialInviteCode);
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/hoje` } });
+    if (oauthError) setError(authErrorMessage(oauthError.message));
+  }
 
   useEffect(() => {
     const handlePopState = () => setMode(authFlowFromPath(window.location.pathname));
@@ -87,7 +97,7 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin, data: { invite_code: initialInviteCode, partner_name: invite.partner_two_name } },
+          options: { emailRedirectTo: window.location.origin },
         });
         if (signUpError) throw signUpError;
         if (!data.session) setMessage("A tua conta está pronta. Confirma o email na caixa de entrada e inicia sessão.");
@@ -95,7 +105,7 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
         const { data, error: signUpError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin, data: { partner_one_name: partnerOneName.trim(), partner_two_name: partnerTwoName.trim(), relationship_date: relationshipDate } },
+          options: { emailRedirectTo: window.location.origin },
         });
         if (signUpError) throw signUpError;
         if (!data.session) setMessage("A conta está pronta. Confirma o email na caixa de entrada e inicia sessão.");
@@ -131,14 +141,14 @@ export function AuthScreen({ initialMode, onModeChange, recovery = false, onReco
           <p className="section-kicker">{kickers[mode]}</p>
           <h2>{headings[mode]}</h2>
           <p className="auth-intro">{intros[mode]}</p>
+          {(mode === "sign-in" || mode === "sign-up" || mode === "join") && <>
+            <button type="button" className="google-button" disabled={!isSupabaseConfigured || (mode === "join" && (!inviteChecked || !invite))} onClick={() => void continueWithGoogle()}>
+              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34.1 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>
+              Continuar com Google
+            </button>
+            <p className="auth-or"><span>ou com email</span></p>
+          </>}
           <form onSubmit={submit}>
-            {mode === "sign-up" && <>
-              <div className="form-grid">
-                <label className="form-label">O teu nome<input className="form-input" autoComplete="given-name" required maxLength={80} value={partnerOneName} onChange={(event) => setPartnerOneName(event.target.value)} /></label>
-                <label className="form-label">Nome da tua cara-metade<input className="form-input" autoComplete="off" required maxLength={80} value={partnerTwoName} onChange={(event) => setPartnerTwoName(event.target.value)} /></label>
-              </div>
-              <label className="form-label">Início da relação<input className="form-input" type="date" required max={localDateString()} value={relationshipDate} onChange={(event) => setRelationshipDate(event.target.value)} /></label>
-            </>}
             {mode !== "password-update" && <label className="form-label">Email<input className="form-input" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></label>}
             {mode !== "reset-request" && <label className="form-label">Palavra-passe<input className="form-input" type="password" autoComplete={mode === "sign-up" || mode === "join" || mode === "password-update" ? "new-password" : "current-password"} required minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Pelo menos 8 caracteres" /></label>}
             {mode === "sign-in" && <button className="auth-forgot-button" type="button" onClick={() => changeMode("reset-request")}>Esqueci-me da palavra-passe</button>}

@@ -6,9 +6,9 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 
 ## Getting started
 
-1. Create the account with your names and relationship date.
+1. Create your own account with email or **Continuar com Google** (each of you has one). Right after, the app asks for your name, your partner's and since when you've been together.
 2. Create your avatar and tell it your birthday. The first one in also picks the house pet (for example, Summer).
-3. In **Definições** (Settings, under the avatar at the top), open **Perfil do casal** (Couple profile) and create the invite link for your partner.
+3. In **Definições** (Settings, under the avatar at the top), open **Perfil do casal** (Couple profile) and create the invite link for your partner (send it over WhatsApp or any app). Whoever opens it creates their own account, with email or Google too, and the app asks for their name and birthday. If the invite doesn't come through by itself, there's **Colar o link** (paste the link) on the details screen.
 4. On iPhone, open the site in Safari, tap **Share** and then **Add to Home Screen**. Always open Nossia from that icon: it's the only way to get notifications.
 
 ## The house
