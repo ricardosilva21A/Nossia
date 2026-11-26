@@ -34,12 +34,12 @@ function Screen({ kind }: { kind: WorkKind }) {
   </g>;
 }
 
-function Desk({ slot, scene, mascot, name, doing }: { slot: HomePartner; scene: HouseScene; mascot: Mascot | null; name: string; doing: string | null }) {
+function Desk({ slot, scene, mascot, name, doing, label, onTap }: { slot: HomePartner; scene: HouseScene; mascot: Mascot | null; name: string; doing: string | null; label?: string; onTap?: () => void }) {
   const kind: WorkKind = mascot?.work_kind ?? "office";
   const place = mascot?.workplace?.trim() || null;
   const until = doing?.replace(/^a trabalhar /, "") ?? null;
   return (
-    <div className={`office-half office-${kind}`} aria-label={`${name} a trabalhar${place ? ` na ${place}` : ""}${until ? `, ${until}` : ""}`} role="img">
+    <button type="button" className={`office-half office-${kind}`} aria-label={label ?? `${name} a trabalhar${place ? ` na ${place}` : ""}${until ? `, ${until}` : ""}`} onClick={onTap} disabled={!onTap}>
       <svg className="office-art" viewBox="0 0 540 380" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
         <rect width="540" height="380" fill={walls[kind]} />
         <rect y="318" width="540" height="62" fill="#c9b79a" />
@@ -68,15 +68,16 @@ function Desk({ slot, scene, mascot, name, doing }: { slot: HomePartner; scene: 
       </svg>
       {place && <span className="office-sign">{place}</span>}
       <span className="office-label"><strong>{name}</strong>{until ? ` ${until}` : ""}</span>
-    </div>
+    </button>
   );
 }
 
-export function OfficeSplit({ scene, mascots, names }: { scene: HouseScene; mascots: Mascot[]; names: Record<HomePartner, string> }) {
+// Tapping someone does the same as in the house: yourself opens your profile, the other one gets a kiss, a hug or "saudades".
+export function OfficeSplit({ scene, mascots, names, labelFor, onTap }: { scene: HouseScene; mascots: Mascot[]; names: Record<HomePartner, string>; labelFor?: (slot: HomePartner) => string; onTap?: (slot: HomePartner) => void }) {
   const slots: HomePartner[] = ["partner_one", "partner_two"];
   return (
     <section className="office-split" aria-label="Os dois a trabalhar">
-      {slots.map((slot) => <Desk key={slot} slot={slot} scene={scene} mascot={mascots.find((item) => item.partner_slot === slot) ?? null} name={names[slot]} doing={scene.doing[slot]} />)}
+      {slots.map((slot) => <Desk key={slot} slot={slot} scene={scene} mascot={mascots.find((item) => item.partner_slot === slot) ?? null} name={names[slot]} doing={scene.doing[slot]} label={labelFor?.(slot)} onTap={onTap ? () => onTap(slot) : undefined} />)}
     </section>
   );
 }

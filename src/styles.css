@@ -1856,3 +1856,13 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .work-form .form-label{width:100%}
 .work-kinds{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;border:0}
 .work-kinds legend{margin-bottom:6px;padding:0}
+/* People on Hoje can be tapped in every room and at work: yourself opens the profile, the other one gets a kiss or "saudades" */
+.room-person.is-tappable,.office-half{padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:transparent}
+.office-half{display:block;width:100%;text-align:inherit;background:var(--lemon)}
+.office-half:disabled{cursor:default}
+.room-person.is-tappable{transition:transform .18s var(--ease-out-soft)}
+.room-person.is-tappable:active{transform:translateX(-50%) scale(.95)}
+.office-half{transition:transform .18s var(--ease-out-soft)}
+.office-half:not(:disabled):active{transform:scale(.98)}
+.room-person.is-tappable:focus-visible,.office-half:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.room-person.is-tappable,.office-half{transition:none}}

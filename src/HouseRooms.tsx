@@ -16,6 +16,9 @@ type Props = {
   pet: Pet | null;
   petPlace: { mode: PetMode; room: Room };
   names: Record<HomePartner, string>;
+  // On Hoje the people can be tapped (yourself: profile; the other one: send a kiss or "saudades").
+  onTapPerson?: (slot: HomePartner) => void;
+  personLabel?: (slot: HomePartner) => string;
 };
 
 const slots: HomePartner[] = ["partner_one", "partner_two"];
@@ -162,7 +165,7 @@ function Weather({ scene }: { scene: HouseScene }) {
   return <div className={`garden-fall fall-${kind}`} aria-hidden="true">{Array.from({ length: kind === "leaves" ? 6 : 16 }, (_, index) => <i key={index} style={{ left: `${(index * 61) % 100}%`, animationDelay: `${(index * 0.37) % 3}s`, animationDuration: `${kind === "rain" ? 0.8 + (index % 4) * 0.15 : 3 + (index % 5) * 0.6}s` }} />)}</div>;
 }
 
-export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props) {
+export function HouseRoom({ room, scene, mascots, pet, petPlace, names, onTapPerson, personLabel }: Props) {
   const night = scene.window === "night";
   const here = slots.filter((slot) => scene.rooms[slot] === room);
   const petHere = pet && petPlace.room === room;
@@ -178,12 +181,13 @@ export function HouseRoom({ room, scene, mascots, pet, petPlace, names }: Props)
         {here.map((slot) => {
           const mascot = mascots.find((item) => item.partner_slot === slot);
           const pose = scene.poses[slot];
-          return <span key={slot} className={`room-person pose-${pose}`} style={spotFor(room, pose, here.filter((other) => scene.poses[other] === pose).indexOf(slot))}>
+          const Tag = onTapPerson ? "button" : "span";
+          return <Tag key={slot} {...(onTapPerson ? { type: "button" as const, onClick: () => onTapPerson(slot), "aria-label": personLabel?.(slot) } : {})} className={`room-person pose-${pose}${onTapPerson ? " is-tappable" : ""}`} style={spotFor(room, pose, here.filter((other) => scene.poses[other] === pose).indexOf(slot))}>
             {pose === "gaming"
               ? <AvatarBack look={avatarOf(mascot ?? null) ?? defaultAvatar} outfit={scene.outfit} size={56} label={`${names[slot]} de costas, a jogar`} />
               : <Avatar look={avatarOf(mascot ?? null) ?? defaultAvatar} outfit={scene.outfit} size={64} asleep={pose === "sleeping"} label={`Avatar de ${names[slot]}`} />}
             {scene.doing[slot] && !(pose === "gaming" && here.filter((other) => scene.poses[other] === "gaming").indexOf(slot) > 0) && <small>{scene.doing[slot]}</small>}
-          </span>;
+          </Tag>;
         })}
       </div>
       {petHere && pet && <span className={`room-pet pet-${petPlace.mode} pet-arrive`}><PetArt look={petLook(pet)} size={48} asleep={petPlace.mode === "bed" || petPlace.mode === "footbed" || petPlace.mode === "feet"} />{petPlace.mode === "ball" && <span className="pet-toy" aria-hidden="true" />}</span>}

@@ -206,8 +206,8 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   return (
     <section className="house" aria-label="A vossa casa">
-      {working ? <OfficeSplit scene={scene} mascots={mascots} names={names} />
-      : shown !== "sala" ? <div className="house-focus"><HouseRoom room={shown} scene={scene} mascots={mascots} pet={pet} petPlace={otherPlace ?? decided} names={names} /><span className="house-room-name" aria-hidden="true">{roomLabels[shown]}</span></div>
+      {working ? <OfficeSplit scene={scene} mascots={mascots} names={names} labelFor={(slot) => personLabel(slot, scene.doing[slot] || "a trabalhar")} onTap={tapPerson} />
+      : shown !== "sala" ? <div className="house-focus"><HouseRoom room={shown} scene={scene} mascots={mascots} pet={pet} petPlace={otherPlace ?? decided} names={names} onTapPerson={tapPerson} personLabel={(slot) => personLabel(slot, scene.doing[slot] || "em casa")} /><span className="house-room-name" aria-hidden="true">{roomLabels[shown]}</span></div>
       : <div className={`house-room${guideReady ? " guide-on" : ""}`} onClickCapture={noteTap}>
         <svg className="house-art" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1080" height="400" fill="#f4e8d4" />
