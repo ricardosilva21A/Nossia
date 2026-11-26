@@ -232,7 +232,7 @@ export function SchedulePanel({ part, couple, userId, mySlot, plannedDates, bloc
   const assigneeLabel = (task: CoupleTask) => task.assigned_to ? partnerName(task.assigned_to) : "Os dois";
 
   return (
-    <section className="schedule-page" aria-label={"Agenda do casal"}>
+    <section className="schedule-page" aria-label={part === "agenda" ? "Agenda do casal" : part === "hours" ? "Horários de trabalho" : part === "settings" ? "Calendário e feriados" : "Tarefas"}>
       {error && <p className="form-alert error-alert" role="alert">{error}</p>}
 
       {part === "agenda" && <>

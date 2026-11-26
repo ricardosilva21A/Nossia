@@ -679,14 +679,15 @@ function App() {
     }
   }, [authFlow, authReady, couple, passwordRecovery, session, view]);
 
+  // The weather where they live: their shared location, or else the municipality's centre.
   useEffect(() => {
-    const latitude = couple?.weather_latitude;
-    const longitude = couple?.weather_longitude;
+    const latitude = couple?.weather_latitude ?? couple?.municipality_latitude;
+    const longitude = couple?.weather_longitude ?? couple?.municipality_longitude;
     if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) return;
     const controller = new AbortController();
     void fetchDailyWeather(latitude, longitude, controller.signal).then(setWeatherForecast).catch(() => undefined);
     return () => controller.abort();
-  }, [couple?.weather_latitude, couple?.weather_longitude]);
+  }, [couple?.weather_latitude, couple?.weather_longitude, couple?.municipality_latitude, couple?.municipality_longitude]);
 
   const counts = useMemo(
     () => ({
@@ -2148,7 +2149,7 @@ function App() {
   };
   const pageHeading: Record<View, [string, string]> = {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
-    discover: ["Ideias", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
+    discover: ["Explorar", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
     settings: ["Definições", "Perfil, horários, notificações, calendário do iPhone e localização."],
     trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
     tripMap: ["Mapa", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
@@ -2180,6 +2181,9 @@ function App() {
   const myMascot = mascots?.find((item) => item.user_id === session.user.id) ?? null;
   // The other one, by name: who a proposal comes from or waits on.
   const partnerName = mySlot === "partner_one" ? couple.partner_two_name : mySlot === "partner_two" ? couple.partner_one_name : "o teu par";
+  // Search and filters only once there's enough to look through (or one is already in use).
+  const finderTotal = view === "planned" ? ideas.filter((idea) => idea.status === "planned").length : view === "memories" ? ideas.filter((idea) => idea.status === "completed").length : view === "favorites" ? ideas.filter((idea) => idea.favorite).length : Infinity;
+  const showFinders = finderTotal >= 6 || Boolean(search.trim()) || category !== "All" || placeFilter !== "all";
   const myName = mySlot === "partner_one" ? couple.partner_one_name : mySlot === "partner_two" ? couple.partner_two_name : "Eu";
   // A nudge for a special date coming up, three weeks ahead: only the other one's birthday (so
   // the birthday person isn't asked to plan their own), and the anniversary. Quiet once a date or
@@ -2272,7 +2276,7 @@ function App() {
             freeDays={freeDays}
             suggestion={suggestion}
             suggestionDate={suggestionDay.key}
-            weatherKnown={couple.weather_latitude !== null}
+            weatherKnown={couple.weather_latitude !== null || couple.municipality_latitude !== null}
             scene={houseScene}
             petRoll={petRoll}
             petPlace={petPlaceFor(houseScene, petRoll, "sala")}
@@ -2294,7 +2298,7 @@ function App() {
             busy={busy}
             anniversary={anniversary}
             birthdays={personalBirthdays}
-            weather={couple.weather_latitude !== null ? null : <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude, }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />}
+            weather={couple.weather_latitude !== null || couple.municipality_latitude !== null ? null : <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude, }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} />}
             partnerOneName={couple.partner_one_name}
             partnerTwoName={couple.partner_two_name}
             commitments={commitments}
@@ -2396,8 +2400,8 @@ function App() {
           {view === "insights" && <InsightsPanel monthSummary={lastMonth} completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
           {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && (view !== "discover" || Boolean(search.trim()) || showAllIdeas) && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
-            <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div>{view === "discover" && showAllIdeas && !search.trim() && <button type="button" className="button button-ghost" onClick={() => setShowAllIdeas(false)}>Mostrar menos</button>}{view !== "discover" && <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={"Pesquisar ideias de date"} placeholder={"Encontrar uma ideia..."} value={search} onChange={(event) => setSearch(event.target.value)} /></label>}</div>
-            <div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div>
+            <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div>{view === "discover" && showAllIdeas && !search.trim() && <button type="button" className="button button-ghost" onClick={() => setShowAllIdeas(false)}>Mostrar menos</button>}{view !== "discover" && showFinders && <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={view === "planned" ? "Procurar dates" : view === "memories" ? "Procurar memórias" : "Procurar ideias"} placeholder={view === "planned" ? "Procurar dates…" : view === "memories" ? "Procurar memórias…" : "Procurar ideias…"} value={search} onChange={(event) => setSearch(event.target.value)} /></label>}</div>
+            {showFinders && <><div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div></>}
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} view={view} todayDate={todayDate} busy={busy} myUserId={session.user.id} partnerName={partnerName} partnerHasPush={partnerHasPush} photoCount={photos.filter((photo) => photo.date_id === idea.id).length} actions={ideaCardActions} />)}
