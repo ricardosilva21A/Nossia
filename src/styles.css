@@ -1806,3 +1806,45 @@ button.milestone-card:focus-visible{outline:3px solid var(--cobalt-ink);outline-
 .task-done-toggle{min-height:44px}
 .room-person small{white-space:normal;max-width:7.5em;text-align:center;line-height:1.15;padding:2px 7px}
 .room-person{z-index:2}
+/* Explorar in three parts: Ideias, Jogos, Sítios */
+.games-host{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding:12px 16px;border-radius:14px;background:var(--paper);box-shadow:var(--shadow-rest)}
+.games-host-art{flex:none;display:grid;place-items:center;width:60px;height:60px}
+.games-host p{margin:0;font-size:14px;line-height:1.45;color:var(--ink-2)}
+.games-host strong{color:var(--ink)}
+.games-page .games-row ul{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-columns:auto;overflow:visible;margin:0;padding:2px 0 6px;scroll-snap-type:none}
+.places-page{margin-top:4px}
+/* Settings: four group cards, then one short page per group */
+.settings-groups{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.settings-group-card{display:flex;align-items:center;gap:14px;min-height:76px;padding:14px 16px;border:1px solid var(--line);border-radius:14px;background:var(--paper);color:var(--ink);text-align:left;font:inherit;cursor:pointer;box-shadow:var(--shadow-rest);transition:transform .18s var(--ease-out-soft),box-shadow .2s var(--ease-out-soft)}
+.settings-group-card>svg:first-child{flex:none;color:var(--accent)}
+.settings-group-card span{display:grid;gap:3px;flex:1;min-width:0}
+.settings-group-card strong{font-size:16px}
+.settings-group-card small{font-size:13px;line-height:1.35;color:var(--muted)}
+.settings-group-arrow{flex:none;color:var(--muted)}
+.settings-group-card:active{transform:scale(.98)}
+@media(hover:hover){.settings-group-card:hover{box-shadow:var(--shadow-lift,var(--shadow-rest));transform:translateY(-1px)}}
+.settings-group-head{grid-column:1/-1;display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-bottom:4px}
+.settings-group-head h2{margin:0;font-size:22px}
+.settings-back{display:inline-flex;align-items:center;gap:6px;min-height:44px}
+@media(prefers-reduced-motion:reduce){.settings-group-card{transition:none}}
+/* Hoje: the room where they are, and a strip with the four rooms */
+.house-focus{position:relative;width:100%;max-width:760px;margin:0 auto}
+.house-focus .house-room-strip{margin:0;aspect-ratio:1080/380}
+.house-room-name{position:absolute;top:10px;right:12px;padding:4px 10px;border-radius:999px;background:rgba(255,253,243,.9);font:600 12px/1.3 "DM Sans",sans-serif;color:var(--ink);pointer-events:none}
+.house-rooms{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:100%;max-width:760px;margin:0 auto}
+.house-rooms button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:48px;padding:5px 4px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--muted);font:500 12px/1.2 "DM Sans",sans-serif;cursor:pointer;transition:background-color .2s var(--ease-out-soft),color .2s var(--ease-out-soft),transform .18s var(--ease-out-soft)}
+.house-rooms button.is-shown{background:var(--cobalt-soft);border-color:transparent;color:var(--accent);font-weight:600}
+.house-rooms button:active{transform:scale(.97)}
+.house-room-dots{display:flex;gap:3px;min-height:20px}
+.house-room-dots i{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--rose);color:#fffdf3;font:700 12px/1 "DM Sans",sans-serif;font-style:normal}
+.house-room-dots i.is-me{background:var(--accent)}
+.house-room-dots i.is-pet{background:#c99a5b}
+@media(prefers-reduced-motion:reduce){.house-rooms button{transition:none}}
+/* Kinds of date as line icons, the same on every phone */
+.activity-icon{flex:none;vertical-align:-3px}
+.filter-chip{display:inline-flex;align-items:center;gap:6px}
+.category-label .activity-icon+span,.category-label{display:inline-flex;align-items:center;gap:5px}
+.category-label.category-icon{min-width:30px;min-height:30px;justify-content:center;padding:6px 8px;color:var(--ink)}
+.idea-title-block{flex:1;min-width:0}
+.idea-activity{margin:3px 0 0;font-size:12px;color:var(--muted)}
+.feeling-choice span .activity-icon,.feeling-choice span svg{vertical-align:middle}

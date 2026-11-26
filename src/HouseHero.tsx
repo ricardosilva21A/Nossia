@@ -7,7 +7,8 @@ import { avatarOf, defaultAvatar, petLook } from "./mascots";
 import type { Accessory, Mascot, Pet } from "./mascots";
 import type { AffectionKind } from "./affections";
 import { AffectionSheet, WardrobeSheet } from "./HouseSheets";
-import { decidePet } from "./house";
+import { decidePet, petPlaceFor } from "./house";
+import { HouseRoom } from "./HouseRooms";
 import type { CalendarData, HouseScene, PetMode, Room, SeasonalObject, TripPin, WindowView } from "./house";
 import { WallCalendar } from "./WallCalendar";
 import { ZoomOverlay } from "./ZoomOverlay";
@@ -42,6 +43,7 @@ const petLines: Record<PetMode, string> = {
 
 // Where the animal is when it isn't in the living room.
 const petElsewhere: Record<Room, string> = { sala: "na sala", cozinha: "na cozinha", quarto: "no quarto", jardim: "no jardim" };
+const roomLabels: Record<Room, string> = { sala: "Sala", cozinha: "Cozinha", quarto: "Quarto", jardim: "Jardim" };
 
 type Props = {
   scene: HouseScene;
@@ -97,8 +99,28 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
   const [ownRoll] = useState(() => Math.random());
   const roll = petRoll ?? ownRoll;
   const decided = useMemo(() => decidePet(scene, roll), [roll, scene]);
-  const { mode, room: petRoom } = petPlace ?? decided;
-  const petInSala = petRoom === "sala";
+
+  // Hoje shows the room where they are: where both are, or yours when you are apart. The
+  // living room when nobody is home, while the guide runs, and for the welcome home.
+  const focus: Room = useMemo(() => {
+    if (showGuide || arrival || affection) return "sala";
+    const one = scene.rooms.partner_one;
+    const two = scene.rooms.partner_two;
+    if (one && two && one === two) return one;
+    const mine = mySlot ? scene.rooms[mySlot] : null;
+    return mine ?? one ?? two ?? "sala";
+  }, [affection, arrival, mySlot, scene.rooms, showGuide]);
+  // Tapping a room in the strip shows it for a while, then the house goes back to where they are.
+  const [peek, setPeek] = useState<Room | null>(null);
+  useEffect(() => {
+    if (!peek) return;
+    const timer = window.setTimeout(() => setPeek(null), 12000);
+    return () => window.clearTimeout(timer);
+  }, [peek]);
+  const shown: Room = peek ?? focus;
+  const otherPlace = useMemo(() => (shown === "sala" ? null : petPlaceFor(scene, roll, shown)), [roll, scene, shown]);
+  const { mode, room: petRoom } = shown === "sala" ? petPlace ?? decided : otherPlace ?? decided;
+  const petInSala = petRoom === shown;
 
   const [sheet, setSheet] = useState<"affection" | "wardrobe" | null>(null);
   // A small sparkle on each thing that can be tapped, until it has been tapped once (per phone).
@@ -173,7 +195,7 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
       </button>
     );
   };
-  const elsewhere = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] !== "sala");
+  const elsewhere = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] !== shown);
   const salaEmpty = elsewhere.length === 2;
   const night = scene.window === "night";
 
@@ -188,7 +210,8 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
 
   return (
     <section className="house" aria-label="A vossa casa">
-      <div className={`house-room${guideReady ? " guide-on" : ""}`} onClickCapture={noteTap}>
+      {shown !== "sala" ? <div className="house-focus"><HouseRoom room={shown} scene={scene} mascots={mascots} pet={pet} petPlace={otherPlace ?? decided} names={names} /><span className="house-room-name" aria-hidden="true">{roomLabels[shown]}</span></div>
+      : <div className={`house-room${guideReady ? " guide-on" : ""}`} onClickCapture={noteTap}>
         <svg className="house-art" viewBox="0 0 1080 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <rect width="1080" height="400" fill="#f4e8d4" />
           <rect y="400" width="1080" height="120" fill="#d8bd97" />
@@ -242,7 +265,16 @@ export function HouseHero({ scene, mascots, pet, names, pins = [], calendar, tod
         <button type="button" data-guide="calendar" className={`house-spot spot-calendar${hint("calendar")}`} aria-label="Ver o calendário de perto" onClick={open("calendar")} />
         {forecast[0] && <span className="house-weather" aria-hidden="true">{weatherEmoji(forecast[0].weatherCode)} {Math.round(forecast[0].temperatureMax)}°</span>}
         <button type="button" data-guide="window" className={`house-spot spot-window${hint("window")}`} aria-label={forecast[0] ? `Hoje: ${weatherLabel(forecast[0]).toLowerCase()}, até ${Math.round(forecast[0].temperatureMax)} graus. Ver os próximos dias` : "Escolher a localização para o tempo"} onClick={forecast[0] ? open("weather") : onOpenWindow} />
-      </div>
+      </div>}
+      <nav className="house-rooms" aria-label="Divisões da casa">{(["sala", "cozinha", "quarto", "jardim"] as Room[]).map((room) => {
+        const people = (["partner_one", "partner_two"] as HomePartner[]).filter((slot) => scene.rooms[slot] === room);
+        const petThere = Boolean(pet) && room === petRoom;
+        const who = [...people.map((slot) => names[slot]), ...(petThere && pet ? [pet.name] : [])];
+        return <button type="button" key={room} className={room === shown ? "is-shown" : ""} aria-pressed={room === shown} aria-label={`${roomLabels[room]}${who.length ? `: ${who.join(", ")}` : ", vazia"}`} onClick={() => setPeek(room === focus ? null : room)}>
+          <span>{roomLabels[room]}</span>
+          <span className="house-room-dots" aria-hidden="true">{people.map((slot) => <i key={slot} className={slot === mySlot ? "is-me" : ""}>{names[slot].slice(0, 1)}</i>)}{petThere && pet && <i className="is-pet">{pet.name.slice(0, 1)}</i>}</span>
+        </button>;
+      })}</nav>
       {/* Who isn't in the living room, in a row under the room so the wall stays visible. */}
       {scene.together && scene.dateNow
         ? <div className="house-away"><span className="away-pill">♥ Os dois em date · {scene.dateNow.title}</span></div>

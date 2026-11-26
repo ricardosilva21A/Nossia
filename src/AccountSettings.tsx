@@ -40,7 +40,7 @@ export function AirportPicker({ value, onChange }: { value: string; onChange: (c
   );
 }
 
-export function AccountSettings({ municipality, onMunicipalityChange, airport, onAirportChange, onSignedOut }: { municipality: string | null; onMunicipalityChange: (name: string) => Promise<boolean>; airport: string; onAirportChange: (code: string) => void; onSignedOut: () => void }) {
+export function AccountSettings({ part, municipality, onMunicipalityChange, airport, onAirportChange, onSignedOut }: { part: "casa" | "privacidade"; municipality: string | null; onMunicipalityChange: (name: string) => Promise<boolean>; airport: string; onAirportChange: (code: string) => void; onSignedOut: () => void }) {
   const [place, setPlace] = useState(municipality ?? "");
   const [placeNote, setPlaceNote] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -70,7 +70,7 @@ export function AccountSettings({ municipality, onMunicipalityChange, airport, o
 
   return (
     <>
-      <article className="schedule-card">
+      {part === "casa" && <><article className="schedule-card">
         <h2>Onde vivem</h2>
         <p className="schedule-hint">O vosso concelho, para mostrar eventos a menos de 60 km.</p>
         <form className="municipality-form" onSubmit={(event) => { event.preventDefault(); setPlaceNote(""); void onMunicipalityChange(place).then((saved) => setPlaceNote(saved ? "Guardado." : "")); }}>
@@ -83,8 +83,8 @@ export function AccountSettings({ municipality, onMunicipalityChange, airport, o
         <h2>Voos</h2>
         <p className="schedule-hint">De onde costumam partir. As pesquisas de voos começam neste aeroporto.</p>
         <AirportPicker value={airport} onChange={onAirportChange} />
-      </article>
-      <article className="schedule-card">
+      </article></>}
+      {part === "privacidade" && <><article className="schedule-card">
         <h2>Ajuda e privacidade</h2>
         <div className="panel-actions"><a className="button button-ghost" href="/ajuda">Guia de utilização</a><a className="button button-ghost" href="/privacidade">Política de privacidade</a></div>
       </article>
@@ -96,7 +96,7 @@ export function AccountSettings({ municipality, onMunicipalityChange, airport, o
           {error && <p className="error-alert" role="alert">{error}</p>}
           <div className="panel-actions"><button className="button button-primary" type="submit" disabled={busy || confirmation !== "APAGAR"}>{busy ? "A apagar…" : "Apagar para sempre"}</button><button type="button" className="button button-ghost" disabled={busy} onClick={() => { setDeleting(false); setConfirmation(""); setError(""); }}>Cancelar</button></div>
         </form>}
-      </article>
+      </article></>}
     </>
   );
 }

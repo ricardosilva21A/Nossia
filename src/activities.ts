@@ -22,7 +22,7 @@ export const activityValues = activities.map((item) => item.value);
 
 export function activityLabel(activity: Activity) {
   const found = activities.find((item) => item.value === activity);
-  return found ? `${found.emoji} ${found.label}` : activity;
+  return found ? found.label : activity;
 }
 
 type Classifiable = Pick<Idea, "title" | "category" | "at_home"> & { tags?: string[] | null; activity?: Activity | null; special?: boolean | null; mood?: Mood };

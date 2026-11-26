@@ -6,7 +6,7 @@
 
 1. Cria a tua conta com email ou com **Continuar com Google**. Cada um tem a sua. Logo a seguir, a app pede o teu nome, o da tua cara-metade e desde quando estão juntos.
 2. Cria o teu avatar e diz quando fazes anos. O primeiro a entrar escolhe também o animal da casa (por exemplo, a Summer).
-3. Em **Definições** (avatar no canto), abre o **Perfil do casal** e cria a ligação de convite para o teu par (manda-a pelo WhatsApp ou por outra app). Quem abre o convite cria a sua conta, também com email ou Google, e a app pede-lhe o nome e o aniversário. Se o convite não abrir sozinho, há **Colar o link** no ecrã dos dados.
+3. Em **Definições** (avatar no canto), entra em **Casa**, abre o **Perfil do casal** e cria a ligação de convite para o teu par (manda-a pelo WhatsApp ou por outra app). Quem abre o convite cria a sua conta, também com email ou Google, e a app pede-lhe o nome e o aniversário. Se o convite não abrir sozinho, há **Colar o link** no ecrã dos dados.
 4. No iPhone, abre o site no Safari, toca em **Partilhar** e em **Adicionar ao ecrã principal**. Abre sempre a Nossia a partir do ícone: só assim recebes notificações.
 
 ## A casa
@@ -19,6 +19,8 @@ O **Hoje** é a vossa casa. Quase tudo nela se toca:
 - **A janela**: o tempo de hoje e dos próximos dias.
 - **O mapa na parede**: as viagens, com um pin por sítio, e **Marcar viagem**.
 - **O calendário**: folheia os meses, toca num dia para ver o que há e marca um date nesse dia.
+
+O **Hoje** mostra a divisão onde vocês estão: onde estão os dois, ou a tua quando estão separados (a sala quando não está ninguém). Por baixo há as quatro divisões, com uma bolinha para cada um e para o animal; toca numa para a espreitar uns segundos.
 
 A casa tem divisões: o **Hoje** é a sala, a **Agenda** é a cozinha, o **Nós** é o quarto e o **Explorar** é o jardim. Cada um está onde faria sentido a essa hora:
 
@@ -49,9 +51,11 @@ Viste um sítio no Instagram, TikTok, WhatsApp ou Maps? Copia o link e cola-o em
 
 ## Ideias
 
-O **Explorar** é um só ecrã. Em cima, **Surpreendam-nos** (uma ideia de cada vez), **Escolher pelo feeling** e a procura. Por baixo, filas curtas: **Novidades perto de vocês** (sítios que a casa encontrou à volta de casa, uma vez por semana), **Guardadas por vocês** e **Desta época**, e os restaurantes, cafés e bares. **Ver todas as ideias** mostra o catálogo inteiro. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
+O **Explorar** tem três partes: **Ideias**, **Jogos** e **Sítios**. Em **Ideias**, em cima, **Surpreendam-nos** (uma ideia de cada vez), **Escolher pelo feeling** e a procura. Por baixo, filas curtas: **Novidades perto de vocês** (sítios que a casa encontrou à volta de casa, uma vez por semana), **Guardadas por vocês** e **Desta época**, e os restaurantes, cafés e bares. **Ver todas as ideias** mostra o catálogo inteiro. De vez em quando a casa pergunta se te apetece cada ideia: direita para gostar, esquerda para passar. O teu par nunca vê o que passas.
 
-**Jogos de casal** também estão no Explorar, e quem os apresenta é o animal da casa (por exemplo, a Summer). No **Quanto me conheces?** primeiro adivinhas a resposta do teu par e depois dás a tua. Umas perguntas são de tocar numa opção, outras de escrever (filme favorito, música do duche…): nessas, quem é o alvo da pergunta diz se o outro acertou, quase acertou ou falhou. Há ainda **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** e **Memórias**. As respostas do teu par só aparecem depois de responderes também, e é o animal que te conta o que cada um disse, com uma reação para quem acerta ("YES!") e outra para quem falha (leva com uma almofada). Na casa, a bolha avisa quando há novidades, quando o teu par respondeu e quando tens de dizer se ele acertou. O que cada um diz sobre si fica guardado: aparece como pistas em **Prendas** e os sítios onde querem ir aparecem no mapa da parede.
+Os filtros e as etiquetas das ideias usam ícones de linha, iguais em qualquer telemóvel, e o tipo de cada ideia aparece por baixo do título.
+
+Os **Jogos de casal** estão em **Explorar › Jogos**, e quem os apresenta é o animal da casa (por exemplo, a Summer). No **Quanto me conheces?** primeiro adivinhas a resposta do teu par e depois dás a tua. Umas perguntas são de tocar numa opção, outras de escrever (filme favorito, música do duche…): nessas, quem é o alvo da pergunta diz se o outro acertou, quase acertou ou falhou. Há ainda **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** e **Memórias**. As respostas do teu par só aparecem depois de responderes também, e é o animal que te conta o que cada um disse, com uma reação para quem acerta ("YES!") e outra para quem falha (leva com uma almofada). Na casa, a bolha avisa quando há novidades, quando o teu par respondeu e quando tens de dizer se ele acertou. O que cada um diz sobre si fica guardado: aparece como pistas em **Prendas** e os sítios onde querem ir aparecem no mapa da parede.
 
 ## Prendas
 
@@ -59,7 +63,7 @@ Em **Nós › Prendas** guardas ideias de prendas para o teu par ao longo do ano
 
 ## Restaurantes e sítios
 
-No **Explorar**, em **Restaurantes, cafés e bares**, escolham entre experimentar um novo ou voltar a um de que gostaram.
+Em **Explorar › Sítios** escolham entre experimentar um novo ou voltar a um de que gostaram.
 
 ## Depois de um date
 
@@ -77,11 +81,13 @@ Planeiem destinos e o que fazer em cada dia em **Agenda › Viagens**. Depois de
 
 Em **Agenda › Viagens**, a Nossia mostra os próximos fins de semana prolongados e as pontes que valem a pena, por exemplo: "8 de dezembro é terça-feira: tirando segunda-feira, têm 4 dias seguidos". Conta com o horário de cada um, incluindo quem trabalha ao fim de semana, e com o feriado do vosso concelho. Avisa também por notificação três semanas antes.
 
-Nas **Definições**, em **As minhas férias**, cada um diz como tira férias: **Quando quero**, com os dias por ano e os meses difíceis, ou **Marcadas pela empresa**, com os períodos.
+As **Definições** estão em quatro grupos: **Conta** (o teu avatar, férias, horários e terminar sessão), **Casa** (perfil do casal, convite, animal, onde vivem e voos), **Notificações** (avisos e calendário do iPhone) e **Privacidade** (localização do tempo, dados de uso, ajuda e apagar conta).
+
+Em **Definições › Conta**, em **As minhas férias**, cada um diz como tira férias: **Quando quero**, com os dias por ano e os meses difíceis, ou **Marcadas pela empresa**, com os períodos.
 
 ## Notificações e calendário
 
-Em **Definições**, ativem as notificações e escolham o que querem receber (dates, compromissos, carinhos…). No iPhone, só funcionam com a Nossia no ecrã principal; o Hoje lembra-vos enquanto não estiverem ligadas. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.
+Em **Definições › Notificações**, ativem as notificações e escolham o que querem receber (dates, compromissos, carinhos…). No iPhone, só funcionam com a Nossia no ecrã principal; o Hoje lembra-vos enquanto não estiverem ligadas. Nas mesmas definições, podem subscrever os dates no calendário do iPhone.
 
 ## Resumo do mês e tempo
 
@@ -89,4 +95,4 @@ No dia 1 chega o resumo do mês que acabou (dates, 😍, viagens), que também a
 
 ## Apagar a conta
 
-Está em **Definições**. Se o teu par tiver conta, os dados do casal ficam com essa pessoa. Se fores só tu, apagamos tudo, incluindo as fotografias.
+Está em **Definições › Privacidade**. Se o teu par tiver conta, os dados do casal ficam com essa pessoa. Se fores só tu, apagamos tudo, incluindo as fotografias.

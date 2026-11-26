@@ -60,9 +60,10 @@ import type { LocalEvent, Origin } from "./events";
 import { activeSeasonFor, seasons as seasonDetails } from "./seasons";
 import { budgetLabel, chooseSuggestionDay, completedCategoryCounts, durationLabel, ideasForDate, longestWindow, moodLabels, pickWeighted, rankIdeas } from "./suggestions";
 import { TodayView } from "./TodayView";
+import { ActivityIcon } from "./ActivityIcon";
 import { activities, activityLabel, activityOf, activityValues, isSpecial, legacyFields } from "./activities";
 import type { Activity } from "./activities";
-import { ArrowRight, CalendarDays, Heart, Home, Lightbulb, LogOut, Plus, Search, Shuffle, SlidersHorizontal, Upload, UserRound } from "lucide-react";
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, Footprints, Heart, Home, Lightbulb, Sparkles, LogOut, Plus, Search, ShieldCheck, Shuffle, SlidersHorizontal, Upload, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { WeatherPanel } from "./WeatherPanel";
 import type { ImportPreview } from "./ideaImport";
@@ -70,7 +71,7 @@ import type { CouplePlace, CoupleCommitment, CoupleDate, CoupleTrip, DateDetails
 import { activityWeatherAdvice, activityWeatherLabel, activityWeatherReason, fetchDailyWeather, weatherConditionFor, weatherEmoji, weatherLabel } from "./weather";
 import type { DailyWeather, WeatherCondition } from "./weather";
 
-type View = "today" | "events" | "discover" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "tripMap" | "places" | "gifts";
+type View = "today" | "events" | "discover" | "games" | "favorites" | "planned" | "memories" | "calendar" | "schedule" | "map" | "insights" | "settings" | "trips" | "tripMap" | "places" | "gifts";
 type Section = "today" | "explore" | "agenda" | "us";
 
 type DiscoveryMode = "random" | "feeling";
@@ -121,13 +122,22 @@ const categories: Array<Activity | "All"> = ["All", ...activityValues];
 // Four tabs; pages that belong together sit under one tab as sub-sections. Settings open from the avatar.
 const sections: Array<{ id: Section; label: string; Icon: LucideIcon; views: View[] }> = [
   { id: "today", label: "Hoje", Icon: Home, views: ["today"] },
-  { id: "explore", label: "Explorar", Icon: Lightbulb, views: ["discover", "events", "places", "favorites"] },
+  { id: "explore", label: "Explorar", Icon: Lightbulb, views: ["discover", "games", "places", "events", "favorites"] },
   { id: "agenda", label: "Agenda", Icon: CalendarDays, views: ["planned", "calendar", "schedule", "trips"] },
   { id: "us", label: "Nós", Icon: Heart, views: ["memories", "map", "tripMap", "gifts", "insights"] },
+];
+// Settings in four short groups instead of one long page.
+type SettingsGroup = "conta" | "casa" | "notificacoes" | "privacidade";
+const settingsGroups: Array<{ id: SettingsGroup; label: string; hint: string; Icon: LucideIcon }> = [
+  { id: "conta", label: "Conta", hint: "O teu avatar, as tuas férias e horários, terminar sessão", Icon: UserRound },
+  { id: "casa", label: "Casa", hint: "Perfil do casal, convite, animal, onde vivem e voos", Icon: Home },
+  { id: "notificacoes", label: "Notificações", hint: "Avisos no telemóvel e calendário do iPhone", Icon: Bell },
+  { id: "privacidade", label: "Privacidade", hint: "Localização do tempo, dados de uso, ajuda e apagar conta", Icon: ShieldCheck },
 ];
 const subviewLabels: Record<View, string> = {
   today: "Hoje",
   discover: "Ideias",
+  games: "Jogos",
   favorites: "Favoritas",
   planned: "Planeados",
   calendar: "Calendário",
@@ -144,7 +154,7 @@ const subviewLabels: Record<View, string> = {
 };
 const sectionOf = (view: View) => sections.find((section) => section.views.includes(view)) ?? sections[0];
 // Screens that were folded into others: their old addresses still work and land on the new place.
-const foldedViews: Partial<Record<View, View>> = { favorites: "discover", calendar: "planned", schedule: "settings", places: "discover" };
+const foldedViews: Partial<Record<View, View>> = { favorites: "discover", calendar: "planned", schedule: "settings" };
 
 
 function viewFromPath(pathname: string): View {
@@ -166,6 +176,8 @@ function viewFromPath(pathname: string): View {
     viagens: "trips",
     "mapa-mundo": "tripMap",
     sitios: "places",
+    jogos: "games",
+    games: "games",
     eventos: "events",
     events: "events",
     trips: "trips",
@@ -180,7 +192,7 @@ function viewFromPath(pathname: string): View {
 }
 
 function pathForView(view: View) {
-  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "tripMap" ? "mapa-mundo" : view === "places" ? "sitios" : view === "events" ? "eventos" : view === "gifts" ? "prendas" : view}`;
+  return `/${view === "today" ? "hoje" : view === "discover" ? "dates" : view === "schedule" ? "agenda" : view === "settings" ? "definicoes" : view === "trips" ? "viagens" : view === "tripMap" ? "mapa-mundo" : view === "places" ? "sitios" : view === "games" ? "jogos" : view === "events" ? "eventos" : view === "gifts" ? "prendas" : view}`;
 }
 
 function translateImportMessage(message: string) {
@@ -511,6 +523,16 @@ function App() {
       window.history[replace ? "replaceState" : "pushState"]({}, "", path);
     }
     setView(nextView);
+  }
+
+  const [settingsGroup, setSettingsGroup] = useState<SettingsGroup | null>(null);
+  function openSettingsGroup(group: SettingsGroup | null) {
+    setSettingsGroup(group);
+    window.scrollTo({ top: 0 });
+  }
+  function goSettings(group: SettingsGroup | null) {
+    openSettingsGroup(group);
+    navigateView("settings");
   }
 
   const loadedUser = useRef<{ id: string; at: number } | null>(null);
@@ -2150,10 +2172,11 @@ function App() {
   const pageHeading: Record<View, [string, string]> = {
     today: [`Olá, ${couple?.partner_one_name} e ${couple?.partner_two_name}`, todayHeading],
     discover: ["Explorar", "Escolham algo para fazer juntos, ou deixem a Nossia escolher."],
-    settings: ["Definições", "Perfil, horários, notificações, calendário do iPhone e localização."],
+    settings: ["Definições", "Conta, casa, notificações e privacidade."],
     trips: ["Viagens", "Para onde querem ir, quando ir, e o plano de cada viagem."],
     tripMap: ["Mapa", "Os sítios onde já estiveram. Toquem numa fotografia para abrir a memória."],
     places: ["Sítios", "Restaurantes, cafés e bares para experimentar, e os que já são vossos."],
+    games: ["Jogos", "Perguntas para se conhecerem melhor. Respondem os dois e só depois veem."],
     events: ["Eventos", "O que está a acontecer perto de vocês."],
     favorites: ["Favoritos", "As ideias que guardaram para mais tarde."],
     planned: ["Planeados", "O que já está marcado, os compromissos e quando estão os dois livres."],
@@ -2208,7 +2231,7 @@ function App() {
   // Only once the other one has joined: there's nobody to play with before.
   // Who is in which room right now: the living room is Hoje, the other rooms top the other tabs.
   const houseScene = decideHouse({ now: new Date(clock), weather: weatherForecast[0] ?? null, blocks: workBlocks, commitments, dates: ideas.filter((idea) => idea.status !== "idea"), gamers: (mascots ?? []).filter((item) => item.plays_games).map((item) => item.partner_slot) });
-  const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", planned: "cozinha", memories: "quarto" };
+  const roomFor: Partial<Record<View, "cozinha" | "quarto" | "jardim">> = { discover: "jardim", games: "jardim", places: "jardim", events: "jardim", planned: "cozinha", memories: "quarto" };
   const roomHere = roomFor[view];
   const arrived = arrivalDone ? null : lastArrival(workBlocks, new Date(arrivalSince), new Date(clock));
   const arrival = arrived && houseScene.rooms[arrived.slot] !== null ? { slot: arrived.slot, time: `${String(arrived.at.getHours()).padStart(2, "0")}:${String(arrived.at.getMinutes()).padStart(2, "0")}` } : null;
@@ -2259,7 +2282,7 @@ function App() {
 
       <main className="main-area">
         <header className="topbar">
-          <div className="topbar-right"><span className="today-label">{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span><button type="button" className={`top-avatar ${couplePhotoUrl ? "has-photo" : ""}`} onClick={() => navigateView("settings")} aria-label="Abrir definições" title="Definições">{couplePhotoUrl ? <img src={couplePhotoUrl} alt="" /> : <>{couple.partner_one_name.slice(0, 1)}<span>{couple.partner_two_name.slice(0, 1)}</span></>}</button></div>
+          <div className="topbar-right"><span className="today-label">{new Intl.DateTimeFormat("pt-PT", { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</span><button type="button" className={`top-avatar ${couplePhotoUrl ? "has-photo" : ""}`} onClick={() => goSettings(null)} aria-label="Abrir definições" title="Definições">{couplePhotoUrl ? <img src={couplePhotoUrl} alt="" /> : <>{couple.partner_one_name.slice(0, 1)}<span>{couple.partner_two_name.slice(0, 1)}</span></>}</button></div>
         </header>
 
         <div className="content"><Suspense fallback={<p className="map-loading">A carregar…</p>}>
@@ -2286,7 +2309,7 @@ function App() {
             pins={tripPins(trips, localDateString())}
             forecast={weatherForecast}
             weatherPlace={couple.weather_location_name}
-            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => navigateView("settings"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory, arrival, onArrivalSeen: () => setArrivalDone(true), affection: incoming && mySlot ? { emoji: affectionMessage(incoming.kind, partnerName).emoji, fromSlot: mySlot === "partner_one" ? "partner_two" : "partner_one" } : null, travelDreams: [...factsOf(games.answers, session.user.id, "me", "travel").map((fact) => ({ who: myName, text: fact.answer })), ...factsOf(games.answers, session.user.id, "partner", "travel").map((fact) => ({ who: partnerName, text: fact.answer }))] }}
+            houseActions={{ showGuide: !guideSeen && !welcomeStep && !onboardingVisible && !shared && !quickCloseId && !incoming, onGuideDone: () => { setGuideSeen(true); saveGuideSeen(session.user.id); }, partnerHasPush: partnerJoined ? partnerHasPush : null, mySlot, onOpenProfile: () => goSettings("casa"), onSendAffection: sendAffection, onSavePetAccessory: savePetAccessory, arrival, onArrivalSeen: () => setArrivalDone(true), affection: incoming && mySlot ? { emoji: affectionMessage(incoming.kind, partnerName).emoji, fromSlot: mySlot === "partner_one" ? "partner_two" : "partner_one" } : null, travelDreams: [...factsOf(games.answers, session.user.id, "me", "travel").map((fact) => ({ who: myName, text: fact.answer })), ...factsOf(games.answers, session.user.id, "partner", "travel").map((fact) => ({ who: partnerName, text: fact.answer }))] }}
             calendar={{ dates: ideas.filter((idea) => idea.status !== "idea"), commitments, trips }}
             deckSize={deckAvailable.length}
             deckNew={deckAvailable.filter((idea) => (idea.tags ?? []).includes("descoberto")).length}
@@ -2294,7 +2317,7 @@ function App() {
             onPlanTrip={() => navigateView("trips")}
             onOpenWorldMap={() => navigateView("tripMap")}
             onOpenCalendar={() => navigateView("planned")}
-            onOpenWindow={() => navigateView("settings")}
+            onOpenWindow={() => goSettings("privacidade")}
             busy={busy}
             anniversary={anniversary}
             birthdays={personalBirthdays}
@@ -2317,7 +2340,7 @@ function App() {
             onDeclineProposal={declineProposal}
             myPush={myPush}
             partnerHasPush={partnerJoined ? partnerHasPush : null}
-            onOpenNotifications={() => navigateView("settings")}
+            onOpenNotifications={() => goSettings("notificacoes")}
             monthSummary={lastMonth}
             onOpenInsights={() => navigateView("insights")}
             onEditDate={(id) => { const idea = ideas.find((item) => item.id === id); if (idea) openEditPlan(idea); }}
@@ -2343,11 +2366,14 @@ function App() {
             <label className="search-box explore-search"><Search size={16} aria-hidden="true" /><input type="search" aria-label="Procurar ideias" placeholder="Procurar ideias: praia, museu, jantar…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
             {!search.trim() && !showAllIdeas && <>
               <ExploreRows onPick={openPlan} rows={exploreRows} />
-              {partnerJoined && mySlot && <GamesRow answered={games.answered} waiting={games.waiting} score={knowScore(games.answers, session.user.id)} partnerName={partnerName} onPlay={(deck) => { const next = nextInDeck(deck, games.answered, games.waiting); if (next) setGameOpen({ id: next.id, deck }); }} />}
-              <section className="explore-places" aria-label="Restaurantes, cafés e bares"><div className="explore-row-head"><h2>Restaurantes, cafés e bares</h2></div><PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} /></section>
               <button type="button" className="button button-ghost explore-all" onClick={() => setShowAllIdeas(true)}>Ver todas as ideias ({ideas.filter((idea) => idea.status === "idea").length})</button>
             </>}
           </>}
+          {view === "games" && <section className="games-page" aria-label="Jogos de casal">
+            {pet && <div className="games-host"><span className="games-host-art" aria-hidden="true"><PetArt look={petLook(pet)} size={56} /></span><p><strong>{pet.name} quer conhecer-vos.</strong> {partnerJoined ? "Primeiro adivinhas o que o teu par responderia, depois respondes tu." : `Os jogos abrem quando ${partnerName} entrar na Nossia com a sua conta.`}</p></div>}
+            {partnerJoined && mySlot && <GamesRow answered={games.answered} waiting={games.waiting} score={knowScore(games.answers, session.user.id)} partnerName={partnerName} onPlay={(deck) => { const next = nextInDeck(deck, games.answered, games.waiting); if (next) setGameOpen({ id: next.id, deck }); }} />}
+          </section>}
+          {view === "places" && <section className="explore-places places-page" aria-label="Restaurantes, cafés e bares"><PlacesPanel couple={couple} dates={ideas} busy={busy} onPlan={planAtPlace} /></section>}
           {view === "insights" && <>
           <section className="milestones-card" aria-label={"Datas importantes"}>
             <div className="milestones-heading"><span className="section-kicker">DATAS QUE SIGNIFICAM MUITO</span><h2>A vossa história até agora</h2></div>
@@ -2378,7 +2404,7 @@ function App() {
 
 
 
-          {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => navigateView("settings")} />}
+          {view === "events" && <EventsPanel events={events} origin={eventOrigin} today={localDateString()} busy={busy} plannedEventIds={new Set(dates.filter((date) => date.status === "planned" && date.event_id).map((date) => date.event_id as string))} freeDays={eventHorizon.free} horizonEnd={eventHorizon.end} onPlan={planEvent} onPlanTrip={planEventTrip} onOpenSettings={() => goSettings("casa")} />}
           {view === "trips" && <TripsPanel coupleId={couple.id} airport={couple.home_airport} opportunities={<Opportunities today={localDateString()} blocks={workBlocks} municipality={couple.municipality} rules={vacationRules} visited={trips.filter((trip) => trip.end_date < localDateString()).map((trip) => trip.title)} names={{ partner_one: couple.partner_one_name, partner_two: couple.partner_two_name }} busy={busy} onCreateTrip={createTripFor} />} trips={trips} onTripsChange={setTrips} onOpenMemory={(id) => { setMemoryTripId(id); navigateView("tripMap"); }} />}
           {view === "gifts" && <GiftsPanel coupleId={couple.id} partnerName={partnerName} partnerBirthDate={mySlot === "partner_one" ? couple.partner_two_birth_date : mySlot === "partner_two" ? couple.partner_one_birth_date : null} relationshipDate={couple.relationship_date} today={localDateString()} hints={factsOf(games.answers, session.user.id, "partner", "gift")} />}
           {(view === "map" || view === "tripMap") && <TripWorld coupleId={couple.id} trips={trips} dates={ideas} filter={view === "tripMap" ? "trips" : mapFilter} onFilter={(next) => { setMapFilter(next); if (view === "tripMap") navigateView("map", true); }} onPinDate={(id) => {
@@ -2390,18 +2416,25 @@ function App() {
             setLocationLongitude(idea.longitude);
             setModal("location");
           }} openTripId={memoryTripId} onOpenTrip={setMemoryTripId} onTripsChange={setTrips} />}
-          {view === "settings" && <section className="settings-page">
-            <article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div>{myMascot && <label className="settings-toggle"><input type="checkbox" checked={Boolean(myMascot.plays_games)} onChange={(event) => void savePlaysGames(event.target.checked)} />Jogo no computador (apareço na secretária do quarto)</label>}</article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><article className="schedule-card settings-usage"><h2>Ajudar a melhorar a Nossia</h2><p className="schedule-hint">Contamos que partes da app são usadas (por exemplo, "abriu o mapa"), sem nomes, títulos, mensagens nem locais, para saber o que simplificar.</p><label className="settings-toggle"><input type="checkbox" checked={shareUsage} onChange={(event) => { setShareUsage(event.target.checked); setUsageAllowed(event.target.checked); }} />Partilhar contagens anónimas de uso</label></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /><AccountSettings municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} />
-            <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
-            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} />
+          {view === "settings" && <section className="settings-page" aria-label="Definições">
+            {!settingsGroup ? <div className="settings-groups">{settingsGroups.map((group) => <button type="button" key={group.id} className="settings-group-card" onClick={() => openSettingsGroup(group.id)}><group.Icon size={22} strokeWidth={1.9} aria-hidden="true" /><span><strong>{group.label}</strong><small>{group.hint}</small></span><ArrowRight className="settings-group-arrow" size={18} aria-hidden="true" /></button>)}</div> : <>
+              <div className="settings-group-head"><button type="button" className="link-button settings-back" onClick={() => openSettingsGroup(null)}><ArrowLeft size={16} aria-hidden="true" />Definições</button><h2>{settingsGroups.find((group) => group.id === settingsGroup)?.label}</h2></div>
+              {settingsGroup === "conta" && <><article className="schedule-card settings-mascot"><h2>O meu avatar</h2>{avatarOf(myMascot) && <Avatar look={avatarOf(myMascot)!} size={72} />}<div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingMascot(true)}>Alterar</button></div>{myMascot && <label className="settings-toggle"><input type="checkbox" checked={Boolean(myMascot.plays_games)} onChange={(event) => void savePlaysGames(event.target.checked)} />Jogo no computador (apareço na secretária do quarto)</label>}</article><article className="schedule-card"><h2>A tua sessão</h2><p className="schedule-hint">Cada um tem a sua conta, com email ou Google.</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => void signOut()}><LogOut size={16} aria-hidden="true" />Terminar sessão</button></div></article><VacationSettings profile={vacationProfiles.find((profile) => profile.user_id === session.user.id) ?? null} periods={vacationPeriods.filter((period) => period.user_id === session.user.id)} partnerName={mySlot === "partner_two" ? couple.partner_one_name : couple.partner_two_name} partnerProfile={vacationProfiles.find((profile) => profile.user_id !== session.user.id) ?? null} partnerPeriods={vacationPeriods.filter((period) => period.user_id !== session.user.id)} today={localDateString()} onSaveProfile={saveVacationProfile} onAddPeriod={addVacationPeriod} onRemovePeriod={(id) => void removeVacationPeriod(id)} />
+            <SchedulePanel part="hours" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} /></>}
+              {settingsGroup === "casa" && <><article className="schedule-card settings-profile"><h2>{couple.partner_one_name} e {couple.partner_two_name}</h2><p className="schedule-hint">Nomes, fotografia, datas importantes e o convite para a conta do par.</p><div className="panel-actions"><button type="button" className="button button-secondary" onClick={openCoupleProfile}><UserRound size={16} aria-hidden="true" />Perfil do casal</button></div></article><article className="schedule-card settings-mascot"><h2>{pet ? pet.name : "O animal da casa"}</h2>{pet && <PetArt look={petLook(pet)} size={72} />}<p className="schedule-hint">{pet ? "É dos dois. Qualquer um pode mudar o nome ou o aspeto." : "Ainda não têm. É quem fala na casa."}</p><div className="panel-actions"><button type="button" className="button button-ghost" onClick={() => setEditingPet(true)}>{pet ? "Alterar" : "Escolher"}</button></div>{pet && <label className="settings-toggle"><input type="checkbox" checked={petRoams} onChange={(event) => { setPetRoams(event.target.checked); savePetRoams(event.target.checked); }} />{pet.name} acompanha-te pelos menus</label>}</article><AccountSettings part="casa" municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} /><PassedIdeas ideas={votes.filter((vote) => vote.vote === "pass").flatMap((vote) => { const idea = catalog.find((item) => item.id === vote.idea_id); return idea ? [{ idea_id: idea.id, title: idea.title, emoji: idea.emoji }] : []; })} onRestore={(ideaId) => void restoreVote(ideaId)} /></>}
+              {settingsGroup === "notificacoes" && <>
+            <SchedulePanel part="settings" couple={couple} userId={session.user.id} mySlot={mySlot} plannedDates={plannedDates} blocks={workBlocks} commitments={commitments} trips={trips} busy={busy} onRemoveCommitment={(id) => void removeCommitment(id)} onUpdateCommitment={updateCommitment} onBlocksChange={setWorkBlocks} onFindDate={() => navigateView("discover")} /></>}
+              {settingsGroup === "privacidade" && <>
             <WeatherPanel location={{ name: couple.weather_location_name, latitude: couple.weather_latitude, longitude: couple.weather_longitude }} onSaveLocation={saveWeatherLocation} onConditionChange={onWeatherConditionChange} onForecastChange={onWeatherForecastChange} locationOnly />
+            <article className="schedule-card settings-usage"><h2>Ajudar a melhorar a Nossia</h2><p className="schedule-hint">Contamos que partes da app são usadas (por exemplo, "abriu o mapa"), sem nomes, títulos, mensagens nem locais, para saber o que simplificar.</p><label className="settings-toggle"><input type="checkbox" checked={shareUsage} onChange={(event) => { setShareUsage(event.target.checked); setUsageAllowed(event.target.checked); }} />Partilhar contagens anónimas de uso</label></article><AccountSettings part="privacidade" municipality={couple.municipality} onMunicipalityChange={saveMunicipality} airport={couple.home_airport} onAirportChange={(code) => void saveAirport(code)} onSignedOut={() => { window.location.href = "/"; }} /></>}
+            </>}
           </section>}
 
           {view === "insights" && <InsightsPanel monthSummary={lastMonth} completedStats={completedStats} completedMoodStats={completedMoodStats} mostFrequentHome={mostFrequentHome} couple={couple} />}
 
-          {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && (view !== "discover" || Boolean(search.trim()) || showAllIdeas) && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && <section className="ideas-section">
+          {view !== "today" && view !== "map" && view !== "insights" && view !== "gifts" && (view !== "discover" || Boolean(search.trim()) || showAllIdeas) && view !== "settings" && view !== "trips" && view !== "tripMap" && view !== "places" && view !== "games" && view !== "events" && <section className="ideas-section">
             <div className="section-heading"><div><p className="section-kicker">{view === "planned" ? "A CAMINHO" : view === "memories" ? "O VOSSO ÁLBUM" : "ESCOLHIDO A PENSAR NOS DOIS"}</p><h2>{view === "planned" ? "Os vossos próximos dates" : view === "memories" ? "Momentos que viveram juntos" : view === "favorites" ? "Guardados com carinho" : "Ideias para desfrutarem juntos"} <span className="heading-count">{visibleIdeas.length}</span></h2></div>{view === "discover" && showAllIdeas && !search.trim() && <button type="button" className="button button-ghost" onClick={() => setShowAllIdeas(false)}>Mostrar menos</button>}{view !== "discover" && showFinders && <label className="search-box"><Search size={16} aria-hidden="true" /><input aria-label={view === "planned" ? "Procurar dates" : view === "memories" ? "Procurar memórias" : "Procurar ideias"} placeholder={view === "planned" ? "Procurar dates…" : view === "memories" ? "Procurar memórias…" : "Procurar ideias…"} value={search} onChange={(event) => setSearch(event.target.value)} /></label>}</div>
-            {showFinders && <><div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : activityLabel(item)}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora"], ["home", "🏠 Em casa"], ["out", "🚶 Fora"]] as const).map(([value, label]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{label}</button>)}</div></>}
+            {showFinders && <><div className="filters" aria-label={"Filtrar por tipo"}>{categories.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item === "All" ? "Todos" : <><ActivityIcon activity={item} />{activityLabel(item)}</>}</button>)}</div><div className="filters place-filters" aria-label="Em casa ou fora">{([["all", "Em casa e fora", null], ["home", "Em casa", Home], ["out", "Fora", Footprints]] as const).map(([value, label, Icon]) => <button key={value} className={`filter-chip ${placeFilter === value ? "selected" : ""}`} aria-pressed={placeFilter === value} onClick={() => setPlaceFilter(value)}>{Icon && <Icon className="activity-icon" size={16} strokeWidth={1.9} aria-hidden="true" />}{label}</button>)}</div></>}
 
             {visibleIdeas.length > 0 ? <><div className="idea-grid">
               {visibleIdeas.slice(0, visibleIdeaLimit).map((idea, index) => <IdeaCard key={idea.id} idea={idea} index={index} view={view} todayDate={todayDate} busy={busy} myUserId={session.user.id} partnerName={partnerName} partnerHasPush={partnerHasPush} photoCount={photos.filter((photo) => photo.date_id === idea.id).length} actions={ideaCardActions} />)}
@@ -2412,7 +2445,7 @@ function App() {
       </main>
 
       {view !== "today" && view !== "settings" && !modal && !quickAddOpen && <button type="button" className="fab" aria-label="Adicionar" onClick={() => setQuickAddOpen(true)}><Plus size={26} aria-hidden="true" /></button>}
-      {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else navigateView("settings"); }} />}
+      {welcomeStep && pet && <WelcomeSteps step={welcomeStep} pet={pet} deckSize={deckAvailable.length} missing={profileMissing} onLater={() => markWelcomeSeen(welcomeStep)} onStart={() => { markWelcomeSeen(welcomeStep); if (welcomeStep === "swipes") setOpenDeck(deckAvailable); else goSettings("casa"); }} />}
       {occasionOpen && <OccasionPlanner occasion={occasionOpen} today={localDateString()} busy={busy} onPickIdea={(date) => startAnniversaryPlanning(date)} onJustMark={(date, title) => quickAdd({ kind: "date", title, date, startTime: null, endTime: null, forPartner: null })} onWholeWeek={(start, end, title) => createTripFor(title, start, end)} onClose={() => setOccasionOpen(null)} />}
       {gameOpen && mySlot && (() => {
         const question = questionById(gameOpen.id);
@@ -2467,7 +2500,7 @@ function App() {
           : modal === "delete" ? <div className="delete-content"><h3>{activeIdea?.status === "idea" ? "Apagar esta ideia?" : "Apagar este date?"}</h3><p className="modal-copy">{activeIdea?.status === "idea"
             ? `“${activeIdea?.title ?? ""}” será removida permanentemente da vossa lista de ideias.`
             : `Este date de “${activeIdea?.title ?? ""}” será removido permanentemente, incluindo as fotografias associadas. A ideia continua disponível.`}</p><button type="button" className="modal-submit delete-confirm-button" disabled={busy} onClick={() => void deleteActiveIdea()}>{busy ? "A apagar…" : "Apagar permanentemente"}</button></div>
-          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label">{activityLabel(activityOf(activeIdea))}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>{durationLabel(activeIdea.duration_minutes, activeIdea.duration)}</span><i /><span>{budgetLabel(activeIdea.budget_eur)}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>O tempo é uma indicação, não uma regra — a escolha continua a ser vossa.</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
+          : modal === "draw" ? <>{activeIdea ? <div className="draw-result"><span className="draw-emoji">{activeIdea.emoji}</span><span className="category-label"><ActivityIcon activity={activityOf(activeIdea)} />{activityLabel(activityOf(activeIdea))}</span><h3>{activeIdea.title}</h3><p>{activeIdea.description}</p><div className="idea-meta"><span>{durationLabel(activeIdea.duration_minutes, activeIdea.duration)}</span><i /><span>{budgetLabel(activeIdea.budget_eur)}</span></div></div> : <p className="modal-copy">{drawMessage}</p>}{activeIdeaWeatherAdvice && weatherForecast[0] && <div className={`draw-weather-advice advice-${activeIdeaWeatherAdvice.label}`}><strong>{activityWeatherLabel(activeIdeaWeatherAdvice)}</strong>{activeIdeaWeatherAdvice.reasons.length > 0 && <p>{activeIdeaWeatherAdvice.reasons.map((reason) => activityWeatherReason(reason)).join(" ")}</p>}{activeIdeaWeatherAdvice.label === "mixed" && <small>O tempo é uma indicação, não uma regra — a escolha continua a ser vossa.</small>}</div>}{drawMessage && activeIdea && <p className="draw-message">{drawMessage}</p>}
           {discoveryMode === "random" && drawnIdeaIds.length > 0 && <div className="suggestion-history"><span>SUGESTÕES ANTERIORES</span><div>{drawnIdeaIds.map((id, index) => { const idea = ideas.find((item) => item.id === id); return idea ? <button type="button" key={`${id}-${index}`} className={activeIdeaId === id ? "selected-suggestion" : ""} onClick={() => setActiveIdeaId(id)} aria-label={`${"Escolher sugestão"} ${index + 1}: ${idea.title}`}>{index + 1}</button> : null; })}</div></div>}
           {activeIdea && <div className="draw-actions">{discoveryMode === "random" && randomDrawCount < 3 && <button className="draw-again-button" onClick={() => drawRandomIdea()}>{`Sortear outra vez (${3 - randomDrawCount} restantes)`} <span>⟳</span></button>}{discoveryMode === "random" && randomDrawCount >= 3 && <button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button>}{discoveryMode === "feeling" && <button className="draw-again-button" onClick={() => setModal("feeling")}>{"Alterar respostas"} <span>↻</span></button>}{anniversaryPlanDate ? <button className="draw-plan-today" disabled={busy} onClick={() => void planForAnniversary(activeIdea)}>{`Marcar para ${formatDate(anniversaryPlanDate, { day: "numeric", month: "long" })}`} <span>♥</span></button> : <button className="draw-plan-today" disabled={busy} onClick={() => void planForToday(activeIdea)}>{"Este date é para hoje"} <span>✓</span></button>}<button className="draw-plan-later" onClick={() => openPlan(activeIdea)}>Planear para outro dia</button></div>}
             {!activeIdea && <div className="draw-actions"><button className="draw-again-button" onClick={beginFeeling}>{"Experimentar o modo feeling"} <span>→</span></button><button className="modal-submit" onClick={openNewIdea}>{"Adicionar ideia"} <span>→</span></button></div>}</>
@@ -2480,7 +2513,7 @@ function App() {
               {feelingStep < 4 ? <>
                 <h3 className="feeling-question-title">{(["O que vos apetece fazer?", "Quanto tempo têm?", "Qual é o orçamento para os dois?", "Até onde querem ir?"] as const)[feelingStep]}</h3>
                 <div className="feeling-choice-grid">
-                  {feelingStep === 0 && ([...activityValues, "Surprise me"] as const).map((activity) => <button type="button" key={activity} className={`feeling-choice ${feelingAnswers.activity === activity ? "selected" : ""}`} aria-pressed={feelingAnswers.activity === activity} onClick={() => { setFeelingAnswers((current) => ({ ...current, activity })); setFeelingStep(1); }}><span>{activity === "Surprise me" ? "?" : activities.find((item) => item.value === activity)?.emoji}</span>{activity === "Surprise me" ? "Surpreendam-nos" : activities.find((item) => item.value === activity)?.label}</button>)}
+                  {feelingStep === 0 && ([...activityValues, "Surprise me"] as const).map((activity) => <button type="button" key={activity} className={`feeling-choice ${feelingAnswers.activity === activity ? "selected" : ""}`} aria-pressed={feelingAnswers.activity === activity} onClick={() => { setFeelingAnswers((current) => ({ ...current, activity })); setFeelingStep(1); }}><span>{activity === "Surprise me" ? <Sparkles size={20} strokeWidth={1.9} aria-hidden="true" /> : <ActivityIcon activity={activity} size={20} />}</span>{activity === "Surprise me" ? "Surpreendam-nos" : activities.find((item) => item.value === activity)?.label}</button>)}
                   {feelingStep === 1 && ([["1", "Até 1 hora", "Up to 1 hour"], ["2", "1–2 horas", "1–2 hours"], ["3", "2–4 horas", "2–4 hours"], ["4", "Meio dia ou mais", "Half a day or more"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.duration === value ? "selected" : ""}`} aria-pressed={feelingAnswers.duration === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, duration: value })); setFeelingStep(2); }}><span>◷</span>{portuguese}</button>)}
                   {feelingStep === 2 && ([["1", "Gratuito ou até 10 €", "Free or up to €10"], ["2", "10–30 €", "€10–30"], ["3", "30–60 €", "€30–60"], ["4", "Sem limite definido", "No set limit"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.budget === value ? "selected" : ""}`} aria-pressed={feelingAnswers.budget === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, budget: value })); setFeelingStep(3); }}><span>€</span>{portuguese}</button>)}
                   {feelingStep === 3 && ([["1", "Em casa", "At home"], ["2", "Perto (até 30 min)", "Nearby (up to 30 min)"], ["3", "Até 1 hora de viagem", "Up to 1 hour away"], ["4", "Sem limite", "No limit"]] as const).map(([value, portuguese]) => <button type="button" key={value} className={`feeling-choice ${feelingAnswers.distance === value ? "selected" : ""}`} aria-pressed={feelingAnswers.distance === value} onClick={() => { setFeelingAnswers((current) => ({ ...current, distance: value })); setFeelingStep(4); }}><span>⌖</span>{portuguese}</button>)}

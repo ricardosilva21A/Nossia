@@ -8,7 +8,7 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 
 1. Create your own account with email or **Continuar com Google** (each of you has one). Right after, the app asks for your name, your partner's and since when you've been together.
 2. Create your avatar and tell it your birthday. The first one in also picks the house pet (for example, Summer).
-3. In **Definições** (Settings, under the avatar at the top), open **Perfil do casal** (Couple profile) and create the invite link for your partner (send it over WhatsApp or any app). Whoever opens it creates their own account, with email or Google too, and the app asks for their name and birthday. If the invite doesn't come through by itself, there's **Colar o link** (paste the link) on the details screen.
+3. In **Definições** (Settings, under the avatar at the top), go to **Casa**, open **Perfil do casal** (Couple profile) and create the invite link for your partner (send it over WhatsApp or any app). Whoever opens it creates their own account, with email or Google too, and the app asks for their name and birthday. If the invite doesn't come through by itself, there's **Colar o link** (paste the link) on the details screen.
 4. On iPhone, open the site in Safari, tap **Share** and then **Add to Home Screen**. Always open Nossia from that icon: it's the only way to get notifications.
 
 ## The house
@@ -24,6 +24,8 @@ The app is currently in Portuguese, so the names of screens and buttons appear h
 
 When one of you is at work or out, it shows as a short line above the sofa.
 
+
+**Hoje** shows the room where you are: where you both are, or yours when you're apart (the living room when nobody is home). Below it are the four rooms, with a dot for each of you and for the pet; tap one to peek at it for a few seconds.
 
 The house has rooms: **Hoje** is the living room, **Agenda** the kitchen, **Nós** the bedroom and **Explorar** the garden. Each of you is where you'd be at that hour: breakfast in the kitchen the hour before work (each at their own time; a lie-in until 8 without work), cooking, tidying or on the sofa while the other is at work, and asleep in the bedroom at night, with the living-room light off. The pet follows you around the house: it eats from its named bowl in the kitchen, lies on its bed in the bedroom and goes out through the dog flap to play in the fenced garden. It always comes along, even when nobody's home or everyone's asleep; in the living room it waits at the door when you're both out. When you're both home you make dinner together, and some evenings whoever plays games sits at the bedroom computer while the other lies on the bed with the pet (and now and then joins in). Turn on **Jogo no computador** in **Definições › O meu avatar** to show up at the desk; playing alone, the pet lies at your feet. If someone got home while the app was closed, their arrival is replayed when you open it: they walk in and the pet runs to the door; a few minutes before someone leaves work, the pet is already waiting there. A kiss or hug you receive also shows in the living room, a date marked as done means a party with confetti, and on Friday and Saturday nights the pet sleeps at the foot of your bed. The garden changes with the weather and the season: flowers in spring, the pool in the sun, brown leaves in autumn, bare branches in winter, rain when it rains, and at Christmas snow, a snowman and a decorated tree. Whoever isn't in the living room shows up in a short line above the sofa.
 
@@ -42,9 +44,11 @@ Saw a place on Instagram, TikTok, WhatsApp or Maps? Copy the link and paste it i
 
 ## Ideas
 
-**Explorar** (Explore) is one screen. At the top, **Surpreendam-nos** (one idea at a time), **Escolher pelo feeling** and search. Below, short rows: **Novidades perto de vocês** (places the house found around home, once a week), **Guardadas por vocês** and **Desta época**, plus restaurants, cafés and bars. **Ver todas as ideias** shows the whole catalogue. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
+**Explorar** (Explore) has three parts: **Ideias**, **Jogos** and **Sítios**. In **Ideias**, at the top, **Surpreendam-nos** (one idea at a time), **Escolher pelo feeling** and search. Below, short rows: **Novidades perto de vocês** (places the house found around home, once a week), **Guardadas por vocês** and **Desta época**, plus restaurants, cafés and bars. **Ver todas as ideias** shows the whole catalogue. Now and then the house asks whether you fancy each idea: right to like, left to pass. Your partner never sees what you pass.
 
-**Couple games** live in Explorar too, hosted by the house's pet. In **Quanto me conheces?** you first guess your partner's answer, then give your own. Some questions are a tap on an option, others are written (favourite film, shower song…): for those, the person the question is about says whether the guess was right, nearly right or wrong. There are also **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** and **Memórias**. Your partner's answers only show once you've answered too, and the pet tells you what each of you said, with a reaction for a right guess ("YES!") and another for a wrong one (a pillow). In the house, the bubble lets you know when there's news, when your partner answered, and when you need to judge their guess. What each of you says about yourself is kept: it shows up as hints in **Prendas** (gifts), and the places you want to go show up on the wall map.
+Filters and idea labels use line icons that look the same on every phone, and each idea's kind shows under its title.
+
+**Couple games** live in **Explorar › Jogos**, hosted by the house's pet. In **Quanto me conheces?** you first guess your partner's answer, then give your own. Some questions are a tap on an option, others are written (favourite film, shower song…): for those, the person the question is about says whether the guess was right, nearly right or wrong. There are also **Isto ou aquilo**, **Quem é mais…?**, **Sonhos** and **Memórias**. Your partner's answers only show once you've answered too, and the pet tells you what each of you said, with a reaction for a right guess ("YES!") and another for a wrong one (a pillow). In the house, the bubble lets you know when there's news, when your partner answered, and when you need to judge their guess. What each of you says about yourself is kept: it shows up as hints in **Prendas** (gifts), and the places you want to go show up on the wall map.
 
 ## Gifts
 
@@ -52,7 +56,7 @@ In **Nós › Prendas** (Us › Gifts) you keep gift ideas for your partner thro
 
 ## Restaurants and places
 
-In **Explorar**, under **Restaurantes, cafés e bares**, choose between trying somewhere new and going back to one you liked.
+In **Explorar › Sítios**, choose between trying somewhere new and going back to one you liked.
 
 ## After a date
 
@@ -70,11 +74,13 @@ Plan destinations and what to do each day in **Agenda › Viagens**. After a tri
 
 In **Agenda › Viagens**, Nossia shows the next long weekends and bridge days worth taking, for example: "8 December is a Tuesday: take Monday off and you get 4 days in a row". It takes both work schedules into account, including weekend shifts, and your municipality's holiday. It also sends a notification three weeks before.
 
-In **Definições**, under **As minhas férias** (my holidays), each person says how they take time off: **Quando quero** (whenever I want), with days per year and hard months, or **Marcadas pela empresa** (set by the company), with the periods.
+**Definições** has four groups: **Conta** (your avatar, holidays, work hours and sign out), **Casa** (couple profile, invite, pet, where you live and flights), **Notificações** (notifications and the iPhone calendar) and **Privacidade** (weather location, usage data, help and deleting the account).
+
+In **Definições › Conta**, under **As minhas férias** (my holidays), each person says how they take time off: **Quando quero** (whenever I want), with days per year and hard months, or **Marcadas pela empresa** (set by the company), with the periods.
 
 ## Notifications and calendar
 
-In **Definições**, turn on notifications and choose what you want (dates, commitments, affection…). On iPhone they only work with Nossia on the Home Screen; Today reminds you until they're on. In the same settings you can subscribe to your dates in the iPhone calendar.
+In **Definições › Notificações**, turn on notifications and choose what you want (dates, commitments, affection…). On iPhone they only work with Nossia on the Home Screen; Today reminds you until they're on. In the same settings you can subscribe to your dates in the iPhone calendar.
 
 ## Month review and weather
 
@@ -82,4 +88,4 @@ On the 1st you get a review of the month that ended (dates, 😍, trips), which 
 
 ## Deleting the account
 
-It's in **Definições**. If your partner has an account, the couple's data stays with them. If it's just you, everything is deleted, including photos.
+It's in **Definições › Privacidade**. If your partner has an account, the couple's data stays with them. If it's just you, everything is deleted, including photos.
